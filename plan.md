@@ -488,18 +488,22 @@ Checklist (in build order):
 
 Depends on M12 for: system lines in the Captain's Log, the per-person notices, and the "Groom Taxes" and "curses received" metrics. If you would rather have badges before the games, the first two are small and can be built here instead; the two metrics would simply be unavailable in the builder until M12.
 
-Open questions:
-1. **"Cup tab":** I've read this as the Leaderboard tab (it is headed "The Crider Cup"). It already has four views (Standings, Trends, Challenges, Ledger) and a fifth doesn't fit a phone. Proposal: Standings, Trends, Trophies, Challenges, with the Ledger moving to a link beside "How points work". Or should the tab itself be renamed "Cup"?
-2. **Points:** you gave no values. Proposal: achievements +5, merit badges +2, Sleeping Beauty +10, all editable. Or should badges be worth nothing by default?
-3. **When achievements pay.** Recommended: at the 4am lock only. While the day runs the trophy case shows "currently held by…". Paying live would mean taking points back each time a "most" badge changes hands. The pop and feed line would fire when a "first" badge is claimed (it can't change hands) and at the lock for "most" badges.
-4. **Repeats for merit badges.** Proposal: BAC, time-of-day and fruity badges at most once per party day; the Kill badges repeat only with a fresh set of drinks (no drink counts twice towards the same badge), and reaching five in an hour earns Triple, Quad and Penta in turn.
-5. **Lightweight:** read as "of everyone who reached 0.10% that day, whoever had logged the fewest drinks in that session when they got there; ties go to whoever got there first". Right?
-6. **Paparazzi** as a rule rather than coded: OK?
-7. **Hydro Hero and Landlubber (Hydro Homie)** are both "most waters that day", so the same person would be paid twice. Keep both, or retire the M11 daily award when this ships?
-8. **Tagging:** can a tagged person remove themselves from a photo? Can the poster add tags after posting? If an "asleep" photo tags two people, does the first one tagged get Sleeping Beauty?
-9. **Sleeping Beauty pin:** pinned to the top of the feed until the next 4am?
-10. **Fruity:** I'll propose the list of catalogue drinks to tag when I build it. Custom drinks and ones found by barcode search can't be fruity. OK?
-11. **Two names against your own rule.** CLAUDE.md rule 5 (from your first brief) says the app never implies someone is fine to drive and never references a legal limit. "Designated Driver" for the first person to 0.08% and "Take the Wheel Cap'n" at 0.08% are jokes that do the opposite on their face. I'll build them as written if you confirm; the alternative is keeping the names and writing the descriptions so the wheel is plainly the ship's.
+Decisions from Peter (2026-10-08):
+- **Points:** achievements +5, merit badges +2, Sleeping Beauty +10, all editable.
+- **Achievements pay at the 4am lock only.** During the day the trophy case shows "currently held by…". The pop and feed line fire when a "first" badge is claimed and at the lock for "most" badges.
+- **Repeats:** BAC, time-of-day and fruity badges at most once per party day. Kill badges repeat only with a fresh set of drinks; five in an hour earns Triple, Quad and Penta in turn.
+- **Lightweight:** of everyone who reached 0.10% that day, whoever had logged the fewest drinks in that session when they got there; ties go to whoever got there first.
+- **Paparazzi** is seeded as a rule ("most tagged photos"), not coded.
+- **Tagging:** a tagged person can remove themselves; the poster can add tags after posting; an "asleep" photo that tags two people awards Sleeping Beauty to both.
+- **Sleeping Beauty pin:** the photo stays at the top of the feed until the next 4am.
+- **Designated Driver and Take the Wheel Cap'n** are built exactly as written, names and 0.08% conditions included. This is Peter's explicit exception to rule 5 for these two badges; don't soften or re-flag them.
+- **Fruity** (not answered, taken as agreed): I propose the catalogue list at build time; custom and barcode-search drinks can't be fruity.
+- **Nothing is renamed.** The bottom-nav tab stays "Leaders" and the page stays "Leaderboard".
+
+Still open:
+1. **Where the Trophy case goes.** The Leaderboard has four views (Standings, Trends, Challenges, Ledger) and a fifth doesn't fit a phone. Proposal: Standings, Trends, Trophies, Challenges, with the Ledger behind a link beside "How points work".
+2. **Hydro Hero vs Landlubber (Hydro Homie).** Peter's answer reads as: one stays the all-day "most waters" award and the other becomes an hourly one, paid each hour to whoever has the most waters so far that day (like Hour Winner). Which is which, and how many points for the hourly one?
+3. **Build order:** M13 after M12 as planned, or M13 first?
 
 Size and order: M11 is the foundation and is built. M13 builds after M12 unless you say otherwise (see its dependency note).
 
