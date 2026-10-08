@@ -11,3 +11,4 @@ Runs on mock data with no setup. Copy `.env.example` to `.env.local` to connect 
 
 See [plan.md](plan.md) for milestones and [CLAUDE.md](CLAUDE.md) for stack and conventions.
 
+cheers!
