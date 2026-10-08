@@ -124,7 +124,19 @@ export function ScheduleCalendar({ events, onCreate, onEdit, onMove }: ScheduleC
             title: event.title,
             start: event.startsAt,
             end: event.endsAt ?? undefined,
+            extendedProps: { location: event.location },
           }))}
+          eventContent={(info) => (
+            <>
+              {info.timeText && <div className={info.timeClass}>{info.timeText}</div>}
+              <div className={info.titleClass}>{info.event.title}</div>
+              {info.event.extendedProps.location && (
+                <div className="mt-0.5 text-xs leading-tight break-words opacity-80">
+                  {info.event.extendedProps.location}
+                </div>
+              )}
+            </>
+          )}
           editable
           selectable
           selectMirror
