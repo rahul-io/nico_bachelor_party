@@ -25,7 +25,7 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 
 1. **Runs without credentials.** If `DATABASE_URL` / `BLOB_READ_WRITE_TOKEN` are missing, the app falls back to in-memory mock data and every tab must still be clickable. Never import a DB or Blob client at module top level in a way that throws when env vars are absent.
 2. **One data seam.** UI only talks to `/api/*` (through SWR hooks in `src/hooks`). Route handlers only talk to `getStore()` from `src/lib/store`. Both the mock and Postgres stores implement the same `Store` interface; add a method to the interface, both implementations, `db/schema.sql` and the contract suite in `src/lib/store/store.test.ts` together. That suite runs every case against the mock and against a real in-process Postgres (PGlite), which is how SQL gets tested without credentials.
-3. **Theme tokens live in one place**: `src/app/globals.css` (`:root` CSS variables + Tailwind v4 `@theme`). There is no `tailwind.config.*`. Components use token utilities (`bg-surface`, `text-muted`, `rounded-card`…), never hex values, arbitrary color values, or Tailwind's default palette (`bg-zinc-900`).
+3. **Theme tokens live in one place**: `src/app/globals.css` (Tailwind v4 `@theme`). The two unavoidable copies are `config.brand` (manifest and status-bar colour) and the palette in `scripts/make-icons.mjs`; change them together and re-run the icon script. There is no `tailwind.config.*`. Components use token utilities (`bg-surface`, `text-muted`, `rounded-card`…), never hex values, arbitrary color values, or Tailwind's default palette (`bg-zinc-900`).
 4. **Admin password stays server-side.** Checked in a route handler against `ADMIN_PASSWORD` with a timing-safe compare; session is a signed httpOnly cookie. No `NEXT_PUBLIC_` admin anything. Every `/api/admin/*` handler and every admin-only action verifies the cookie itself. In production with `ADMIN_PASSWORD` unset, admin login is disabled (fail closed); in dev it falls back to a documented dev password.
 5. **Sobriety tracker is a toy.** Always labelled as a rough estimate for fun. Never render copy, colours, or icons implying someone is fine to drive, "under the limit", or "sober" — no green/safe states tied to a BAC number, no references to legal limits.
 6. **No Google Photos API.** The Photos tab only links out to the shared album via `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL`.
@@ -52,7 +52,7 @@ No accounts. First visit creates a profile (display name, photo, height, weight,
 src/
   app/
     layout.tsx, globals.css        root layout, theme tokens
-    manifest.ts, icon/apple-icon   home-screen install
+    manifest.ts, icon.png, apple-icon.png   home-screen install (PNGs are generated, don't hand-edit)
     (tabs)/                        layout with bottom nav
       schedule/ tracker/ leaderboard/ photos/
     admin/                         password-gated, not in the nav
@@ -83,6 +83,7 @@ db/
   schema.sql                       idempotent schema, applied by `npm run db:setup`
 scripts/
   db-setup.mjs                     runs schema.sql against DATABASE_URL
+  make-icons.mjs                   regenerates every icon PNG from one inline SVG
   export-photos.mts                downloads every post + photos.csv; runs on plain Node type-stripping,
                                    so anything it imports must use relative `.ts` paths and no `@/` alias
 ```
@@ -92,6 +93,7 @@ scripts/
 - Server Components by default; add `"use client"` only where state, effects, or SWR are needed.
 - `cacheComponents` and `partialPrefetching` are on (create-next-app defaults). Consequences:
   - No `export const dynamic` / `revalidate` segment config. A GET route handler that reads no request data must call `await connection()` to stay uncached.
+  - No `redirect()` from a page component (it fails the same validation); route-level redirects go in `next.config.ts`.
   - Every page must render something on the server. Never gate a page by returning `null` until the client mounts (Next reports a dropped segment). Browser-only values come from hooks that are `null`/`undefined` on the server: `useNow()` and `useIdentity()`. Never call `Date.now()` or read localStorage during render.
 - Shared types come from `src/lib/store/types.ts`. Read env vars only through `src/lib/env.ts`.
 - Timestamps are stored as UTC (`timestamptz`). Anything about the plan (schedule, admin event times, export file names) renders in the party timezone from `src/config.ts`. "When was this posted" stamps on photos and comments render in the viewer's own timezone (`formatDeviceWeekdayTime`).

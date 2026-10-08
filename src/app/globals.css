@@ -36,7 +36,7 @@
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
-  --font-display: var(--font-geist-sans);
+  --font-display: var(--font-bricolage), var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -49,4 +49,19 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   -webkit-tap-highlight-color: transparent;
+  /* Stops the page rubber-banding behind the fixed header and nav when installed. */
+  overscroll-behavior-y: none;
+}
+
+/* Keyboard users get a visible focus ring; taps don't. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
