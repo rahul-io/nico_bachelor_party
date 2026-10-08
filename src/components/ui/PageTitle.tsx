@@ -8,15 +8,15 @@ interface PageTitleProps {
   children?: ReactNode;
 }
 
-/** A screen's heading: functional eyebrow and Fraunces title, with the rotating toast beside it. */
+/** A screen's heading: eyebrow with the rotating toast opposite it, then the Fraunces title. */
 export function PageTitle({ eyebrow, title, children }: PageTitleProps) {
   return (
     <header>
-      {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">{eyebrow}</p>}
-      <div className="flex items-end justify-between gap-3">
-        <h1 className="font-display text-3xl font-bold leading-tight">{title}</h1>
-        <Splash className="shrink-0 pb-0.5 text-accent" />
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">{eyebrow}</p>
+        <Splash className="shrink-0 text-accent" />
       </div>
+      <h1 className="font-display text-3xl font-bold leading-tight">{title}</h1>
       {children}
     </header>
   );

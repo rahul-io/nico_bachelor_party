@@ -31,9 +31,7 @@ export default function GatePage() {
 
   return (
     <main className="mx-auto w-full max-w-app flex-1 pb-[calc(env(safe-area-inset-bottom)+2rem)]">
-      <WelcomeHero>
-        <p className="mt-2 text-sand/85">Members and invited guests only.</p>
-      </WelcomeHero>
+      <WelcomeHero />
       <div className="px-4">
         <Card>
           {info && !info.configured ? (

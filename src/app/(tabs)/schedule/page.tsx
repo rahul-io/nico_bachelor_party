@@ -34,7 +34,7 @@ export default function SchedulePage() {
   return (
     <div className="space-y-4">
       <PhotoBand image="/brand/hero-sunset.webp" focus="object-[70%_center]">
-        <Splash className="absolute right-4 top-4 text-gold-hi" />
+        <Splash className="absolute right-4 top-4 text-gold-hi drop-shadow-lg" />
         <div className="px-5 pb-5 pt-24">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-hi">Ahoy, crew</p>
           <h1 className="font-display text-3xl font-bold leading-tight">The Voyage</h1>

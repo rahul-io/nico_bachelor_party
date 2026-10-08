@@ -19,7 +19,7 @@ export function WelcomeHero({ children }: { children?: ReactNode }) {
       <div className="flex flex-col items-center px-6 pb-7 pt-[calc(env(safe-area-inset-top)+2rem)]">
         {/* eslint-disable-next-line @next/next/no-img-element -- small pre-sized brand asset */}
         <img src="/brand/lockup.webp" alt={config.partyName} className="h-64 w-auto drop-shadow-xl" />
-        <Splash className="mt-3 text-gold-hi" />
+        <Splash size="lg" className="mt-3 text-gold-hi drop-shadow-lg" />
         {/* eslint-disable-next-line @next/next/no-img-element -- small pre-sized brand asset */}
         <img src="/brand/rope.webp" alt="" className="my-2 h-10 w-auto" />
         <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-gold-hi">
