@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import type { FeedPost } from "@/lib/store/types";
-import { formatWeekdayTime } from "@/lib/time";
+import { formatDeviceWeekdayTime } from "@/lib/time";
 
 interface PostCardProps {
   post: FeedPost;
@@ -25,7 +25,7 @@ export function PostCard({ post, canDelete, onDelete }: PostCardProps) {
             )}{" "}
             <span className="text-muted">posted a {noun}</span>
           </p>
-          <p className="text-sm text-muted">{formatWeekdayTime(post.createdAt)}</p>
+          <p className="text-sm text-muted">{formatDeviceWeekdayTime(post.createdAt)}</p>
         </div>
         {canDelete ? (
           <button

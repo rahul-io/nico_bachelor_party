@@ -94,7 +94,7 @@ scripts/
   - No `export const dynamic` / `revalidate` segment config. A GET route handler that reads no request data must call `await connection()` to stay uncached.
   - Every page must render something on the server. Never gate a page by returning `null` until the client mounts (Next reports a dropped segment). Browser-only values come from hooks that are `null`/`undefined` on the server: `useNow()` and `useIdentity()`. Never call `Date.now()` or read localStorage during render.
 - Shared types come from `src/lib/store/types.ts`. Read env vars only through `src/lib/env.ts`.
-- Timestamps are stored as UTC (`timestamptz`) and rendered in the party timezone from `src/config.ts`, not the device's.
+- Timestamps are stored as UTC (`timestamptz`). Anything about the plan (schedule, admin event times, export file names) renders in the party timezone from `src/config.ts`. "When was this posted" stamps on photos and comments render in the viewer's own timezone (`formatDeviceWeekdayTime`).
 - Points are a ledger (`point_events`); totals are always summed, never stored.
 - Validate request bodies by hand in the route handler; return `{ error }` with a proper status.
 - Admin: every `/api/admin/*` handler starts with `if (!(await isAdmin())) return jsonError("Not authorized", 401)`. Guest-facing reads of the same data live outside `/api/admin` and return only public fields.

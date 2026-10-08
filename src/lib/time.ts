@@ -44,6 +44,20 @@ export function formatWeekdayTime(date: DateInput): string {
   return weekdayTimeFormat.format(new Date(date));
 }
 
+const deviceWeekdayTimeFormat = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/**
+ * "Fri 7:30 PM" in the viewer's own timezone. Used for when things were posted
+ * (photos, comments); the schedule itself always uses party time.
+ */
+export function formatDeviceWeekdayTime(date: DateInput): string {
+  return deviceWeekdayTimeFormat.format(new Date(date));
+}
+
 /** Weekday and day-of-month parts for a day key, e.g. { weekday: "Thu", day: "8" }. */
 export function dayParts(key: string): { weekday: string; day: string; long: string } {
   const noonUtc = new Date(`${key}T12:00:00Z`);
