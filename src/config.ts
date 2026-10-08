@@ -7,6 +7,8 @@ export const config = {
   location: "San Diego, CA",
   /** All schedule times are shown in this zone, regardless of the phone's. */
   timezone: "America/Los_Angeles",
+  /** Where maps open before there is anything to show. */
+  mapCenter: { lat: 32.7157, lng: -117.1611 },
   days,
   /**
    * Colours the browser needs outside CSS (manifest, status bar). Must match

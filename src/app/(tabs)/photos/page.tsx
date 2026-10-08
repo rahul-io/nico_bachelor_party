@@ -6,8 +6,10 @@ import useSWR from "swr";
 import type { AdminSession } from "@/app/admin/page";
 import { Composer } from "@/components/photos/Composer";
 import { PostCard } from "@/components/photos/PostCard";
+import { PhotoMap } from "@/components/photos/PhotoMap";
 import { PostDetailSheet } from "@/components/photos/PostDetailSheet";
 import { Card } from "@/components/ui/Card";
+import { Segmented } from "@/components/ui/Segmented";
 import { Status } from "@/components/ui/Status";
 import { config } from "@/config";
 import { useAction } from "@/hooks/useAction";
@@ -16,6 +18,13 @@ import { useIdentity } from "@/hooks/useProfile";
 import { apiFetch } from "@/lib/api";
 import { applyReaction, type ReactionEmoji } from "@/lib/reactions";
 import type { Feed, FeedPost } from "@/lib/store/types";
+
+const views = [
+  { value: "feed", label: "Feed" },
+  { value: "map", label: "Map" },
+] as const;
+
+type View = (typeof views)[number]["value"];
 
 export default function PhotosPage() {
   const identity = useIdentity();
@@ -26,6 +35,7 @@ export default function PhotosPage() {
   );
   const { status, run } = useAction();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [view, setView] = useState<View>("feed");
 
   async function remove(post: FeedPost) {
     if (!window.confirm(`Delete this ${post.mediaType === "video" ? "video" : "photo"}? This can't be undone.`)) return;
@@ -65,9 +75,14 @@ export default function PhotosPage() {
       {status?.error && <Status status={status} />}
 
       {!feed && <Card className="text-muted">{error ? "Couldn't load the feed. Retrying…" : "Loading…"}</Card>}
-      {feed?.posts.length === 0 && <Card className="text-muted">No photos yet. Be the first.</Card>}
+      <Segmented options={views} value={view} onChange={setView} label="Photos view" size="sm" />
 
-      <ul className="space-y-4">
+      {view === "map" && feed && <PhotoMap posts={feed.posts} onOpen={setOpenId} />}
+      {view === "feed" && feed?.posts.length === 0 && (
+        <Card className="text-muted">No photos yet. Be the first.</Card>
+      )}
+
+      <ul className={view === "feed" ? "space-y-4" : "hidden"}>
         {feed?.posts.map((post) => (
           <li key={post.id}>
             <PostCard

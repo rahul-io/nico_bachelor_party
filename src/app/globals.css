@@ -89,3 +89,68 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * Maps (Leaflet). OpenStreetMap's standard tiles are light, so the tile layer
+ * alone is inverted to sit in the dark theme; markers and controls are not.
+ */
+.party-map .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.6);
+}
+
+.party-map.leaflet-container {
+  background: var(--color-surface);
+  font-family: inherit;
+}
+
+.party-map .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-canvas) 80%, transparent);
+  color: var(--color-muted);
+}
+
+.party-map .leaflet-control-attribution a {
+  color: var(--color-ink);
+}
+
+.party-map .leaflet-bar a {
+  background: var(--color-raised);
+  color: var(--color-ink);
+  border-color: var(--color-line);
+}
+
+.photo-marker,
+.photo-cluster,
+.pin-marker {
+  display: flex;
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid var(--color-ink);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.6);
+}
+
+.photo-marker {
+  object-fit: cover;
+  background: var(--color-raised);
+}
+
+.photo-marker-video {
+  color: var(--color-accent);
+  font-size: 1.125rem;
+}
+
+.photo-cluster {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pin-marker {
+  background: var(--color-accent);
+  border-color: var(--color-on-accent);
+  color: var(--color-on-accent);
+  font-size: 1.25rem;
+}

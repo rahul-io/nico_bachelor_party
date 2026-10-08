@@ -3,6 +3,7 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useSWRConfig } from "swr";
+import { LocationPicker } from "@/components/admin/LocationPicker";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, inputClass } from "@/components/ui/Field";
@@ -11,6 +12,7 @@ import { config } from "@/config";
 import { useAction } from "@/hooks/useAction";
 import { useSchedule } from "@/hooks/useSchedule";
 import { apiFetch } from "@/lib/api";
+import type { Coordinates } from "@/lib/location";
 import type { ScheduleEvent } from "@/lib/store/types";
 import { dayKey, dayParts, formatTime, partyTimeToIso, timeInputValue } from "@/lib/time";
 
@@ -24,9 +26,11 @@ const blank = {
   location: "",
   mapsQuery: "",
   notes: "",
+  position: null as Coordinates | null,
 };
 
 type Draft = typeof blank;
+type TextField = Exclude<keyof Draft, "position">;
 
 function toDraft(event: ScheduleEvent): Draft {
   return {
@@ -37,6 +41,7 @@ function toDraft(event: ScheduleEvent): Draft {
     location: event.location ?? "",
     mapsQuery: event.mapsQuery ?? "",
     notes: event.notes ?? "",
+    position: event.lat !== null && event.lng !== null ? { lat: event.lat, lng: event.lng } : null,
   };
 }
 
@@ -47,7 +52,7 @@ export function SchedulePanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(blank);
 
-  const set = (key: keyof Draft) => (event: { target: { value: string } }) =>
+  const set = (key: TextField) => (event: { target: { value: string } }) =>
     setDraft((current) => ({ ...current, [key]: event.target.value }));
 
   const dayOptions = config.days.includes(draft.day) ? config.days : [draft.day, ...config.days];
@@ -74,6 +79,8 @@ export function SchedulePanel() {
       location: draft.location,
       mapsQuery: draft.mapsQuery,
       notes: draft.notes,
+      lat: draft.position?.lat ?? null,
+      lng: draft.position?.lng ?? null,
     };
     const ok = await run(
       () =>
@@ -124,6 +131,11 @@ export function SchedulePanel() {
             onChange={set("mapsQuery")}
             maxLength={200}
             placeholder="Defaults to the location"
+          />
+          <LocationPicker
+            value={draft.position}
+            onChange={(position) => setDraft((current) => ({ ...current, position }))}
+            query={draft.mapsQuery || draft.location}
           />
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-muted">Notes (optional)</span>
