@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mockStore } from "./mock";
 import { createPostgresStore, type Sql } from "./postgres";
 import type { ProfileInput, Store } from "./types";
 
 /** The real schema and the real queries, run against an in-process Postgres. */
-async function pgliteStore(): Promise<Store> {
+async function createPgliteStore(): Promise<Store> {
   const db = new PGlite();
   await db.exec(readFileSync("db/schema.sql", "utf8"));
   const sql: Sql = async (strings, ...values) => {
@@ -15,6 +15,8 @@ async function pgliteStore(): Promise<Store> {
   };
   return createPostgresStore(sql);
 }
+
+vi.setConfig({ testTimeout: 30_000 });
 
 const person: ProfileInput = {
   name: "Contract Test",
@@ -26,6 +28,10 @@ const person: ProfileInput = {
 };
 
 const isoPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+// Starting the in-process database is slow, so every test shares one instance.
+let shared: Promise<Store> | undefined;
+const pgliteStore = () => (shared ??= createPgliteStore());
 
 // Both implementations must behave identically; the mock starts with seed data,
 // so assertions only look at rows the test created.
