@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1 done (2026-10-07), verified in the browser on mock data. M2 is next.**
+Status: **M1 and M2 done (2026-10-07), verified in the browser on mock data. M3 is next.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -54,12 +54,14 @@ Points totals and drink counts are derived by query. The ~100-drink catalogue is
 M1 notes: the seeded schedule is placeholder content until Admin exists (M2). `getStore()` always returns the mock store until M3. Leaderboard and Photos are "coming soon" stubs.
 
 ### M2 — Profiles, Leaderboard, Admin (mock data)
-- [ ] Profile photo (client-side resize) and full edit screen
-- [ ] Leaderboard: avatar, name, points, drinks, BAC; sort toggle
-- [ ] Challenges list and points history on the Leaderboard tab
-- [ ] Admin at `/admin` (not in the bottom nav): login/logout with cookie session
-- [ ] Admin: schedule CRUD, challenge CRUD, award/deduct points with reason
-- [ ] Admin: delete stale profiles (and their drinks, points, posts)
+- [x] Profile photo (client-side resize) and full edit screen
+- [x] Leaderboard: avatar, name, points, drinks, BAC; sort toggle
+- [x] Challenges list and points history on the Leaderboard tab
+- [x] Admin at `/admin` (not in the bottom nav): login/logout with cookie session
+- [x] Admin: schedule CRUD, challenge CRUD, award/deduct points with reason
+- [x] Admin: delete stale profiles (and their drinks, points, posts)
+
+M2 notes: profile photos are stored as ~192 px JPEG data URLs on the profile row until M4 moves them to Blob. Mock mode seeds four "(demo)" guests and four placeholder challenges. Challenges can be hidden from guests without deleting them. Point mistakes are fixed with a counter-entry; there is no undo.
 
 ### M3 — Postgres + polling
 - [ ] `db/schema.sql`, `npm run db:setup`, optional seed script

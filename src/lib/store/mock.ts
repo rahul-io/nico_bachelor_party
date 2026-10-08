@@ -1,29 +1,94 @@
-import { seedEvents } from "@/data/seed";
-import type { DrinkLog, Profile, ScheduleEvent, Store } from "./types";
+import { seedChallenges, seedEvents, seedPeople } from "@/data/seed";
+import { STANDARD_DRINK_G } from "@/lib/bac";
+import type { Challenge, DrinkLog, PointEvent, Profile, ScheduleEvent, Store } from "./types";
 
 interface MockData {
   profiles: Map<string, { profile: Profile; token: string }>;
   drinks: DrinkLog[];
   events: ScheduleEvent[];
+  challenges: Challenge[];
+  pointEvents: PointEvent[];
 }
 
 // Kept on globalThis so the data survives hot reloads in dev.
 const globalForMock = globalThis as typeof globalThis & { __mockData?: MockData };
 
-function data(): MockData {
-  globalForMock.__mockData ??= {
+const MINUTE_MS = 60_000;
+
+function seed(): MockData {
+  const now = Date.now();
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const data: MockData = {
     profiles: new Map(),
     drinks: [],
     events: seedEvents.map((event) => ({ id: crypto.randomUUID(), ...event })),
+    challenges: seedChallenges.map((challenge, index) => ({
+      id: crypto.randomUUID(),
+      active: true,
+      createdAt: iso(now + index),
+      ...challenge,
+    })),
+    pointEvents: [],
   };
+
+  // Demo guests so the leaderboard isn't empty in mock mode.
+  for (const person of seedPeople) {
+    const id = crypto.randomUUID();
+    data.profiles.set(id, {
+      token: crypto.randomUUID(),
+      profile: {
+        id,
+        name: person.name,
+        avatarUrl: null,
+        heightCm: person.heightCm,
+        weightKg: person.weightKg,
+        sex: "male",
+        showBacOnPosts: true,
+        createdAt: iso(now),
+      },
+    });
+    for (let i = 0; i < person.drinks; i++) {
+      data.drinks.push({
+        id: crypto.randomUUID(),
+        profileId: id,
+        name: "Beer",
+        volumeOz: null,
+        abv: null,
+        alcoholG: STANDARD_DRINK_G,
+        consumedAt: iso(now - (10 + 25 * i) * MINUTE_MS),
+      });
+    }
+    if (person.points !== 0) {
+      data.pointEvents.push({
+        id: crypto.randomUUID(),
+        profileId: id,
+        delta: person.points,
+        reason: person.reason,
+        challengeId: null,
+        createdAt: iso(now - 30 * MINUTE_MS),
+      });
+    }
+  }
+  return data;
+}
+
+function data(): MockData {
+  globalForMock.__mockData ??= seed();
   return globalForMock.__mockData;
+}
+
+function removeWhere<T>(items: T[], match: (item: T) => boolean): boolean {
+  const before = items.length;
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (match(items[i])) items.splice(i, 1);
+  }
+  return items.length < before;
 }
 
 export const mockStore: Store = {
   async createProfile(input) {
     const profile: Profile = {
       id: crypto.randomUUID(),
-      avatarUrl: null,
       createdAt: new Date().toISOString(),
       ...input,
     };
@@ -44,10 +109,26 @@ export const mockStore: Store = {
     return entry.profile;
   },
 
+  async listProfiles() {
+    return [...data().profiles.values()].map((entry) => entry.profile);
+  },
+
+  async deleteProfile(id) {
+    const store = data();
+    if (!store.profiles.delete(id)) return false;
+    removeWhere(store.drinks, (drink) => drink.profileId === id);
+    removeWhere(store.pointEvents, (event) => event.profileId === id);
+    return true;
+  },
+
   async listDrinks(profileId) {
     return data()
       .drinks.filter((drink) => drink.profileId === profileId)
       .sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
+  },
+
+  async listAllDrinks() {
+    return [...data().drinks];
   },
 
   async addDrink(profileId, input) {
@@ -62,14 +143,74 @@ export const mockStore: Store = {
   },
 
   async deleteDrink(profileId, drinkId) {
-    const drinks = data().drinks;
-    const index = drinks.findIndex((d) => d.id === drinkId && d.profileId === profileId);
-    if (index === -1) return false;
-    drinks.splice(index, 1);
-    return true;
+    return removeWhere(data().drinks, (d) => d.id === drinkId && d.profileId === profileId);
   },
 
   async listEvents() {
     return [...data().events].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  },
+
+  async createEvent(input) {
+    const event: ScheduleEvent = { id: crypto.randomUUID(), ...input };
+    data().events.push(event);
+    return event;
+  },
+
+  async updateEvent(id, input) {
+    const events = data().events;
+    const index = events.findIndex((event) => event.id === id);
+    if (index === -1) return null;
+    events[index] = { id, ...input };
+    return events[index];
+  },
+
+  async deleteEvent(id) {
+    return removeWhere(data().events, (event) => event.id === id);
+  },
+
+  async listChallenges() {
+    return [...data().challenges].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  },
+
+  async createChallenge(input) {
+    const challenge: Challenge = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    data().challenges.push(challenge);
+    return challenge;
+  },
+
+  async updateChallenge(id, input) {
+    const challenges = data().challenges;
+    const index = challenges.findIndex((challenge) => challenge.id === id);
+    if (index === -1) return null;
+    challenges[index] = { ...challenges[index], ...input };
+    return challenges[index];
+  },
+
+  async deleteChallenge(id) {
+    const store = data();
+    if (!removeWhere(store.challenges, (challenge) => challenge.id === id)) return false;
+    // Awarded points stay in the ledger; they just lose the link.
+    for (const event of store.pointEvents) {
+      if (event.challengeId === id) event.challengeId = null;
+    }
+    return true;
+  },
+
+  async listPointEvents() {
+    return [...data().pointEvents].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  async addPointEvent(input) {
+    const event: PointEvent = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    data().pointEvents.push(event);
+    return event;
   },
 };

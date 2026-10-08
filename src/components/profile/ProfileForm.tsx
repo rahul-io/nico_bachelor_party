@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { useSWRConfig } from "swr";
+import { AvatarPicker } from "@/components/profile/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { PROFILE_KEY } from "@/hooks/useProfile";
@@ -24,6 +25,7 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
   const initialHeight = initial ? cmToFeetInches(initial.heightCm) : null;
 
   const [name, setName] = useState(initial?.name ?? "");
+  const [avatarUrl, setAvatarUrl] = useState(initial?.avatarUrl ?? null);
   const [feet, setFeet] = useState(initialHeight ? String(initialHeight.feet) : "");
   const [inches, setInches] = useState(initialHeight ? String(initialHeight.inches) : "");
   const [weight, setWeight] = useState(initial ? String(kgToLb(initial.weightKg)) : "");
@@ -40,6 +42,7 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
     }
     const body: ProfileInput = {
       name: name.trim(),
+      avatarUrl,
       heightCm: feetInchesToCm(Number(feet), Number(inches || 0)),
       weightKg: lbToKg(Number(weight)),
       sex,
@@ -74,6 +77,8 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      <AvatarPicker name={name} value={avatarUrl} onChange={setAvatarUrl} />
+
       <Field
         label="Display name"
         value={name}

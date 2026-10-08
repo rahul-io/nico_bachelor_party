@@ -67,7 +67,8 @@ src/
     bac.ts, drinks.ts, schedule.ts, time.ts, units.ts   pure helpers
     api.ts, identity.ts            client fetch + localStorage identity
     http.ts, validate.ts           route handler helpers
-    auth.ts, env.ts                admin session, env access (M2/M3)
+    auth.ts, env.ts                admin cookie session, env access
+    leaderboard.ts                 server-side totals and points history
   data/
     drinks.json                    ~100 seeded drinks
     seed.ts                        mock schedule / profiles / challenges
@@ -86,4 +87,6 @@ db/
 - Timestamps are stored as UTC (`timestamptz`) and rendered in the party timezone from `src/config.ts`, not the device's.
 - Points are a ledger (`point_events`); totals are always summed, never stored.
 - Validate request bodies by hand in the route handler; return `{ error }` with a proper status.
+- Admin: every `/api/admin/*` handler starts with `if (!(await isAdmin())) return jsonError("Not authorized", 401)`. Guest-facing reads of the same data live outside `/api/admin` and return only public fields.
+- Client data: `usePolled(path)` for polled GETs, `useAction()` for mutations with a status line, then `mutate(key)` the affected paths.
 - Keep dependencies minimal — ask before adding one.
