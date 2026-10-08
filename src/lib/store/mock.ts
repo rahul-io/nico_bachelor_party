@@ -4,6 +4,7 @@ import type { Challenge, DrinkLog, PointEvent, Profile, ScheduleEvent, Store } f
 
 interface MockData {
   profiles: Map<string, { profile: Profile; token: string }>;
+  avatars: Map<string, string>;
   drinks: DrinkLog[];
   events: ScheduleEvent[];
   challenges: Challenge[];
@@ -20,6 +21,7 @@ function seed(): MockData {
   const iso = (ms: number) => new Date(ms).toISOString();
   const data: MockData = {
     profiles: new Map(),
+    avatars: new Map(),
     drinks: [],
     events: seedEvents.map((event) => ({ id: crypto.randomUUID(), ...event })),
     challenges: seedChallenges.map((challenge, index) => ({
@@ -116,14 +118,26 @@ export const mockStore: Store = {
   async deleteProfile(id) {
     const store = data();
     if (!store.profiles.delete(id)) return false;
+    store.avatars.delete(id);
     removeWhere(store.drinks, (drink) => drink.profileId === id);
     removeWhere(store.pointEvents, (event) => event.profileId === id);
     return true;
   },
 
+  async setAvatarData(id, dataUrl) {
+    if (dataUrl) data().avatars.set(id, dataUrl);
+    else data().avatars.delete(id);
+  },
+
+  async getAvatarData(id) {
+    return data().avatars.get(id) ?? null;
+  },
+
   async listDrinks(profileId) {
+    // Reversed first so entries logged in the same millisecond still come out newest first.
     return data()
       .drinks.filter((drink) => drink.profileId === profileId)
+      .reverse()
       .sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
   },
 
@@ -201,7 +215,9 @@ export const mockStore: Store = {
   },
 
   async listPointEvents() {
-    return [...data().pointEvents].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return [...data().pointEvents]
+      .reverse()
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   async addPointEvent(input) {

@@ -9,7 +9,7 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 - Rahul owns the GitHub repo (`rahul-io/nico_bachelor_party`) and the Vercel account. Peter builds locally on Windows and pushes to `main`, which auto-deploys.
 - Never push without Peter asking. Never commit `.env*` files other than `.env.example`.
 - Commits use conventional prefixes (`chore:`, `feat:`, `fix:`).
-- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest). Shell is PowerShell (no `&&`).
+- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent). Shell is PowerShell (no `&&`).
 
 ## Stack
 
@@ -23,12 +23,13 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 ## Hard rules
 
 1. **Runs without credentials.** If `DATABASE_URL` / `BLOB_READ_WRITE_TOKEN` are missing, the app falls back to in-memory mock data and every tab must still be clickable. Never import a DB or Blob client at module top level in a way that throws when env vars are absent.
-2. **One data seam.** UI only talks to `/api/*` (through SWR hooks in `src/hooks`). Route handlers only talk to `getStore()` from `src/lib/store`. Both the mock and Postgres stores implement the same `Store` interface; add a method to the interface and both implementations together.
+2. **One data seam.** UI only talks to `/api/*` (through SWR hooks in `src/hooks`). Route handlers only talk to `getStore()` from `src/lib/store`. Both the mock and Postgres stores implement the same `Store` interface; add a method to the interface, both implementations, `db/schema.sql` and the contract suite in `src/lib/store/store.test.ts` together. That suite runs every case against the mock and against a real in-process Postgres (PGlite), which is how SQL gets tested without credentials.
 3. **Theme tokens live in one place**: `src/app/globals.css` (`:root` CSS variables + Tailwind v4 `@theme`). There is no `tailwind.config.*`. Components use token utilities (`bg-surface`, `text-muted`, `rounded-card`…), never hex values, arbitrary color values, or Tailwind's default palette (`bg-zinc-900`).
 4. **Admin password stays server-side.** Checked in a route handler against `ADMIN_PASSWORD` with a timing-safe compare; session is a signed httpOnly cookie. No `NEXT_PUBLIC_` admin anything. Every `/api/admin/*` handler and every admin-only action verifies the cookie itself. In production with `ADMIN_PASSWORD` unset, admin login is disabled (fail closed); in dev it falls back to a documented dev password.
 5. **Sobriety tracker is a toy.** Always labelled as a rough estimate for fun. Never render copy, colours, or icons implying someone is fine to drive, "under the limit", or "sober" — no green/safe states tied to a BAC number, no references to legal limits.
 6. **No Google Photos API.** The Photos tab only links out to the shared album via `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL`.
-7. **Body metrics are private.** Height, weight and sex are never returned from the API for anyone but the requesting profile. Leaderboard BAC is computed server-side.
+7. **Body metrics are private.** Height, weight and sex are never returned from the API for anyone but the requesting profile. Leaderboard and trend-chart BAC is computed server-side.
+10. **Polled responses stay small.** Anything fetched on the 10 s poll must not carry image data. Avatars live in `profiles.avatar_data` and are served by `/api/avatars/[id]?v=hash` with immutable caching; `avatar_url` holds only that short URL. Never `select *` from `profiles`.
 8. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number.
 9. **Mobile first.** Design for a ~380px-wide phone at night: dark theme, tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
 
@@ -68,13 +69,16 @@ src/
     api.ts, identity.ts            client fetch + localStorage identity
     http.ts, validate.ts           route handler helpers
     auth.ts, env.ts                admin cookie session, env access
-    leaderboard.ts                 server-side totals and points history
+    leaderboard.ts, trends.ts      server-side totals, points history, chart series
+    avatar.ts, chart.ts            avatar storage rules; tick/label layout helpers
   data/
     drinks.json                    ~100 seeded drinks
     seed.ts                        mock schedule / profiles / challenges
   config.ts                        party name, dates, timezone, upload caps
 db/
   schema.sql                       idempotent schema, applied by `npm run db:setup`
+scripts/
+  db-setup.mjs                     runs schema.sql against DATABASE_URL
 ```
 
 ## Conventions
@@ -89,4 +93,5 @@ db/
 - Validate request bodies by hand in the route handler; return `{ error }` with a proper status.
 - Admin: every `/api/admin/*` handler starts with `if (!(await isAdmin())) return jsonError("Not authorized", 401)`. Guest-facing reads of the same data live outside `/api/admin` and return only public fields.
 - Client data: `usePolled(path)` for polled GETs, `useAction()` for mutations with a status line, then `mutate(key)` the affected paths.
+- Charts are hand-written SVG (no chart library). One y-axis, 2 px lines, neutral lines with a single highlighted series, text in `ink`/`muted` tokens, and a ranked list under the chart that doubles as legend and table view.
 - Keep dependencies minimal — ask before adding one.

@@ -1,0 +1,211 @@
+import type { Challenge, DrinkLog, PointEvent, Profile, ScheduleEvent, Store } from "./types";
+
+type Row = Record<string, unknown>;
+
+/** Tagged-template query function; values become bound parameters. Matches Neon's `neon()`. */
+export type Sql = (strings: TemplateStringsArray, ...values: unknown[]) => Promise<Row[]>;
+
+const iso = (value: unknown) => new Date(value as string | Date).toISOString();
+const isoOrNull = (value: unknown) => (value == null ? null : iso(value));
+
+const toProfile = (row: Row): Profile => ({
+  id: row.id as string,
+  name: row.name as string,
+  avatarUrl: row.avatar_url as string | null,
+  heightCm: row.height_cm as number,
+  weightKg: row.weight_kg as number,
+  sex: row.sex as Profile["sex"],
+  showBacOnPosts: row.show_bac_on_posts as boolean,
+  createdAt: iso(row.created_at),
+});
+
+const toDrink = (row: Row): DrinkLog => ({
+  id: row.id as string,
+  profileId: row.profile_id as string,
+  name: row.name as string,
+  volumeOz: row.volume_oz as number | null,
+  abv: row.abv as number | null,
+  alcoholG: row.alcohol_g as number,
+  consumedAt: iso(row.consumed_at),
+});
+
+const toEvent = (row: Row): ScheduleEvent => ({
+  id: row.id as string,
+  startsAt: iso(row.starts_at),
+  endsAt: isoOrNull(row.ends_at),
+  title: row.title as string,
+  location: row.location as string | null,
+  mapsQuery: row.maps_query as string | null,
+  notes: row.notes as string | null,
+});
+
+const toChallenge = (row: Row): Challenge => ({
+  id: row.id as string,
+  title: row.title as string,
+  description: row.description as string,
+  points: row.points as number,
+  active: row.active as boolean,
+  createdAt: iso(row.created_at),
+});
+
+const toPointEvent = (row: Row): PointEvent => ({
+  id: row.id as string,
+  profileId: row.profile_id as string,
+  delta: row.delta as number,
+  reason: row.reason as string | null,
+  challengeId: row.challenge_id as string | null,
+  createdAt: iso(row.created_at),
+});
+
+// Profile queries list their columns explicitly so avatar_data is never pulled by accident.
+export function createPostgresStore(sql: Sql): Store {
+  return {
+    async createProfile(input) {
+      const [row] = await sql`
+        insert into profiles (name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts)
+        values (${input.name}, ${input.avatarUrl}, ${input.heightCm}, ${input.weightKg}, ${input.sex}, ${input.showBacOnPosts})
+        returning id, token, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at`;
+      return { profile: toProfile(row), token: row.token as string };
+    },
+
+    async getProfileByToken(id, token) {
+      const rows = await sql`
+        select id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at
+        from profiles where id = ${id} and token = ${token}`;
+      return rows[0] ? toProfile(rows[0]) : null;
+    },
+
+    async updateProfile(id, input) {
+      const rows = await sql`
+        update profiles set
+          name = ${input.name},
+          avatar_url = ${input.avatarUrl},
+          height_cm = ${input.heightCm},
+          weight_kg = ${input.weightKg},
+          sex = ${input.sex},
+          show_bac_on_posts = ${input.showBacOnPosts}
+        where id = ${id}
+        returning id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at`;
+      if (!rows[0]) throw new Error(`Profile ${id} not found`);
+      return toProfile(rows[0]);
+    },
+
+    async listProfiles() {
+      const rows = await sql`
+        select id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at
+        from profiles order by created_at`;
+      return rows.map(toProfile);
+    },
+
+    async deleteProfile(id) {
+      const rows = await sql`delete from profiles where id = ${id} returning id`;
+      return rows.length > 0;
+    },
+
+    async setAvatarData(id, dataUrl) {
+      await sql`update profiles set avatar_data = ${dataUrl} where id = ${id}`;
+    },
+
+    async getAvatarData(id) {
+      const rows = await sql`select avatar_data from profiles where id = ${id}`;
+      return (rows[0]?.avatar_data as string | null | undefined) ?? null;
+    },
+
+    async listDrinks(profileId) {
+      const rows = await sql`
+        select * from drink_logs where profile_id = ${profileId} order by consumed_at desc`;
+      return rows.map(toDrink);
+    },
+
+    async listAllDrinks() {
+      return (await sql`select * from drink_logs`).map(toDrink);
+    },
+
+    async addDrink(profileId, input) {
+      const [row] = await sql`
+        insert into drink_logs (profile_id, name, volume_oz, abv, alcohol_g)
+        values (${profileId}, ${input.name}, ${input.volumeOz}, ${input.abv}, ${input.alcoholG})
+        returning *`;
+      return toDrink(row);
+    },
+
+    async deleteDrink(profileId, drinkId) {
+      const rows = await sql`
+        delete from drink_logs where id = ${drinkId} and profile_id = ${profileId} returning id`;
+      return rows.length > 0;
+    },
+
+    async listEvents() {
+      return (await sql`select * from events order by starts_at`).map(toEvent);
+    },
+
+    async createEvent(input) {
+      const [row] = await sql`
+        insert into events (starts_at, ends_at, title, location, maps_query, notes)
+        values (${input.startsAt}, ${input.endsAt}, ${input.title}, ${input.location}, ${input.mapsQuery}, ${input.notes})
+        returning *`;
+      return toEvent(row);
+    },
+
+    async updateEvent(id, input) {
+      const rows = await sql`
+        update events set
+          starts_at = ${input.startsAt},
+          ends_at = ${input.endsAt},
+          title = ${input.title},
+          location = ${input.location},
+          maps_query = ${input.mapsQuery},
+          notes = ${input.notes}
+        where id = ${id}
+        returning *`;
+      return rows[0] ? toEvent(rows[0]) : null;
+    },
+
+    async deleteEvent(id) {
+      const rows = await sql`delete from events where id = ${id} returning id`;
+      return rows.length > 0;
+    },
+
+    async listChallenges() {
+      return (await sql`select * from challenges order by created_at`).map(toChallenge);
+    },
+
+    async createChallenge(input) {
+      const [row] = await sql`
+        insert into challenges (title, description, points, active)
+        values (${input.title}, ${input.description}, ${input.points}, ${input.active})
+        returning *`;
+      return toChallenge(row);
+    },
+
+    async updateChallenge(id, input) {
+      const rows = await sql`
+        update challenges set
+          title = ${input.title},
+          description = ${input.description},
+          points = ${input.points},
+          active = ${input.active}
+        where id = ${id}
+        returning *`;
+      return rows[0] ? toChallenge(rows[0]) : null;
+    },
+
+    async deleteChallenge(id) {
+      // point_events.challenge_id is ON DELETE SET NULL, so awarded points stay.
+      const rows = await sql`delete from challenges where id = ${id} returning id`;
+      return rows.length > 0;
+    },
+
+    async listPointEvents() {
+      return (await sql`select * from point_events order by created_at desc`).map(toPointEvent);
+    },
+
+    async addPointEvent(input) {
+      const [row] = await sql`
+        insert into point_events (profile_id, delta, reason, challenge_id)
+        values (${input.profileId}, ${input.delta}, ${input.reason}, ${input.challengeId})
+        returning *`;
+      return toPointEvent(row);
+    },
+  };
+}

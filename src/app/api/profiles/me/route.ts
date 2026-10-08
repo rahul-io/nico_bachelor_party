@@ -1,3 +1,4 @@
+import { applyAvatar } from "@/lib/avatar";
 import { getRequestProfile, jsonError, readJson } from "@/lib/http";
 import { getStore } from "@/lib/store";
 import { parseProfileInput } from "@/lib/validate";
@@ -17,5 +18,8 @@ export async function PATCH(req: Request) {
     typeof body === "object" && body !== null ? { ...profile, ...body } : body,
   );
   if (!input.ok) return jsonError(input.error, 400);
-  return Response.json(await getStore().updateProfile(profile.id, input.value));
+
+  const store = getStore();
+  const avatarUrl = await applyAvatar(store, profile.id, input.value.avatarUrl, profile.avatarUrl);
+  return Response.json(await store.updateProfile(profile.id, { ...input.value, avatarUrl }));
 }

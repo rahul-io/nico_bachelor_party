@@ -78,6 +78,17 @@ export interface LeaderboardEntry extends PublicProfile {
   bac: number;
 }
 
+export type TrendMetric = "points" | "drinks" | "bac";
+
+/** One value per entry in `Trends.times` for each metric. */
+export type TrendPlayer = PublicProfile & Record<TrendMetric, number[]>;
+
+export interface Trends {
+  /** Sample instants in ms, ascending; the last one is "now". */
+  times: number[];
+  players: TrendPlayer[];
+}
+
 export interface PointHistoryEntry extends PointEvent {
   profileName: string;
 }
@@ -94,6 +105,9 @@ export interface Store {
   listProfiles(): Promise<Profile[]>;
   /** Also removes the profile's drinks and point events. */
   deleteProfile(id: string): Promise<boolean>;
+  /** The avatar image as a data URL, kept apart from the profile so lists stay small. */
+  setAvatarData(id: string, dataUrl: string | null): Promise<void>;
+  getAvatarData(id: string): Promise<string | null>;
 
   /** Newest first. */
   listDrinks(profileId: string): Promise<DrinkLog[]>;

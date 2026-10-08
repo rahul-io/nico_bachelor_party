@@ -1,6 +1,7 @@
 import { cn } from "@/lib/cn";
 
 const sizes = {
+  xs: "size-6 text-[0.625rem]",
   sm: "size-9 text-sm",
   md: "size-11 text-base",
   lg: "size-20 text-2xl",

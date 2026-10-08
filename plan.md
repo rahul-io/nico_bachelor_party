@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1 and M2 done (2026-10-07), verified in the browser on mock data. M3 is next.**
+Status: **M1–M3 code done (2026-10-07). M3 is tested against an in-process Postgres but not yet against the real Neon database (waiting on env vars from Rahul). M4 is next.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -28,7 +28,7 @@ The UI always calls `/api/*`; route handlers always call `getStore()`. `getStore
 
 | Table | Columns |
 |---|---|
-| `profiles` | id, token, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts (default true), created_at |
+| `profiles` | id, token, name, avatar_url, avatar_data, height_cm, weight_kg, sex, show_bac_on_posts (default true), created_at |
 | `drink_logs` | id, profile_id, name, volume_oz, abv, alcohol_g, consumed_at |
 | `events` | id, starts_at, ends_at?, title, location?, maps_query?, notes? |
 | `challenges` | id, title, description, points, active, created_at |
@@ -64,18 +64,30 @@ M1 notes: the seeded schedule is placeholder content until Admin exists (M2). `g
 M2 notes: profile photos are stored as ~192 px JPEG data URLs on the profile row until M4 moves them to Blob. Mock mode seeds four "(demo)" guests and four placeholder challenges. Challenges can be hidden from guests without deleting them. Point mistakes are fixed with a counter-entry; there is no undo.
 
 ### M3 — Postgres + polling
-- [ ] `db/schema.sql`, `npm run db:setup`, optional seed script
-- [ ] Postgres `Store` implementation
-- [ ] SWR polling + optimistic updates everywhere; demo-mode banner
-- [ ] Test against a real Neon database via `vercel env pull` (needs Rahul's setup)
+- [x] `db/schema.sql`, `npm run db:setup`
+- [x] Postgres `Store` implementation, selected when `DATABASE_URL` is set
+- [x] Contract test suite run against both the mock store and a real in-process Postgres (PGlite)
+- [x] SWR polling everywhere; optimistic updates on the drink log; demo-mode banner
+- [x] Avatars served from `/api/avatars/[id]` with immutable caching, so polled lists never carry image data
+- [x] Leaderboard "Trends" chart: points, drinks and estimated BAC over time, each line ending in that person's avatar
+- [ ] Run `npm run db:setup` and smoke-test against the real Neon database (needs `DATABASE_URL` from Rahul)
+
+M3 notes: no seed script; a real database starts with an empty schedule and no challenges, which Admin fills in. Trends are computed server-side from the drink log and points ledger on each request (sampled to at most 150 points) and refreshed every 60 s; nothing extra is stored. Lines are neutral with one highlighted person (you by default, tap an avatar or name to switch) because 10–15 distinct line colours are not tellable apart; identity comes from the avatars and the ranked list under the chart, which also follows the scrub position.
+
+Once Rahul sends the env vars: put them in `.env.local` (or `vercel env pull .env.local`), run `npm run db:setup`, then `npm run dev` and check the demo banner is gone.
 
 ### M4 — Photo Feed + Vercel Blob
 - [ ] `handleUpload` route with type/size checks
 - [ ] Composer (photo/video + caption, progress bar), feed newest-first with uploader and time
 - [ ] Delete own post; admin delete any (also removes the blob)
 - [ ] BAC snapshot on posts: store `bac_at_post` at creation when the poster's "show BAC on my posts" setting is on; feed renders "Rahul (0.06%) posted a photo"; never recomputed
+- [ ] Bulk export, Admin: "Download all photos" button that streams one zip of every photo and video straight from Blob (stored, not recompressed), with a `photos.csv` inside
+- [ ] Bulk export, CLI: `npm run export-photos` downloads everything into a local folder plus the same CSV, for when the zip is too large for a serverless response
+- [ ] Export naming: `YYYY-MM-DD_HH-mm-ss_poster[_bac-0.062].ext` in party time, BAC only when the post has a snapshot; CSV columns: file, poster, caption, timestamp, BAC
 - [ ] "Open shared Google Photos album" button
 - [ ] Move avatars to Blob
+
+M4 notes (export): the zip route must stream (fetch each blob and pipe it through, never buffer the set) and is bounded by the serverless function's maximum duration, which is why the CLI script exists. Both share one module for file naming and CSV rows. The script needs `DATABASE_URL` and `BLOB_READ_WRITE_TOKEN` in `.env.local`. Likely one small zip dependency; confirm before adding.
 
 ### M5 — Polish, install, deploy
 - [ ] Visual pass (type, colour, motion, empty/loading/error states)

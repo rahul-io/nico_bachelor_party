@@ -1,3 +1,4 @@
+import { isAvatarDataUrl } from "./avatar";
 import { alcoholGrams } from "./bac";
 import type {
   ChallengeInput,
@@ -26,17 +27,18 @@ const isoDate = (value: unknown): string | null => {
   return Number.isNaN(ms) ? null : new Date(ms).toISOString();
 };
 
-// Avatars are small client-resized data URLs until uploads move to Blob (M4).
+// Avatars arrive as small client-resized data URLs.
 const MAX_AVATAR_CHARS = 150_000;
 
 function parseAvatar(value: unknown): Result<string | null> {
   if (value == null || value === "") return { ok: true, value: null };
-  if (
-    typeof value !== "string" ||
-    value.length > MAX_AVATAR_CHARS ||
-    !(value.startsWith("data:image/") || value.startsWith("https://"))
-  ) {
+  if (typeof value !== "string" || value.length > MAX_AVATAR_CHARS) {
     return fail("That photo didn't work. Try another one.");
+  }
+  // A data URL is a new upload. Any other string is the client echoing back
+  // the stored URL, which applyAvatar treats as "unchanged".
+  if (value.startsWith("data:") && !isAvatarDataUrl(value)) {
+    return fail("That photo didn't work. Try a JPEG or PNG.");
   }
   return { ok: true, value };
 }

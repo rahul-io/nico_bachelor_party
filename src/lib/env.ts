@@ -5,6 +5,11 @@ const isProduction = process.env.NODE_ENV === "production";
 export const DEV_ADMIN_PASSWORD = "admin";
 
 export const env = {
+  /** Unset means the app runs on in-memory mock data. */
+  get databaseUrl(): string | null {
+    return process.env.DATABASE_URL || process.env.POSTGRES_URL || null;
+  },
+
   /** Null in production when unset, which disables admin login entirely. */
   get adminPassword(): string | null {
     return process.env.ADMIN_PASSWORD || (isProduction ? null : DEV_ADMIN_PASSWORD);

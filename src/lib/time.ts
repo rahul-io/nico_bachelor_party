@@ -32,6 +32,13 @@ export function formatTime(date: DateInput): string {
   return timeFormat.format(new Date(date));
 }
 
+const hourFormat = new Intl.DateTimeFormat("en-US", { timeZone: config.timezone, hour: "numeric" });
+
+/** "7 PM" in the party timezone. */
+export function formatHour(date: DateInput): string {
+  return hourFormat.format(new Date(date));
+}
+
 /** "Fri 7:30 PM" in the party timezone. */
 export function formatWeekdayTime(date: DateInput): string {
   return weekdayTimeFormat.format(new Date(date));

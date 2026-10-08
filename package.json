@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:setup": "node scripts/db-setup.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
@@ -20,6 +21,7 @@
     "swr": "^2.5.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24.19.1",
     "@types/react": "^19",

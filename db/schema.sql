@@ -1,0 +1,58 @@
+-- Idempotent schema. Apply with `npm run db:setup`; safe to re-run.
+-- Ids are text (uuid strings) so a malformed id from a client is a miss, not a cast error.
+
+create table if not exists profiles (
+  id text primary key default gen_random_uuid()::text,
+  token text not null default gen_random_uuid()::text,
+  name text not null,
+  avatar_url text,
+  -- Raw avatar image as a data URL. Served by /api/avatars/[id]; never selected in list queries.
+  avatar_data text,
+  height_cm double precision not null,
+  weight_kg double precision not null,
+  sex text not null check (sex in ('male', 'female')),
+  show_bac_on_posts boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists drink_logs (
+  id text primary key default gen_random_uuid()::text,
+  profile_id text not null references profiles (id) on delete cascade,
+  name text not null,
+  volume_oz double precision,
+  abv double precision,
+  alcohol_g double precision not null,
+  consumed_at timestamptz not null default now()
+);
+
+create index if not exists drink_logs_profile_idx on drink_logs (profile_id, consumed_at desc);
+
+create table if not exists events (
+  id text primary key default gen_random_uuid()::text,
+  starts_at timestamptz not null,
+  ends_at timestamptz,
+  title text not null,
+  location text,
+  maps_query text,
+  notes text
+);
+
+create table if not exists challenges (
+  id text primary key default gen_random_uuid()::text,
+  title text not null,
+  description text not null default '',
+  points integer not null,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists point_events (
+  id text primary key default gen_random_uuid()::text,
+  profile_id text not null references profiles (id) on delete cascade,
+  delta integer not null,
+  reason text,
+  challenge_id text references challenges (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists point_events_profile_idx on point_events (profile_id);
