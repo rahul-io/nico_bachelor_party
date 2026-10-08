@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1–M5 code done. Still open in M5: entering the real schedule, and checking the deployed site on real phones (neither can be done from the dev machine). M6–M8 are planned and waiting for Peter's go-ahead.**
+Status: **M1–M8 code done (2026-10-08). M6–M8 were tested on mock data only, on purpose, because guests are using the live site; the new SQL is covered by the contract tests against an in-process Postgres. Open: real schedule and challenges in `/admin`, real-phone testing, deploy checklist.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -113,56 +113,38 @@ Deploy checklist:
 
 M5 notes: there is no service worker, so the app needs a connection and does not work offline; that was never in scope. The install tip cannot trigger the install itself on iOS, it only explains the Share menu.
 
-### M6 — Admin schedule calendar (planned, awaiting go-ahead)
+### M6 — Admin schedule calendar
+Admin > Schedule has a `List | Calendar` toggle. Both drive the same form and the same `/api/admin/events` API.
 
-Admin > Schedule gets a `List | Calendar` toggle. The list and form stay as they are; the calendar is a second way to drive the same form and the same `/api/admin/events` API.
+Library: FullCalendar v7 (`@fullcalendar/react` 7.1.x, peer `temporal-polyfill`), MIT parts only: time-grid, interaction and the "classic" theme. v7 worked with React 19 / Next 16, so the v6 fallback was not needed. It resolves `America/Los_Angeles` itself. Its palette file is not loaded; the theme's `--fc-classic-*` variables are pointed at our tokens in `globals.css`. The calendar is a dynamic import, so only `/admin` downloads it.
 
-**Library: FullCalendar v7 (`@fullcalendar/react` 7.1.x), standard MIT features only.**
-- It is the only free option that covers everything asked for in one package: time-grid day and multi-day views, drag-to-create, drag-to-move, resize from the bottom edge, and long-press dragging on touch. react-big-calendar's drag-and-drop is a weaker add-on on touch, and Schedule-X needs paid plugins for part of it.
-- v7 resolves named time zones itself (`timeZone: "America/Los_Angeles"`), so no Luxon/Moment plugin. Events crossing midnight render across day columns natively.
-- v7 ships no fixed CSS and is themed through class names and CSS variables, which fits the "tokens in globals.css only" rule.
-- Time-grid and interaction are MIT. Nothing from the premium scheduler package (timeline, resources) is needed.
-- Risk: v7 is a recent major release (its React entry points and CSS variable names changed from v6). The first checklist item is a short spike; if drag, resize or long-press misbehave with React 19 / Next 16, fall back to v6.1.21 with `timeZone: "UTC"` and wall-clock times converted through our own `partyTimeToIso` (safe because the weekend has no DST change).
-- New dependencies: `@fullcalendar/react` and its peer `temporal-polyfill`. Loaded only on `/admin` (dynamic import), so guests never download it.
+- [x] "Day" view (default on phones, with the day picker) and "Weekend" view (4 columns, default on wider screens), limited to Oct 8–11
+- [x] Tap or drag an empty slot → form prefilled with that start/end (a single tap gives one hour)
+- [x] Tap an event → same form to edit or delete, in a sheet over the calendar
+- [x] Drag to move, drag the bottom edge to resize → saved immediately, snapped back if the save fails
+- [x] "Undo" toast after each move/resize
+- [x] Party timezone regardless of device; events past midnight render across both days; events with no end show as one hour and stay open-ended when only moved
+- [x] Polling can't yank an event mid-drag (the list is held still while dragging)
+- [x] Admin page widens for the calendar on larger screens
+- [ ] Long-press dragging on a real phone (configured at 350 ms; could not be simulated here)
 
-Checklist:
-- [ ] Spike: v7 time-grid with move, resize, select and long-press under React 19 / Next 16; confirm or fall back to v6
-- [ ] Extract the event form from `SchedulePanel` into `EventForm`, shown inline in List view and in a sheet over the Calendar view
-- [ ] Calendar views limited to Oct 8–11: "Day" (default on phones, with the existing day picker) and "Weekend" (4 columns, default on laptops)
-- [ ] Tap or drag an empty slot → form prefilled with that start/end; tap an event → same form to edit or delete
-- [ ] Drag to move and drag the bottom edge to resize → saved immediately via `PATCH /api/admin/events/[id]`, reverted on failure
-- [ ] Toast primitive with "Undo" after each move/resize (restores the previous start/end with another PATCH)
-- [ ] All times in party timezone whatever the device's; overnight events render across midnight; events with no end time show as one hour until resized
-- [ ] Polling paused while a drag is in progress so the event doesn't jump; guests see changes through the normal 10 s poll
-- [ ] FullCalendar colours, borders and radii mapped to theme tokens in `globals.css`; check on a phone (long-press) and a laptop
-
-### M7 — Reactions and comments (planned, awaiting go-ahead)
-
-Data model:
+### M7 — Reactions and comments
 
 | Table | Columns |
 |---|---|
 | `post_reactions` | post_id, profile_id, emoji, created_at — primary key (post_id, profile_id, emoji); both ids cascade on delete |
 | `post_comments` | id, post_id, profile_id, body (≤ 280), bac_at_comment?, created_at; both ids cascade on delete |
 
-- The emoji set is fixed in code (🍺 😂 🔥 😬 ❤️ 💀) and enforced server-side. A person can have several different reactions on one photo; each toggles independently.
-- `bac_at_comment` follows the post rule exactly: computed once server-side when the comment is created, stored only if the commenter's setting is on at that moment, never recomputed. The profile toggle is relabelled "Show my BAC on my posts and comments".
-- The polled feed carries only counts: per-emoji totals, which ones are mine, and the comment count, from one aggregate query. Names of reactors and the comment thread load when a photo is opened (`GET /api/posts/[id]`), and that view polls on its own while open.
-- Comment timestamps use the viewer's local time, like post timestamps.
-
-Checklist:
-- [ ] Schema, both stores, contract tests
-- [ ] `POST/DELETE /api/posts/[id]/reactions`, `POST /api/posts/[id]/comments`, `DELETE /api/comments/[id]` (own comment or admin)
-- [ ] Feed: reaction bar under each photo with counts, tap to toggle (optimistic), comment count
-- [ ] Double-tap a photo = 🔥 (adds, never removes). Photos only: on videos a double-tap belongs to the player
-- [ ] Long-press a count → who reacted (also listed in the opened photo, since long-press is hard to discover)
-- [ ] Photo detail view: full-size media, reactors, flat comment thread with avatar/name/time/BAC, composer with 280-character counter
-- [ ] Delete own comment; admin can delete any
-- [ ] Export: add reaction and comment counts to `photos.csv` and a `comments.csv`
-
-Open questions:
-1. Opening a photo: with double-tap taken, a single tap on the photo has to wait about a quarter of a second to rule out a double-tap. Alternative: open only from the comment count/button and leave single tap unused. Recommendation: single tap opens, with the short delay.
-2. Should deleting a comment or un-reacting be visible to others in any way? Assumed no.
+- [x] Fixed set 🍺 😂 🔥 😬 ❤️ 💀 (`src/lib/reactions.ts`), enforced server-side; several different reactions per person per photo
+- [x] Tap to toggle with instant feedback; counts under each photo
+- [x] Double-tap a photo = 🔥 (adds, never removes). Photos only; a video's taps belong to its player
+- [x] Single tap opens the photo after a 260 ms wait that rules out a double-tap
+- [x] Long-press a reaction → opens the photo, which lists who reacted with what
+- [x] Opened photo: full media, reactors, flat comment thread (avatar, name, local time), composer with a 280-character countdown; polls while open
+- [x] Comment BAC snapshot under the same rule as posts; profile toggle now reads "Show my BAC on my posts and comments"
+- [x] Delete own comment; admin can delete any
+- [x] The polled feed carries only counts (one aggregate query each for reactions and comments)
+- [x] Export: reaction and comment counts in `photos.csv`, plus `comments.csv`
 
 ### M8 — Photo map (planned, awaiting go-ahead)
 
@@ -185,15 +167,19 @@ Tile usage limits:
 - Geocoding event locations with OSM's Nominatim, if used, is limited to one request per second and must run server-side with an identifying User-Agent. Only Admin would trigger it, on saving an event.
 
 Checklist:
-- [ ] Schema, both stores, contract tests; coordinates stored at full precision
-- [ ] Read EXIF GPS from the original file before shrinking; skip for videos
-- [ ] Geolocation fallback: one explanatory prompt before the browser's own, choice remembered on the device, never re-asked after "no"
-- [ ] Optional "tag a schedule event" in the composer
-- [ ] Admin event form: set an event's coordinates (search by name, then confirm or drag a pin)
-- [ ] Refuse photo uploads that could not be re-encoded, so no original with EXIF reaches Blob
-- [ ] Map view: Leaflet + OSM tiles with attribution, dark styling, clustered thumbnail markers, tap a marker to open the photo
-- [ ] Posts without a location (including everything posted before M8) simply don't appear on the map
-- [ ] `photos.csv` gains lat, lng and location source
+- [x] Schema (`posts.lat/lng/location_source/event_id`, `events.lat/lng`, added with `ALTER … IF NOT EXISTS`), both stores, contract tests; full precision
+- [x] EXIF GPS read from the original file before shrinking (`exifr`); skipped for videos
+- [x] Location choice made server-side in `src/lib/location.ts`: EXIF, then tagged event, then device
+- [x] "Put my posts on the photo map" opt-in in the composer, with the reason spelled out; the browser's own prompt appears when it is first ticked; choice remembered per device
+- [x] Optional "Where was this?" event tag in the composer
+- [x] Admin event form: "Find on map" (OpenStreetMap Nominatim, server-side, admin-only), then tap the map or drag the pin
+- [x] Photos that can't be re-encoded are refused instead of uploaded as originals, so no EXIF reaches Blob
+- [x] Map view: Leaflet + OSM tiles with attribution, dark via CSS filter, thumbnail markers, clusters; tap a marker to open the photo
+- [x] Photos sharing one spot (e.g. all tagged with the same event) open as a thumbnail list instead of zooming forever
+- [x] `photos.csv` has lat, lng and location source
+- [ ] Device-location permission flow on a real phone (the browser prompt could not be exercised here)
+
+Clustering uses `supercluster` (ISC) rather than `leaflet.markercluster`: it is a plain data library with no dependency on Leaflet's global, and it can tell when a cluster will never split.
 
 Decisions (Peter, 2026-10-08):
 1. Location priority is EXIF, then an explicitly tagged event, then device location. An explicit tag beats ambient device location.

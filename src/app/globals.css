@@ -154,3 +154,43 @@ body {
   color: var(--color-on-accent);
   font-size: 1.25rem;
 }
+
+/*
+ * Admin schedule calendar (FullCalendar, "classic" theme). The library's own
+ * palette file is not loaded; its colour variables are pointed at our tokens here.
+ */
+.party-calendar {
+  --fc-classic-primary: var(--color-primary);
+  --fc-classic-primary-foreground: var(--color-on-primary);
+  --fc-classic-event: var(--color-primary);
+  --fc-classic-event-contrast: var(--color-on-primary);
+  --fc-classic-background-event: var(--color-accent);
+  --fc-classic-background-event-opacity: 15%;
+  --fc-classic-background-event-foreground-opacity: 50%;
+  --fc-classic-highlight: color-mix(in srgb, var(--color-accent) 25%, transparent);
+  --fc-classic-today: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  --fc-classic-now: var(--color-accent);
+  --fc-classic-small-dot-width: 8px;
+  --fc-classic-large-dot-width: 10px;
+
+  --fc-classic-background: var(--color-surface);
+  --fc-classic-faint: color-mix(in srgb, var(--color-ink) 4%, transparent);
+  --fc-classic-muted: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  --fc-classic-strong: color-mix(in srgb, var(--color-ink) 14%, transparent);
+
+  --fc-classic-foreground: var(--color-ink);
+  --fc-classic-faint-foreground: var(--color-line);
+  --fc-classic-muted-foreground: var(--color-muted);
+
+  --fc-classic-border: var(--color-line);
+  --fc-classic-strong-border: var(--color-muted);
+
+  --fc-classic-button: var(--color-raised);
+  --fc-classic-button-border: var(--color-line);
+  --fc-classic-button-strong: var(--color-line);
+  --fc-classic-button-strong-border: var(--color-line);
+  --fc-classic-button-outline: var(--color-accent);
+  --fc-classic-button-foreground: var(--color-ink);
+
+  font-size: 0.8125rem;
+}

@@ -12,6 +12,7 @@ import { PointsPanel } from "@/components/admin/PointsPanel";
 import { SchedulePanel } from "@/components/admin/SchedulePanel";
 import { Segmented } from "@/components/ui/Segmented";
 import { apiFetch } from "@/lib/api";
+import { cn } from "@/lib/cn";
 
 export interface AdminSession {
   authed: boolean;
@@ -42,7 +43,13 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-app flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+2rem)]">
+    <main
+      className={cn(
+        "mx-auto w-full flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+2rem)]",
+        // The schedule calendar wants room for four day columns on a laptop.
+        session?.authed && section === "schedule" ? "max-w-4xl" : "max-w-app",
+      )}
+    >
       <div className="mb-3 flex items-center justify-between">
         <Link href="/schedule" className="inline-flex min-h-tap items-center gap-1.5 text-muted">
           <ArrowLeft className="size-5" aria-hidden />
@@ -68,7 +75,9 @@ export default function AdminPage() {
           {section === "schedule" && <SchedulePanel />}
           {section === "challenges" && <ChallengesPanel />}
           {section === "people" && <PeoplePanel />}
-          <ExportCard />
+          <div className="mx-auto max-w-app">
+            <ExportCard />
+          </div>
         </div>
       )}
     </main>

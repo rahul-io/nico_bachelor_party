@@ -13,6 +13,7 @@
     "dev:mock": "node scripts/dev-mock.mjs"
   },
   "dependencies": {
+    "@fullcalendar/react": "^7.1.1",
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.8.1",
     "client-zip": "^2.5.1",
@@ -24,7 +25,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "supercluster": "^9.1.0",
-    "swr": "^2.5.1"
+    "swr": "^2.5.1",
+    "temporal-polyfill": "^1.0.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

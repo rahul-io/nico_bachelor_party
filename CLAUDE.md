@@ -9,6 +9,7 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 - Rahul owns the GitHub repo (`rahul-io/nico_bachelor_party`) and the Vercel account. Peter builds locally on Windows and pushes to `main`, which auto-deploys.
 - Never push without Peter asking. Never commit `.env*` files other than `.env.example`.
 - Commits use conventional prefixes (`chore:`, `feat:`, `fix:`).
+- **Use `npm run dev:mock` for anything that creates test data** (profiles, posts, comments, events). It ignores `.env.local` and runs on in-memory data; local admin password is `admin`. Plain `npm run dev` talks to the live site's database.
 - Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
 - With `.env.local` filled in, local dev reads and writes the **live** Neon database and Blob store. Delete any test profiles/posts you create (deleting a profile in Admin removes its drinks, points, posts and files), or blank those variables to use mock data. Shell is PowerShell (no `&&`).
 
@@ -19,6 +20,8 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 - Data: Postgres (Neon via Vercel Marketplace) through `@neondatabase/serverless` tagged-template SQL. No ORM.
 - Media: Vercel Blob (`@vercel/blob`) with **client-side uploads** via the `handleUpload` route handler (`/api/blob/upload`). Never proxy file bytes through a route handler. The client then calls `POST /api/posts` with the blob URL, and the server re-validates it with `head()` before saving. Limits live in `src/lib/media.ts`.
 - Live updates: SWR polling with `refreshInterval: 10_000`. No websockets.
+- Maps: Leaflet used directly through `src/lib/leaflet.ts` (never `react-leaflet`, which is not MIT/BSD), standard OpenStreetMap tiles with attribution left on, no tile API key, `supercluster` for clustering. Dark styling is the `.party-map` CSS filter.
+- Admin calendar: FullCalendar v7 (`@fullcalendar/react`), MIT parts only, loaded with `next/dynamic` so guests never download it. Colours come from the `.party-calendar` block in `globals.css`.
 - Drink search: `fuse.js` over a static JSON file, client-side.
 
 ## Hard rules
@@ -31,7 +34,8 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 6. **No Google Photos API.** The Photos tab only links out to the shared album via `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL`.
 7. **Body metrics are private.** Height, weight and sex are never returned from the API for anyone but the requesting profile. Leaderboard and trend-chart BAC is computed server-side.
 10. **Polled responses stay small.** Anything fetched on the 10 s poll must not carry image data. Avatars live in `profiles.avatar_data` and are served by `/api/avatars/[id]?v=hash` with immutable caching; `avatar_url` holds only that short URL. Never `select *` from `profiles`.
-8. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number.
+11. **Uploaded photos carry no metadata.** Every photo is re-encoded in the browser before upload (`shrinkPhoto`), which strips EXIF including GPS. Never add a path that uploads an original image file. A post's location lives only in the database (`lat`, `lng`, `location_source`), chosen by `resolveLocation`: EXIF, then a tagged event, then device location.
+8. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number. Comments follow the same rule (`bac_at_comment`); both go through `bacSnapshot()` in `src/lib/feed.ts`.
 9. **Mobile first.** Design for a ~380px-wide phone at night: dark theme, tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
 
 ## Identity
@@ -74,14 +78,17 @@ src/
     leaderboard.ts, trends.ts      server-side totals, points history, chart series
     avatar.ts, chart.ts            avatar storage rules; tick/label layout helpers
     media.ts, feed.ts, upload.ts   upload rules; feed + blob cleanup (server); browser upload helpers
-    export.ts                      export file names + CSV, shared with scripts/ (no runtime imports allowed)
+    export.ts, feed-assemble.ts    export names + CSV and feed joining, shared with scripts/ (no runtime imports allowed)
+    reactions.ts, location.ts      fixed emoji set + optimistic helper; location parsing and priority
+    geo.ts, leaflet.ts             device-location opt-in; Leaflet loader and map factory (browser only)
   data/
     drinks.json                    ~100 seeded drinks
     seed.ts                        mock schedule / profiles / challenges
   config.ts                        party name, dates, timezone, upload caps
 db/
-  schema.sql                       idempotent schema, applied by `npm run db:setup`
+  schema.sql                       idempotent schema, applied by `npm run db:setup`; new columns on existing tables go in as `ALTER TABLE … ADD COLUMN IF NOT EXISTS`
 scripts/
+  dev-mock.mjs                     dev server on mock data, ignoring .env.local
   db-setup.mjs                     runs schema.sql against DATABASE_URL
   make-icons.mjs                   regenerates every icon PNG from one inline SVG
   export-photos.mts                downloads every post + photos.csv; runs on plain Node type-stripping,
