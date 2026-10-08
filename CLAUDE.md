@@ -9,7 +9,7 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 - Rahul owns the GitHub repo (`rahul-io/nico_bachelor_party`) and the Vercel account. Peter builds locally on Windows and pushes to `main`, which auto-deploys.
 - Never push without Peter asking. Never commit `.env*` files other than `.env.example`.
 - Commits use conventional prefixes (`chore:`, `feat:`, `fix:`).
-- Commands: `npm run dev`, `npm run build`, `npm run lint`. Shell is PowerShell (no `&&`).
+- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest). Shell is PowerShell (no `&&`).
 
 ## Stack
 
@@ -29,8 +29,8 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 5. **Sobriety tracker is a toy.** Always labelled as a rough estimate for fun. Never render copy, colours, or icons implying someone is fine to drive, "under the limit", or "sober" — no green/safe states tied to a BAC number, no references to legal limits.
 6. **No Google Photos API.** The Photos tab only links out to the shared album via `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL`.
 7. **Body metrics are private.** Height, weight and sex are never returned from the API for anyone but the requesting profile. Leaderboard BAC is computed server-side.
-9. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number.
-8. **Mobile first.** Design for a ~380px-wide phone at night: dark theme, tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
+8. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number.
+9. **Mobile first.** Design for a ~380px-wide phone at night: dark theme, tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
 
 ## Identity
 
@@ -64,7 +64,10 @@ src/
   hooks/                           SWR hooks, useProfile, useNow
   lib/
     store/                         types.ts (Store interface), mock.ts, postgres.ts, index.ts (getStore)
-    bac.ts, auth.ts, env.ts, time.ts
+    bac.ts, drinks.ts, schedule.ts, time.ts, units.ts   pure helpers
+    api.ts, identity.ts            client fetch + localStorage identity
+    http.ts, validate.ts           route handler helpers
+    auth.ts, env.ts                admin session, env access (M2/M3)
   data/
     drinks.json                    ~100 seeded drinks
     seed.ts                        mock schedule / profiles / challenges
@@ -76,6 +79,9 @@ db/
 ## Conventions
 
 - Server Components by default; add `"use client"` only where state, effects, or SWR are needed.
+- `cacheComponents` and `partialPrefetching` are on (create-next-app defaults). Consequences:
+  - No `export const dynamic` / `revalidate` segment config. A GET route handler that reads no request data must call `await connection()` to stay uncached.
+  - Every page must render something on the server. Never gate a page by returning `null` until the client mounts (Next reports a dropped segment). Browser-only values come from hooks that are `null`/`undefined` on the server: `useNow()` and `useIdentity()`. Never call `Date.now()` or read localStorage during render.
 - Shared types come from `src/lib/store/types.ts`. Read env vars only through `src/lib/env.ts`.
 - Timestamps are stored as UTC (`timestamptz`) and rendered in the party timezone from `src/config.ts`, not the device's.
 - Points are a ledger (`point_events`); totals are always summed, never stored.

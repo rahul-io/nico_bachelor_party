@@ -1,0 +1,50 @@
+import { config } from "@/config";
+
+type DateInput = string | number | Date;
+
+const dayKeyFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: config.timezone,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const timeFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: config.timezone,
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+const weekdayTimeFormat = new Intl.DateTimeFormat("en-US", {
+  timeZone: config.timezone,
+  weekday: "short",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+/** "2026-10-08" for the calendar day this instant falls on in the party timezone. */
+export function dayKey(date: DateInput): string {
+  return dayKeyFormat.format(new Date(date));
+}
+
+/** "7:30 PM" in the party timezone. */
+export function formatTime(date: DateInput): string {
+  return timeFormat.format(new Date(date));
+}
+
+/** "Fri 7:30 PM" in the party timezone. */
+export function formatWeekdayTime(date: DateInput): string {
+  return weekdayTimeFormat.format(new Date(date));
+}
+
+/** Weekday and day-of-month parts for a day key, e.g. { weekday: "Thu", day: "8" }. */
+export function dayParts(key: string): { weekday: string; day: string; long: string } {
+  const noonUtc = new Date(`${key}T12:00:00Z`);
+  const part = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-US", { timeZone: "UTC", ...options }).format(noonUtc);
+  return {
+    weekday: part({ weekday: "short" }),
+    day: part({ day: "numeric" }),
+    long: part({ weekday: "long", month: "long", day: "numeric" }),
+  };
+}

@@ -1,26 +1,52 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Theme tokens. This is the only place colors, fonts, radii and layout sizes
+ * are defined; components use the generated utilities (bg-surface, text-muted,
+ * rounded-card, h-nav…). Restyle the app by editing this block.
+ */
+@theme static {
+  /* Surfaces */
+  --color-canvas: #0b0a12;
+  --color-surface: #16141f;
+  --color-raised: #221f30;
+  --color-line: #322e45;
+
+  /* Text */
+  --color-ink: #f4f1ff;
+  --color-muted: #a39fb8;
+
+  /* Brand */
+  --color-primary: #ff4d8d;
+  --color-on-primary: #1a0410;
+  --color-accent: #ffc53d;
+  --color-on-accent: #1f1500;
+  --color-danger: #ff6b6b;
+
+  /* Shape */
+  --radius-card: 1.25rem;
+  --radius-control: 0.875rem;
+
+  /* Layout */
+  --spacing-tap: 2.75rem;
+  --spacing-nav: 4.25rem;
+  --spacing-header: 3.5rem;
+  --container-app: 32rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
+  background: var(--color-canvas);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
 }

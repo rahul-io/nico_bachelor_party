@@ -1,6 +1,6 @@
 # Plan
 
-Status: **plan approved 2026-10-07. M1 in progress.**
+Status: **M1 done (2026-10-07), verified in the browser on mock data. M2 is next.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -42,14 +42,16 @@ Points totals and drink counts are derived by query. The ~100-drink catalogue is
 ## Milestones
 
 ### M1 — App shell, Schedule, Sobriety Tracker (mock data)
-- [ ] Theme tokens in `globals.css`; UI primitives (Button, Card, Sheet, Input, Avatar)
-- [ ] `(tabs)` layout with bottom nav, safe-area padding, header with profile avatar
-- [ ] `Store` interface + in-memory store + seed data; `env.ts`, `config.ts`
-- [ ] Minimal profile create/edit (name, height, weight, sex, "show BAC on my posts" toggle) — pulled forward from M2 because the tracker can't work without it; photo comes in M2
-- [ ] Schedule: day picker, event cards, Google Maps links, current/next highlight
-- [ ] `drinks.json` (~100 drinks) + fuzzy search
-- [ ] Tracker: search, quick-select buttons, category / standard drink / custom fallback, drink log with delete, BAC recalculated every minute, "rough estimate for fun" labelling
-- [ ] `bac.ts` with unit tests (adds `vitest` as a dev dependency)
+- [x] Theme tokens in `globals.css`; UI primitives (Button, Card, Sheet, Input, Avatar)
+- [x] `(tabs)` layout with bottom nav, safe-area padding, header with profile avatar
+- [x] `Store` interface + in-memory store + seed data; `env.ts`, `config.ts`
+- [x] Minimal profile create/edit (name, height, weight, sex, "show BAC on my posts" toggle) — pulled forward from M2 because the tracker can't work without it; photo comes in M2
+- [x] Schedule: day picker, event cards, Google Maps links, current/next highlight
+- [x] `drinks.json` (144 drinks) + fuzzy search
+- [x] Tracker: search, quick-select buttons, category / standard drink / custom fallback, drink log with delete, BAC recalculated every minute, "rough estimate for fun" labelling
+- [x] `bac.ts` with unit tests (adds `vitest` as a dev dependency)
+
+M1 notes: the seeded schedule is placeholder content until Admin exists (M2). `getStore()` always returns the mock store until M3. Leaderboard and Photos are "coming soon" stubs.
 
 ### M2 — Profiles, Leaderboard, Admin (mock data)
 - [ ] Profile photo (client-side resize) and full edit screen

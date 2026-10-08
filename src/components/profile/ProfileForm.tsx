@@ -1,0 +1,167 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
+import { useSWRConfig } from "swr";
+import { Button } from "@/components/ui/Button";
+import { Field } from "@/components/ui/Field";
+import { PROFILE_KEY } from "@/hooks/useProfile";
+import { ApiError, apiFetch } from "@/lib/api";
+import { cn } from "@/lib/cn";
+import { setIdentity } from "@/lib/identity";
+import type { Profile, ProfileInput, Sex } from "@/lib/store/types";
+import { cmToFeetInches, feetInchesToCm, kgToLb, lbToKg } from "@/lib/units";
+
+const sexes: Array<{ value: Sex; label: string }> = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+];
+
+/** Creates a profile when `initial` is absent, otherwise edits it. */
+export function ProfileForm({ initial }: { initial?: Profile }) {
+  const router = useRouter();
+  const { mutate } = useSWRConfig();
+  const initialHeight = initial ? cmToFeetInches(initial.heightCm) : null;
+
+  const [name, setName] = useState(initial?.name ?? "");
+  const [feet, setFeet] = useState(initialHeight ? String(initialHeight.feet) : "");
+  const [inches, setInches] = useState(initialHeight ? String(initialHeight.inches) : "");
+  const [weight, setWeight] = useState(initial ? String(kgToLb(initial.weightKg)) : "");
+  const [sex, setSex] = useState<Sex>(initial?.sex ?? "male");
+  const [showBac, setShowBac] = useState(initial?.showBacOnPosts ?? true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!name.trim() || !feet || !weight) {
+      setStatus({ text: "Fill in your name, height and weight.", error: true });
+      return;
+    }
+    const body: ProfileInput = {
+      name: name.trim(),
+      heightCm: feetInchesToCm(Number(feet), Number(inches || 0)),
+      weightKg: lbToKg(Number(weight)),
+      sex,
+      showBacOnPosts: showBac,
+    };
+
+    setSaving(true);
+    setStatus(null);
+    try {
+      if (initial) {
+        const profile = await apiFetch<Profile>(PROFILE_KEY, { method: "PATCH", body });
+        await mutate(PROFILE_KEY, profile, { revalidate: false });
+        setStatus({ text: "Saved" });
+      } else {
+        const created = await apiFetch<{ profile: Profile; token: string }>("/api/profiles", {
+          method: "POST",
+          body,
+        });
+        setIdentity({ id: created.profile.id, token: created.token });
+        await mutate(PROFILE_KEY, created.profile, { revalidate: false });
+        router.replace("/schedule");
+      }
+    } catch (error) {
+      setStatus({
+        text: error instanceof ApiError ? error.message : "Something went wrong. Try again.",
+        error: true,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-5">
+      <Field
+        label="Display name"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        maxLength={30}
+        autoComplete="nickname"
+        placeholder="What the boys call you"
+      />
+
+      <div className="grid grid-cols-3 gap-2">
+        <Field
+          label="Height"
+          suffix="ft"
+          inputMode="numeric"
+          value={feet}
+          onChange={(event) => setFeet(event.target.value)}
+          placeholder="5"
+        />
+        <Field
+          label={" "}
+          aria-label="Height, inches"
+          suffix="in"
+          inputMode="numeric"
+          value={inches}
+          onChange={(event) => setInches(event.target.value)}
+          placeholder="10"
+        />
+        <Field
+          label="Weight"
+          suffix="lb"
+          inputMode="numeric"
+          value={weight}
+          onChange={(event) => setWeight(event.target.value)}
+          placeholder="180"
+        />
+      </div>
+
+      <fieldset>
+        <legend className="mb-1 text-sm font-medium text-muted">Sex</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {sexes.map(({ value, label }) => (
+            <label
+              key={value}
+              className={cn(
+                "flex min-h-tap cursor-pointer items-center justify-center rounded-control border font-medium transition",
+                sex === value
+                  ? "border-primary bg-primary text-on-primary"
+                  : "border-line bg-raised text-muted",
+              )}
+            >
+              <input
+                type="radio"
+                name="sex"
+                value={value}
+                checked={sex === value}
+                onChange={() => setSex(value)}
+                className="sr-only"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          Height, weight and sex are only used for your BAC estimate. Nobody else can see them.
+        </p>
+      </fieldset>
+
+      <label className="flex min-h-tap cursor-pointer items-center gap-3 rounded-control border border-line bg-surface px-3 py-2">
+        <input
+          type="checkbox"
+          checked={showBac}
+          onChange={(event) => setShowBac(event.target.checked)}
+          className="size-5 shrink-0 accent-primary"
+        />
+        <span>
+          <span className="block font-medium">Show my BAC on my posts</span>
+          <span className="block text-xs text-muted">
+            Stamps your estimate at the moment you post a photo.
+          </span>
+        </span>
+      </label>
+
+      <Button type="submit" variant="primary" block disabled={saving}>
+        {saving ? "Saving…" : initial ? "Save changes" : "Let's go"}
+      </Button>
+      <p aria-live="polite" className={cn("min-h-5 text-center text-sm", status?.error ? "text-danger" : "text-muted")}>
+        {status?.text}
+      </p>
+    </form>
+  );
+}
