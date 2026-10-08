@@ -14,7 +14,7 @@ interface Tab {
 // Two tabs either side of the gold "log a drink" button.
 const left: Tab[] = [
   { href: "/schedule", label: "Schedule", icon: ShipWheel },
-  { href: "/tracker", label: "Rum Log", icon: BottleWine },
+  { href: "/tracker", label: "Grog Log", icon: BottleWine },
 ];
 const right: Tab[] = [
   { href: "/leaderboard", label: "Leaders", icon: Trophy },

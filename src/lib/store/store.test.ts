@@ -212,6 +212,7 @@ describe.each<[string, () => Promise<Store>]>([
       challengeId: challenge.id,
     });
     const penalty = await store.addPointEvent({ profileId: profile.id, delta: -5, reason: null, challengeId: null });
+    if (!award || !penalty) throw new Error("point events were not created");
     expect(award).toMatchObject({ profileId: profile.id, delta: 30, reason: "Test", challengeId: challenge.id });
     expect(penalty).toMatchObject({ delta: -5, reason: null, challengeId: null });
 
@@ -397,6 +398,89 @@ describe.each<[string, () => Promise<Store>]>([
     expect(await store.deleteProfile(profile.id)).toBe(false);
     expect(await store.getProfileByToken(profile.id, token)).toBeNull();
     expect((await store.listAllDrinks()).some((d) => d.id === drink.id)).toBe(false);
-    expect((await store.listPointEvents()).some((e) => e.id === points.id)).toBe(false);
+    expect((await store.listPointEvents()).some((e) => e.id === points?.id)).toBe(false);
+  });
+
+  it("keeps the points ledger: decimals, sources, award keys and voids", async () => {
+    const store = await makeStore();
+    const { profile } = await store.createProfile(person);
+    const drink = await store.addDrink(profile.id, { name: "IPA", volumeOz: 16, abv: 0.065, alcoholG: 24.3, category: "beer" });
+    expect(drink.category).toBe("beer");
+    expect((await store.addDrink(profile.id, { name: "Mystery", volumeOz: null, abv: null, alcoholG: 14 })).category).toBeNull();
+
+    const breakdown = { std: 1.4, counted: 1.4, rate: 3, multipliers: [{ label: "hydration", factor: 1.5 }], multiplier: 1.5, paused: false };
+    const key = `drink:${drink.id}`;
+    const entry = await store.addPointEvent({
+      profileId: profile.id,
+      delta: 6.3,
+      reason: "IPA",
+      challengeId: null,
+      source: "drink",
+      breakdown,
+      drinkId: drink.id,
+      groupId: "group-1",
+      awardKey: key,
+      createdAt: "2026-10-09T03:00:00.000Z",
+    });
+    expect(entry).toMatchObject({
+      delta: 6.3,
+      source: "drink",
+      breakdown,
+      drinkId: drink.id,
+      groupId: "group-1",
+      awardKey: key,
+      voidedAt: null,
+      createdAt: "2026-10-09T03:00:00.000Z",
+    });
+
+    // The same award key can't be paid twice.
+    expect(await store.addPointEvent({ profileId: profile.id, delta: 6.3, reason: null, challengeId: null, awardKey: key })).toBeNull();
+
+    // Entries without a source are admin entries, as before.
+    const manual = await store.addPointEvent({ profileId: profile.id, delta: 2, reason: null, challengeId: null });
+    expect(manual).toMatchObject({ source: "admin", breakdown: null, drinkId: null, awardKey: null });
+
+    const own = await store.listPointEvents(profile.id);
+    expect(own.map((event) => event.id).sort()).toEqual([entry!.id, manual!.id].sort());
+    expect((await store.listPointEvents()).length).toBeGreaterThanOrEqual(2);
+
+    const voided = await store.voidPointEvents({ drinkId: drink.id });
+    expect(voided.map((event) => event.id)).toEqual([entry!.id]);
+    expect(voided[0].voidedAt).toMatch(isoPattern);
+    expect(await store.voidPointEvents({ drinkId: drink.id })).toEqual([]);
+    expect((await store.listPointEvents(profile.id)).find((event) => event.id === entry!.id)?.voidedAt).toMatch(isoPattern);
+
+    const grouped = await store.addPointEvent({ profileId: profile.id, delta: 3, reason: "Cheers", challengeId: null, source: "cheers", groupId: "group-2" });
+    expect((await store.voidPointEvents({ groupId: "group-2" })).map((event) => event.id)).toEqual([grouped!.id]);
+  });
+
+  it("logs and deletes waters apart from drinks", async () => {
+    const store = await makeStore();
+    const { profile } = await store.createProfile(person);
+    const first = await store.addWater(profile.id);
+    const second = await store.addWater(profile.id);
+    expect(first).toMatchObject({ profileId: profile.id });
+    expect(first.consumedAt).toMatch(isoPattern);
+
+    expect((await store.listWaters(profile.id)).map((water) => water.id).sort()).toEqual([first.id, second.id].sort());
+    expect((await store.listAllWaters()).some((water) => water.id === first.id)).toBe(true);
+    expect(await store.listDrinks(profile.id)).toEqual([]);
+
+    expect(await store.deleteWater("someone-else", first.id)).toBe(false);
+    expect(await store.deleteWater(profile.id, first.id)).toBe(true);
+    expect(await store.deleteWater(profile.id, first.id)).toBe(false);
+
+    await store.deleteProfile(profile.id);
+    expect((await store.listAllWaters()).some((water) => water.id === second.id)).toBe(false);
+  });
+
+  it("stores and replaces settings", async () => {
+    const store = await makeStore();
+    const key = `test.${crypto.randomUUID()}`;
+    expect(await store.getSetting(key)).toBeNull();
+    await store.setSetting(key, { paceCap: 6, nested: { on: true }, list: [1, "two"] });
+    expect(await store.getSetting(key)).toEqual({ paceCap: 6, nested: { on: true }, list: [1, "two"] });
+    await store.setSetting(key, {});
+    expect(await store.getSetting(key)).toEqual({});
   });
 });

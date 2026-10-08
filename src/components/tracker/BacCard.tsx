@@ -3,11 +3,11 @@ import { formatBac, type BacEstimate } from "@/lib/bac";
 import { formatTime } from "@/lib/time";
 
 /**
- * The gauge at the top of the Rum Log, set against the tiki bar. The number is
+ * The gauge at the top of the Grog Log, set against the tiki bar. The number is
  * sand, like all lettering on photographs: it is never coloured teal or green,
  * which would read as a verdict.
  */
-export function BacCard({ estimate }: { estimate: BacEstimate | null }) {
+export function BacCard({ estimate, paused = false }: { estimate: BacEstimate | null; paused?: boolean }) {
   return (
     <PhotoBand
       image="/brand/tiki.webp"
@@ -24,6 +24,9 @@ export function BacCard({ estimate }: { estimate: BacEstimate | null }) {
             ? `${estimate.sessionDrinks} ${estimate.sessionDrinks === 1 ? "drink" : "drinks"} since ${formatTime(estimate.sessionStart)}`
             : "Nothing in the log. Pour something."}
         </p>
+        {paused && (
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-gold-hi">Points paused</p>
+        )}
       </div>
     </PhotoBand>
   );

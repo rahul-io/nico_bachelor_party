@@ -35,10 +35,19 @@ export interface DrinkLog {
   /** Fraction, e.g. 0.05 for 5%. */
   abv: number | null;
   alcoholG: number;
+  /** Catalogue category (beer, cocktail…) when picked from the list; lets Drink of the Day match. */
+  category: string | null;
   consumedAt: string;
 }
 
-export type DrinkInput = Pick<DrinkLog, "name" | "volumeOz" | "abv" | "alcoholG">;
+export type DrinkInput = Pick<DrinkLog, "name" | "volumeOz" | "abv" | "alcoholG"> & { category?: string | null };
+
+/** A logged water. Not a drink: it never counts towards drink totals or BAC. */
+export interface WaterLog {
+  id: string;
+  profileId: string;
+  consumedAt: string;
+}
 
 export interface ScheduleEvent {
   id: string;
@@ -68,17 +77,50 @@ export interface Challenge {
 
 export type ChallengeInput = Pick<Challenge, "title" | "description" | "points" | "active">;
 
-/** One entry in the points ledger. Totals are always summed from these. */
+/** What produced a ledger entry. */
+export type PointSource = "admin" | "drink" | "water" | "cheers" | "hourly" | "award";
+
+/** How a drink's points were worked out, kept with the entry so the history can show it. */
+export interface DrinkBreakdown {
+  /** Standard drinks in the pour. */
+  std: number;
+  /** The part of it that fit under the pace cap. */
+  counted: number;
+  /** Points per standard drink at the time. */
+  rate: number;
+  multipliers: Array<{ label: string; factor: number }>;
+  /** Combined multiplier actually applied, after the maximum. */
+  multiplier: number;
+  /** True when the estimated BAC was at or over the ceiling, so the drink earned nothing. */
+  paused: boolean;
+}
+
+/**
+ * One entry in the points ledger. Totals are always summed from these,
+ * skipping voided entries.
+ */
 export interface PointEvent {
   id: string;
   profileId: string;
+  /** To one decimal place. */
   delta: number;
   reason: string | null;
   challengeId: string | null;
+  source: PointSource;
+  breakdown: DrinkBreakdown | null;
+  /** The drink or water that caused this entry; deleting it voids the entry. */
+  drinkId: string | null;
+  /** Ties together entries from one cause, e.g. everyone in a Cheers. */
+  groupId: string | null;
+  /** Unique when set, so an award can never be paid twice. */
+  awardKey: string | null;
+  /** Set when the entry was reversed. Voided entries stay in the history, struck through. */
+  voidedAt: string | null;
   createdAt: string;
 }
 
-export type PointEventInput = Pick<PointEvent, "profileId" | "delta" | "reason" | "challengeId">;
+export type PointEventInput = Pick<PointEvent, "profileId" | "delta" | "reason" | "challengeId"> &
+  Partial<Pick<PointEvent, "source" | "breakdown" | "drinkId" | "groupId" | "awardKey" | "createdAt">>;
 
 export interface LeaderboardEntry extends PublicProfile {
   points: number;
@@ -182,6 +224,17 @@ export interface PointHistoryEntry extends PointEvent {
   profileName: string;
 }
 
+/** A drink in the person's own log, with what it earned (its own points plus any Cheers). */
+export interface LoggedDrink extends DrinkLog {
+  points: number | null;
+  /** "1.4 std × 3 = 4.2", for the line under the drink. */
+  pointsLine: string | null;
+}
+
+export interface LoggedWater extends WaterLog {
+  points: number | null;
+}
+
 /**
  * The single data seam. Route handlers only talk to this interface; the mock
  * and Postgres stores both implement it.
@@ -210,7 +263,7 @@ export interface Store {
 
   updateProfile(id: string, input: ProfileInput): Promise<Profile>;
   listProfiles(): Promise<Profile[]>;
-  /** Also removes the profile's drinks, point events, posts, reactions and comments (but not the posts' files). */
+  /** Also removes the profile's drinks, waters, point events, posts, reactions and comments (but not the posts' files). */
   deleteProfile(id: string): Promise<boolean>;
   /** The avatar image as a data URL, kept apart from the profile so lists stay small. */
   setAvatarData(id: string, dataUrl: string | null): Promise<void>;
@@ -221,6 +274,12 @@ export interface Store {
   listAllDrinks(): Promise<DrinkLog[]>;
   addDrink(profileId: string, input: DrinkInput): Promise<DrinkLog>;
   deleteDrink(profileId: string, drinkId: string): Promise<boolean>;
+
+  /** Newest first. */
+  listWaters(profileId: string): Promise<WaterLog[]>;
+  listAllWaters(): Promise<WaterLog[]>;
+  addWater(profileId: string): Promise<WaterLog>;
+  deleteWater(profileId: string, waterId: string): Promise<boolean>;
 
   /** Ordered by start time. */
   listEvents(): Promise<ScheduleEvent[]>;
@@ -234,9 +293,16 @@ export interface Store {
   updateChallenge(id: string, input: ChallengeInput): Promise<Challenge | null>;
   deleteChallenge(id: string): Promise<boolean>;
 
-  /** Newest first. */
-  listPointEvents(): Promise<PointEvent[]>;
-  addPointEvent(input: PointEventInput): Promise<PointEvent>;
+  /** Newest first, voided entries included. Pass a profile id for one person's entries. */
+  listPointEvents(profileId?: string): Promise<PointEvent[]>;
+  /** Null when an entry with the same award key already exists. */
+  addPointEvent(input: PointEventInput): Promise<PointEvent | null>;
+  /** Marks live entries as reversed; returns the ones it voided. */
+  voidPointEvents(match: { drinkId: string } | { groupId: string }): Promise<PointEvent[]>;
+
+  /** Small JSON values edited in Admin (points settings, Happy Hour, Drink of the Day). */
+  getSetting(key: string): Promise<unknown | null>;
+  setSetting(key: string, value: unknown): Promise<void>;
 
   /** Newest first. */
   listPosts(): Promise<Post[]>;

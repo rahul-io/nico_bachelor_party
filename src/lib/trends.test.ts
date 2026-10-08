@@ -25,6 +25,7 @@ const drink = (profileId: string, minutes: number): DrinkLog => ({
   volumeOz: null,
   abv: null,
   alcoholG: 14,
+  category: null,
   consumedAt: ago(minutes),
 });
 const points = (profileId: string, delta: number, minutes: number): PointEvent => ({
@@ -33,6 +34,12 @@ const points = (profileId: string, delta: number, minutes: number): PointEvent =
   delta,
   reason: null,
   challengeId: null,
+  source: "admin",
+  breakdown: null,
+  drinkId: null,
+  groupId: null,
+  awardKey: null,
+  voidedAt: null,
   createdAt: ago(minutes),
 });
 

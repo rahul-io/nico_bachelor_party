@@ -1,4 +1,14 @@
-import type { Challenge, Comment, DrinkLog, PointEvent, Post, Profile, ScheduleEvent, Store } from "./types";
+import type {
+  Challenge,
+  Comment,
+  DrinkLog,
+  PointEvent,
+  Post,
+  Profile,
+  ScheduleEvent,
+  Store,
+  WaterLog,
+} from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -7,6 +17,8 @@ export type Sql = (strings: TemplateStringsArray, ...values: unknown[]) => Promi
 
 const iso = (value: unknown) => new Date(value as string | Date).toISOString();
 const isoOrNull = (value: unknown) => (value == null ? null : iso(value));
+/** jsonb arrives parsed from Neon; tolerate drivers that hand back text. */
+const json = (value: unknown) => (typeof value === "string" ? JSON.parse(value) : (value ?? null));
 
 const toProfile = (row: Row): Profile => ({
   id: row.id as string,
@@ -29,6 +41,7 @@ const toDrink = (row: Row): DrinkLog => ({
   volumeOz: row.volume_oz as number | null,
   abv: row.abv as number | null,
   alcoholG: row.alcohol_g as number,
+  category: (row.category as string | null | undefined) ?? null,
   consumedAt: iso(row.consumed_at),
 });
 
@@ -56,10 +69,23 @@ const toChallenge = (row: Row): Challenge => ({
 const toPointEvent = (row: Row): PointEvent => ({
   id: row.id as string,
   profileId: row.profile_id as string,
-  delta: row.delta as number,
+  // numeric columns come back as strings.
+  delta: Number(row.delta),
   reason: row.reason as string | null,
   challengeId: row.challenge_id as string | null,
+  source: row.source as PointEvent["source"],
+  breakdown: json(row.breakdown) as PointEvent["breakdown"],
+  drinkId: row.drink_id as string | null,
+  groupId: row.group_id as string | null,
+  awardKey: row.award_key as string | null,
+  voidedAt: isoOrNull(row.voided_at),
   createdAt: iso(row.created_at),
+});
+
+const toWater = (row: Row): WaterLog => ({
+  id: row.id as string,
+  profileId: row.profile_id as string,
+  consumedAt: iso(row.consumed_at),
 });
 
 const toPost = (row: Row): Post => ({
@@ -203,8 +229,8 @@ export function createPostgresStore(sql: Sql): Store {
 
     async addDrink(profileId, input) {
       const [row] = await sql`
-        insert into drink_logs (profile_id, name, volume_oz, abv, alcohol_g)
-        values (${profileId}, ${input.name}, ${input.volumeOz}, ${input.abv}, ${input.alcoholG})
+        insert into drink_logs (profile_id, name, volume_oz, abv, alcohol_g, category)
+        values (${profileId}, ${input.name}, ${input.volumeOz}, ${input.abv}, ${input.alcoholG}, ${input.category ?? null})
         returning *`;
       return toDrink(row);
     },
@@ -212,6 +238,27 @@ export function createPostgresStore(sql: Sql): Store {
     async deleteDrink(profileId, drinkId) {
       const rows = await sql`
         delete from drink_logs where id = ${drinkId} and profile_id = ${profileId} returning id`;
+      return rows.length > 0;
+    },
+
+    async listWaters(profileId) {
+      const rows = await sql`
+        select * from water_logs where profile_id = ${profileId} order by consumed_at desc`;
+      return rows.map(toWater);
+    },
+
+    async listAllWaters() {
+      return (await sql`select * from water_logs`).map(toWater);
+    },
+
+    async addWater(profileId) {
+      const [row] = await sql`insert into water_logs (profile_id) values (${profileId}) returning *`;
+      return toWater(row);
+    },
+
+    async deleteWater(profileId, waterId) {
+      const rows = await sql`
+        delete from water_logs where id = ${waterId} and profile_id = ${profileId} returning id`;
       return rows.length > 0;
     },
 
@@ -278,16 +325,50 @@ export function createPostgresStore(sql: Sql): Store {
       return rows.length > 0;
     },
 
-    async listPointEvents() {
-      return (await sql`select * from point_events order by created_at desc`).map(toPointEvent);
+    async listPointEvents(profileId) {
+      const rows = profileId
+        ? await sql`select * from point_events where profile_id = ${profileId} order by created_at desc`
+        : await sql`select * from point_events order by created_at desc`;
+      return rows.map(toPointEvent);
     },
 
     async addPointEvent(input) {
-      const [row] = await sql`
-        insert into point_events (profile_id, delta, reason, challenge_id)
-        values (${input.profileId}, ${input.delta}, ${input.reason}, ${input.challengeId})
+      const rows = await sql`
+        insert into point_events
+          (profile_id, delta, reason, challenge_id, source, breakdown, drink_id, group_id, award_key, created_at)
+        values (
+          ${input.profileId}, ${input.delta}, ${input.reason}, ${input.challengeId},
+          ${input.source ?? "admin"},
+          ${input.breakdown ? JSON.stringify(input.breakdown) : null}::jsonb,
+          ${input.drinkId ?? null}, ${input.groupId ?? null}, ${input.awardKey ?? null},
+          coalesce(${input.createdAt ?? null}::timestamptz, now())
+        )
+        on conflict (award_key) where award_key is not null do nothing
         returning *`;
-      return toPointEvent(row);
+      return rows[0] ? toPointEvent(rows[0]) : null;
+    },
+
+    async voidPointEvents(match) {
+      const rows =
+        "drinkId" in match
+          ? await sql`
+              update point_events set voided_at = now()
+              where drink_id = ${match.drinkId} and voided_at is null returning *`
+          : await sql`
+              update point_events set voided_at = now()
+              where group_id = ${match.groupId} and voided_at is null returning *`;
+      return rows.map(toPointEvent);
+    },
+
+    async getSetting(key) {
+      const rows = await sql`select value from app_settings where key = ${key}`;
+      return rows[0] ? json(rows[0].value) : null;
+    },
+
+    async setSetting(key, value) {
+      await sql`
+        insert into app_settings (key, value) values (${key}, ${JSON.stringify(value)}::jsonb)
+        on conflict (key) do update set value = excluded.value, updated_at = now()`;
     },
 
     async listPosts() {

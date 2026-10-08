@@ -68,12 +68,15 @@ export function parseProfileInput(body: unknown): Result<ProfileInput> {
   };
 }
 
+const DRINK_CATEGORIES = ["beer", "wine", "seltzer", "cocktail", "shot"];
+
 /** Accepts volume + ABV (grams are computed) or a bare alcohol mass. */
 export function parseDrinkInput(body: unknown): Result<DrinkInput> {
   if (!isRecord(body)) return fail("Invalid request body");
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (name.length < 1 || name.length > 60) return fail("Drink needs a name");
+  const category = typeof body.category === "string" && DRINK_CATEGORIES.includes(body.category) ? body.category : null;
 
   if (body.volumeOz != null || body.abv != null) {
     if (!inRange(body.volumeOz, 0.1, 128)) return fail("Volume must be between 0.1 and 128 oz");
@@ -85,12 +88,13 @@ export function parseDrinkInput(body: unknown): Result<DrinkInput> {
         volumeOz: body.volumeOz,
         abv: body.abv,
         alcoholG: alcoholGrams(body.volumeOz, body.abv),
+        category,
       },
     };
   }
 
   if (!inRange(body.alcoholG, 0.1, 500)) return fail("Drink needs a volume and ABV");
-  return { ok: true, value: { name, volumeOz: null, abv: null, alcoholG: body.alcoholG } };
+  return { ok: true, value: { name, volumeOz: null, abv: null, alcoholG: body.alcoholG, category } };
 }
 
 export function parseEventInput(body: unknown): Result<EventInput> {

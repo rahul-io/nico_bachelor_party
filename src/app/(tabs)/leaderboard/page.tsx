@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { Dispatches } from "@/components/leaderboard/Dispatches";
 import { ChallengeList } from "@/components/leaderboard/ChallengeList";
 import { PointsHistory } from "@/components/leaderboard/PointsHistory";
 import { Standings } from "@/components/leaderboard/Standings";
@@ -22,7 +24,12 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle eyebrow="The Crider Cup" title="Leaderboard" />
+      <PageTitle eyebrow="The Crider Cup" title="Leaderboard">
+        <Link href="/leaderboard/rules" className="inline-flex min-h-9 items-center text-sm text-link underline">
+          How points work
+        </Link>
+      </PageTitle>
+      {view === "standings" && <Dispatches />}
       <Segmented options={views} value={view} onChange={setView} label="Leaderboard view" size="sm" />
       {view === "standings" && <Standings />}
       {view === "trends" && <TrendChart />}

@@ -2,17 +2,42 @@
 
 import { useState } from "react";
 import { useSWRConfig } from "swr";
+import { MultipliersPanel } from "@/components/admin/MultipliersPanel";
+import { PointsSettingsPanel } from "@/components/admin/PointsSettingsPanel";
 import { PointsHistory } from "@/components/leaderboard/PointsHistory";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, inputClass } from "@/components/ui/Field";
+import { Segmented } from "@/components/ui/Segmented";
 import { Status } from "@/components/ui/Status";
 import { useAction } from "@/hooks/useAction";
 import { usePolled } from "@/hooks/usePolled";
 import { apiFetch } from "@/lib/api";
+import { formatPoints } from "@/lib/points/format";
 import type { Challenge, LeaderboardEntry } from "@/lib/store/types";
 
+const views = [
+  { value: "award", label: "Award" },
+  { value: "live", label: "Multipliers" },
+  { value: "settings", label: "Settings" },
+] as const;
+
+type View = (typeof views)[number]["value"];
+
 export function PointsPanel() {
+  const [view, setView] = useState<View>("award");
+
+  return (
+    <div className="space-y-4">
+      <Segmented options={views} value={view} onChange={setView} label="Points section" size="sm" />
+      {view === "award" && <AwardPanel />}
+      {view === "live" && <MultipliersPanel />}
+      {view === "settings" && <PointsSettingsPanel />}
+    </div>
+  );
+}
+
+function AwardPanel() {
   const { mutate } = useSWRConfig();
   const { data: people } = usePolled<LeaderboardEntry[]>("/api/leaderboard");
   const { data: challenges } = usePolled<Challenge[]>("/api/admin/challenges");
@@ -66,7 +91,7 @@ export function PointsPanel() {
             <option value="">Choose…</option>
             {sortedPeople.map((entry) => (
               <option key={entry.id} value={entry.id}>
-                {entry.name} ({entry.points} pts)
+                {entry.name} ({formatPoints(entry.points)} pts)
               </option>
             ))}
           </select>

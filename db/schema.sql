@@ -116,3 +116,32 @@ create table if not exists auth_attempts (
 );
 
 create index if not exists auth_attempts_key_idx on auth_attempts (key, attempted_at);
+
+-- Points economy (M11): drink points, awards, multipliers.
+alter table drink_logs add column if not exists category text;
+
+create table if not exists water_logs (
+  id text primary key default gen_random_uuid()::text,
+  profile_id text not null references profiles (id) on delete cascade,
+  consumed_at timestamptz not null default now()
+);
+
+create index if not exists water_logs_profile_idx on water_logs (profile_id, consumed_at desc);
+
+-- Points to one decimal place (a 1.4 standard drink at 3 points each is 4.2).
+alter table point_events alter column delta type numeric(10, 1);
+alter table point_events add column if not exists source text not null default 'admin';
+alter table point_events add column if not exists breakdown jsonb;
+-- No foreign key: the entry outlives the deleted drink, voided, so the history still shows it.
+alter table point_events add column if not exists drink_id text;
+alter table point_events add column if not exists group_id text;
+alter table point_events add column if not exists award_key text;
+alter table point_events add column if not exists voided_at timestamptz;
+create unique index if not exists point_events_award_key_idx on point_events (award_key) where award_key is not null;
+create index if not exists point_events_drink_idx on point_events (drink_id) where drink_id is not null;
+
+create table if not exists app_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now()
+);

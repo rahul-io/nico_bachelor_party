@@ -10,6 +10,7 @@ import type {
   Reaction,
   ScheduleEvent,
   Store,
+  WaterLog,
 } from "./types";
 
 interface MockData {
@@ -17,6 +18,8 @@ interface MockData {
   attempts: Array<{ key: string; at: number }>;
   avatars: Map<string, string>;
   drinks: DrinkLog[];
+  waters: WaterLog[];
+  settings: Map<string, unknown>;
   events: ScheduleEvent[];
   challenges: Challenge[];
   pointEvents: PointEvent[];
@@ -38,6 +41,8 @@ function seed(): MockData {
     attempts: [],
     avatars: new Map(),
     drinks: [],
+    waters: [],
+    settings: new Map(),
     events: seedEvents.map((event) => ({ id: crypto.randomUUID(), ...event })),
     challenges: seedChallenges.map((challenge, index) => ({
       id: crypto.randomUUID(),
@@ -79,6 +84,7 @@ function seed(): MockData {
         volumeOz: null,
         abv: null,
         alcoholG: STANDARD_DRINK_G,
+        category: "beer",
         consumedAt: iso(now - (10 + 25 * i) * MINUTE_MS),
       });
     }
@@ -89,6 +95,12 @@ function seed(): MockData {
         delta: person.points,
         reason: person.reason,
         challengeId: null,
+        source: "admin",
+        breakdown: null,
+        drinkId: null,
+        groupId: null,
+        awardKey: null,
+        voidedAt: null,
         createdAt: iso(now - 30 * MINUTE_MS),
       });
     }
@@ -192,6 +204,7 @@ export const mockStore: Store = {
     if (!store.profiles.delete(id)) return false;
     store.avatars.delete(id);
     removeWhere(store.drinks, (drink) => drink.profileId === id);
+    removeWhere(store.waters, (water) => water.profileId === id);
     removeWhere(store.pointEvents, (event) => event.profileId === id);
     const ownPosts = new Set(store.posts.filter((post) => post.profileId === id).map((post) => post.id));
     removeWhere(store.posts, (post) => post.profileId === id);
@@ -227,6 +240,7 @@ export const mockStore: Store = {
       profileId,
       consumedAt: new Date().toISOString(),
       ...input,
+      category: input.category ?? null,
     };
     data().drinks.push(drink);
     return drink;
@@ -234,6 +248,27 @@ export const mockStore: Store = {
 
   async deleteDrink(profileId, drinkId) {
     return removeWhere(data().drinks, (d) => d.id === drinkId && d.profileId === profileId);
+  },
+
+  async listWaters(profileId) {
+    return data()
+      .waters.filter((water) => water.profileId === profileId)
+      .reverse()
+      .sort((a, b) => b.consumedAt.localeCompare(a.consumedAt));
+  },
+
+  async listAllWaters() {
+    return [...data().waters];
+  },
+
+  async addWater(profileId) {
+    const water: WaterLog = { id: crypto.randomUUID(), profileId, consumedAt: new Date().toISOString() };
+    data().waters.push(water);
+    return water;
+  },
+
+  async deleteWater(profileId, waterId) {
+    return removeWhere(data().waters, (w) => w.id === waterId && w.profileId === profileId);
   },
 
   async listEvents() {
@@ -296,20 +331,52 @@ export const mockStore: Store = {
     return true;
   },
 
-  async listPointEvents() {
-    return [...data().pointEvents]
+  async listPointEvents(profileId) {
+    return data()
+      .pointEvents.filter((event) => !profileId || event.profileId === profileId)
       .reverse()
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   async addPointEvent(input) {
+    const events = data().pointEvents;
+    if (input.awardKey && events.some((event) => event.awardKey === input.awardKey)) return null;
     const event: PointEvent = {
       id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...input,
+      profileId: input.profileId,
+      delta: input.delta,
+      reason: input.reason,
+      challengeId: input.challengeId,
+      source: input.source ?? "admin",
+      breakdown: input.breakdown ?? null,
+      drinkId: input.drinkId ?? null,
+      groupId: input.groupId ?? null,
+      awardKey: input.awardKey ?? null,
+      voidedAt: null,
+      createdAt: input.createdAt ?? new Date().toISOString(),
     };
-    data().pointEvents.push(event);
+    events.push(event);
     return event;
+  },
+
+  async voidPointEvents(match) {
+    const voidedAt = new Date().toISOString();
+    const hit = data().pointEvents.filter(
+      (event) =>
+        event.voidedAt === null &&
+        ("drinkId" in match ? event.drinkId === match.drinkId : event.groupId === match.groupId),
+    );
+    for (const event of hit) event.voidedAt = voidedAt;
+    return hit.map((event) => ({ ...event }));
+  },
+
+  async getSetting(key) {
+    return data().settings.get(key) ?? null;
+  },
+
+  async setSetting(key, value) {
+    // Round-tripped through JSON so the mock behaves like the database column.
+    data().settings.set(key, JSON.parse(JSON.stringify(value)));
   },
 
   async listPosts() {

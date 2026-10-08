@@ -1,4 +1,5 @@
 import { estimateBac } from "./bac";
+import { roundPoints } from "./points/format";
 import type { Store, TrendPlayer, Trends } from "./store/types";
 
 const MINUTE_MS = 60_000;
@@ -17,7 +18,9 @@ export async function buildTrends(store: Store, now = Date.now()): Promise<Trend
   ]);
 
   const drinkTimes = drinks.map((drink) => ({ ...drink, t: Date.parse(drink.consumedAt) }));
-  const pointTimes = pointEvents.map((event) => ({ ...event, t: Date.parse(event.createdAt) }));
+  const pointTimes = pointEvents
+    .filter((event) => event.voidedAt === null)
+    .map((event) => ({ ...event, t: Date.parse(event.createdAt) }));
   const first = Math.min(now, ...drinkTimes.map((d) => d.t), ...pointTimes.map((p) => p.t));
 
   const stepMs =
@@ -35,7 +38,7 @@ export async function buildTrends(store: Store, now = Date.now()): Promise<Trend
       id: profile.id,
       name: profile.name,
       avatarUrl: profile.avatarUrl,
-      points: times.map((t) => ownPoints.reduce((sum, p) => (p.t <= t ? sum + p.delta : sum), 0)),
+      points: times.map((t) => roundPoints(ownPoints.reduce((sum, p) => (p.t <= t ? sum + p.delta : sum), 0))),
       drinks: times.map((t) => ownDrinks.reduce((count, d) => (d.t <= t ? count + 1 : count), 0)),
       bac: times.map((t) => Math.round(estimateBac(profile, ownDrinks, t).bac * 10_000) / 10_000),
     };

@@ -12,7 +12,7 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 - Never push without Peter asking. Never commit `.env*` files other than `.env.example`.
 - Commits use conventional prefixes (`chore:`, `feat:`, `fix:`).
 - **Use `npm run dev:mock` for anything that creates test data** (profiles, posts, comments, events). It ignores `.env.local` and runs on in-memory data; local admin password is `admin`. Plain `npm run dev` talks to the live site's database.
-- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run test:e2e` (gate and accounts, against `dev:mock`), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
+- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run test:e2e` (gate and accounts, against `dev:mock`), `npm run test:e2e:points` (drink points, water, multipliers, Cheers and reversal, against a fresh `dev:mock`), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
 - With `.env.local` filled in, local dev reads and writes the **live** Neon database and Blob store. Delete any test profiles/posts you create (deleting a profile in Admin removes its drinks, points, posts and files), or blank those variables to use mock data. Shell is PowerShell (no `&&`).
 
 ## Stack
@@ -44,12 +44,26 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 
 ## Planned, not built
 
-**M11 (drink points, awards, multipliers) and M12 (games)** are specified in plan.md and wait for Peter's go-ahead. Until they ship, points exist only as admin awards. When building them:
-- Every number is a default in one typed settings object and editable in Admin > Points settings. No magic numbers in rules code.
-- Scoring rules live in a pure module (`src/lib/points/`) with no database or clock inside, and are unit-tested.
-- Points are computed on the server when the thing happens and written to the ledger with their breakdown; nothing is recalculated later. Random outcomes are drawn on the server, never in the browser.
-- Anything a drink triggered must be voidable when that drink is deleted, and awards must be idempotent (unique key per award and period).
-- The BAC ceiling pauses points without commentary ("points paused" and nothing more), consistent with rule 5.
+**M12 (games) and M13 (achievements and merit badges)** are specified in plan.md and wait for Peter's go-ahead; M13 builds after M12. Both sit on the M11 points economy below and follow its rules. For M13 in particular:
+- Badges come from three sources behind one evaluator interface: manual, rule-based (a JSON rule built in Admin; `describeRule()` writes the plain-English preview from the same rule the evaluator runs) and coded (pure functions; read-only in Admin).
+- Merit badges are checked on the event that can earn them and revoked when that drink, water or photo is deleted. Achievement holders are computed on read while the day runs and written at the cutoff by the M11 settlement.
+- Badge points go through the ledger (`badge` source, unique key). Editing a badge's points affects future awards only unless an admin runs "Recalculate all".
+- Photo tags travel with the post body; don't change Rahul's upload flow for them.
+
+## Points economy (M11)
+
+Logging a drink or a water earns points automatically; hourly and daily awards and admin-run multipliers sit on top. The rules as Peter set them are in plan.md under M11.
+
+- **Every number is a setting.** `src/lib/points/settings.ts` holds the defaults and ranges; Admin > Points > Settings is generated from it and stores overrides in `app_settings`. No magic numbers in rules code: add a setting.
+- **Rules are pure.** `score.ts` (drink, water, Cheers) and `awards.ts` (hourly and daily winners) take plain inputs, with no database and no clock, and are unit-tested. `service.ts` is the only place that joins them to the store.
+- **Computed once, on the server, when the thing happens**, and written to the ledger with the breakdown that produced it. Changing a setting never rewrites history. Anything random (M12) is drawn on the server.
+- **Order for one drink:** standard drinks → pace cap → × points per drink → multipliers, held to the maximum combined multiplier → BAC ceiling. Flat bonuses (Cheers) are separate entries.
+- **Reversal:** deleting a drink or water voids every ledger entry linked to it (`drink_id`), and a Cheers left short is voided for everyone (`group_id`). Voided entries stay in the history, struck through; every total must skip them (`voidedAt`).
+- **Idempotent awards:** every automatic entry has a unique `award_key` (`drink:<id>`, `hour:<iso>:winner`, `day:<day>:smooth`…). `addPointEvent` returns null when the key exists. There is no scheduler: `settleDue()` runs from the polled status endpoint, at most once per clock hour per server instance, and Admin has "Settle now". Last Man Standing is paid only when an admin confirms it.
+- **A "day" is 4am to 4am party time** (`dayCutoffHour`), via `partyDayOf` / `partyDayBounds`.
+- **Water is not a drink.** It lives in `water_logs` so drink counts and BAC never see it.
+- **The BAC ceiling pauses points without commentary:** "points paused" and nothing more, consistent with rule 5.
+- **Polling:** every tab polls `/api/points/status` (Happy Hour, Drink of the Day, the latest dispatches). Keep it small. `/api/points` returns the newest 150 entries; `?profile=<id>` returns one person's entries and their points by source.
 
 ## Access and identity
 
@@ -105,6 +119,7 @@ src/
     password.ts, rate-limit.ts     bcrypt hashing and temp passwords; attempt counting
     limits.ts                      limits shared by browser and server
     leaderboard.ts, trends.ts      server-side totals, points history, chart series
+    points/                        the points economy: settings, pure rules (score, awards), service, formatting
     avatar.ts, chart.ts            avatar storage rules; tick/label layout helpers
     media.ts, feed.ts, upload.ts   upload rules; feed + blob cleanup (server); browser upload helpers
     export.ts, feed-assemble.ts    export names + CSV and feed joining, shared with scripts/ (no runtime imports allowed)
@@ -136,8 +151,8 @@ Mock-serious maritime tradition against a gloriously unserious bachelor-party co
 - **Token pairs to know:** `primary`/`on-primary` is the gold fill with navy lettering. `accent` is gold-toned *text* (rum amber by day because gold is too pale on white, gold at night). `select`/`on-select` is the chosen tab or day. `link` is ocean by day. Fixed brand colours (`navy`, `sand`, `gold`, `gold-hi`, `coral`, `lagoon`, `sunset`…) are for things that must not change with the mode, such as lettering on photographs.
 - **Type:** Fraunces Bold for page titles, event names and challenge titles; Inter for everything functional; Playfair italic is reserved for the splash text. Small-caps eyebrows (`text-xs font-semibold uppercase tracking-[0.16em]`) label sections. Use `PageTitle`.
 - **No taglines.** Peter cut the written flourishes as corny ("Drink. Explore. Compete. Legend awaits." and similar): don't write slogans or jokey sublines. The one decorative line is `Splash`, which rotates the crew's spellings of the toast ("Slange Va!" …) exactly as Peter wrote them; it appears on the gate/welcome hero, in every `PageTitle` and on the Schedule hero.
-- **Voice:** navigation labels stay plain (Schedule, Rum Log, Leaders, Capt's Log); headings and empty states carry the theme (The Voyage, Captain's Log, The Bridge, "Under way", "Next port of call", "Ledger"). Functional copy, errors and anything about money or safety stay literal.
-- **Photography and marks** live in `public/brand` (built by `scripts/make-brand.mjs` from `design/brand`). Use them on a few chosen surfaces only: the welcome screen, the Schedule hero, the Rum Log gauge, the Challenges plaque. `PhotoBand` puts a navy wash under sand lettering. The crest (`lockup.webp`, the hat-and-tikis badge Peter supplied) works on any background. The Commodore's Challenge lockup has navy lettering, so it sits on sand, never on navy. Unused so far, kept in `design/brand`: waves, gulls, palm fronds, captain's hat, the tiki wordmark.
+- **Voice:** navigation labels stay plain (Schedule, Grog Log, Leaders, Capt's Log); headings and empty states carry the theme (The Voyage, Captain's Log, The Bridge, "Under way", "Next port of call", "Ledger"). Functional copy, errors and anything about money or safety stay literal.
+- **Photography and marks** live in `public/brand` (built by `scripts/make-brand.mjs` from `design/brand`). Use them on a few chosen surfaces only: the welcome screen, the Schedule hero, the Grog Log gauge, the Challenges plaque. `PhotoBand` puts a navy wash under sand lettering. The crest (`lockup.webp`, the hat-and-tikis badge Peter supplied) works on any background. The Commodore's Challenge lockup has navy lettering, so it sits on sand, never on navy. Unused so far, kept in `design/brand`: waves, gulls, palm fronds, captain's hat, the tiki wordmark.
 - **Icons:** lucide line icons (ShipWheel, BottleWine, Trophy, BookOpenText, Anchor…), gold on navy. The raster icon sheet in `design/brand` is reference only.
 
 ## Conventions
@@ -149,7 +164,7 @@ Mock-serious maritime tradition against a gloriously unserious bachelor-party co
   - Every page must render something on the server. Never gate a page by returning `null` until the client mounts (Next reports a dropped segment). Browser-only values come from hooks that are `null`/`undefined` on the server: `useNow()` and `useIdentity()`. Never call `Date.now()` or read localStorage during render.
 - Shared types come from `src/lib/store/types.ts`. Read env vars only through `src/lib/env.ts`.
 - Timestamps are stored as UTC (`timestamptz`). Anything about the plan (schedule, admin event times, export file names) renders in the party timezone from `src/config.ts`. "When was this posted" stamps on photos and comments render in the viewer's own timezone (`formatDeviceWeekdayTime`).
-- Points are a ledger (`point_events`); totals are always summed, never stored.
+- Points are a ledger (`point_events`); totals are always summed, never stored, and skip voided entries. Points have one decimal place: show them with `formatPoints` / `formatDelta`.
 - Validate request bodies by hand in the route handler; return `{ error }` with a proper status.
 - Admin: every `/api/admin/*` handler starts with `if (!(await isAdmin())) return jsonError("Not authorized", 401)`. Guest-facing reads of the same data live outside `/api/admin` and return only public fields.
 - Client data: `usePolled(path)` for polled GETs, `useAction()` for mutations with a status line, then `mutate(key)` the affected paths.

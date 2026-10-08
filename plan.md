@@ -270,9 +270,9 @@ Built 2026-10-08 from Peter's brief and boards. The design rules now live in CLA
 
 Things a later pass could add: achievement badges, a themed empty-state illustration, the Cap'n Crider ribbon mark somewhere it earns its place.
 
-### M11 — Points economy A: drink points, awards, multipliers (planned, awaiting go-ahead)
+### M11 — Points economy A: drink points, awards, multipliers (built 2026-10-08)
 
-Today points exist only when an admin awards them. This milestone makes logging drinks and water earn points automatically, adds computed daily and hourly awards, and adds admin-run multipliers. Every number below is a default, editable in Admin > Points settings.
+Before this, points existed only when an admin awarded them. This milestone makes logging drinks and water earn points automatically, adds computed daily and hourly awards, and adds admin-run multipliers. Every number below is a default, editable in Admin > Points settings.
 
 **How it is built**
 
@@ -290,15 +290,16 @@ Today points exist only when an admin awards them. This milestone makes logging 
 | Rule | Default | How it is applied |
 |---|---|---|
 | Base | 3 pts per standard drink | standard drinks = ethanol grams ÷ 14, from the logged volume and ABV |
-| Pace cap | 6 standard drinks per rolling hour | only the part of a drink that fits under the cap earns; the rest earns 0 |
+| Pace cap | 10 standard drinks per rolling hour | only the part of a drink that fits under the cap earns; the rest earns 0 |
 | BAC ceiling | 0.18% | if estimated BAC just before the drink is at or above it, the drink logs, shows, and earns 0; tracker shows "points paused" and nothing else |
 | Water | +1 each, max 2 scoring per hour | a new Water quick button; water never counts as a drink or touches BAC |
 | Hydration boost | 1.5× | banked by a water, spent by the next alcoholic drink; does not stack |
 | Happy Hour | 2× | admin starts it with a duration; banner on every screen while it runs |
 | Drink of the Day | 2× | admin picks a catalogue drink or a category per day |
-| Cheers | +3 each | 4 or more different people log a drink within 5 minutes; flat, not multiplied; one per person per window |
+| Cheers | +3 each | 4 or more different people log a drink within 5 minutes; flat, not multiplied; one per person per window; a latecomer inside the window joins it |
+| Maximum combined multiplier | 6× | hydration × Happy Hour × Drink of the Day (and the M12 multipliers) multiply together, then are held to this |
 
-Order of operations for one drink: standard drinks → pace cap → × 3 → × hydration × Happy Hour × Drink of the Day (and the M12 multipliers) → BAC ceiling (0 if paused). Flat bonuses (Cheers) are added separately.
+Order of operations for one drink: standard drinks → pace cap → × 3 → × hydration × Happy Hour × Drink of the Day (and the M12 multipliers), held to the maximum combined multiplier → BAC ceiling (0 if paused). Flat bonuses (Cheers) are added separately.
 
 **Daily awards** (settled at the 4am cutoff)
 
@@ -307,39 +308,51 @@ Order of operations for one drink: standard drinks → pace cap → × 3 → × 
 | Smooth Sailing (Cruise Control) | +15 | most minutes that day with estimated BAC inside 0.04–0.10% |
 | Drunkest Sailor (Peak BAC) | +10 | highest estimated BAC that day, counted only up to the ceiling; ties go to whoever got there first |
 | Fastest Climb | +8 | shortest time from 0.00 to the ceiling, using only the capped part of each drink |
-| Landlubber (Hydration King) | +5 | most waters logged |
+| Landlubber (Hydro Homie) | +5 | most waters logged |
 | Last Man Standing | +10 | last person to post a photo after 1am; proposed automatically, paid only when an admin confirms it |
 
 **Hourly awards** (settled when each clock hour ends, only if at least 2 people logged in it)
 
-- Hour Winner, +2 (see question 1 for what "cumulative" means here).
+- Hour Winner, +2: whoever has the most drink points so far that day when the hour ends (so the day's leader can collect it every hour).
 - Top BAC of the hour, +1: highest estimated BAC reached in that hour, counted up to the ceiling.
 
 **Screens**
 
-- Rum Log: Water button; after each drink a result line with the breakdown; "points paused" state; Happy Hour and Drink of the Day shown where they apply.
+- Grog Log (renamed from Rum Log): Water button; after each drink a result line with the breakdown; "points paused" state; Happy Hour and Drink of the Day shown where they apply.
 - Leaderboard: Dispatches strip; tap a person to see their points by source; the Ledger shows the breakdown on every entry, e.g. "IPA 1.4 std × 3 = 4.2 × 1.5 hydration = 6.3".
 - "How points work": a page linked from the Leaderboard, written from the current settings so it is never out of date.
 - Admin: Points settings; start/stop Happy Hour; set Drink of the Day; confirm Last Man Standing; Settle now.
 
 Checklist:
-- [ ] Settings definition, defaults, storage, Admin form
-- [ ] Rules module with unit tests: base, pace cap (partial credit), BAC ceiling, water limit, hydration boost, multiplier stacking, Cheers windows
-- [ ] Ledger migration (decimal points, source, breakdown, drink link, group, award key, void), both stores, contract tests
-- [ ] Water logging; drinks record their catalogue name and category so Drink of the Day can match
-- [ ] Score on log; void on delete, including Cheers re-check
-- [ ] Happy Hour and Drink of the Day (admin controls, banner)
-- [ ] Hourly and daily award calculators with unit tests; lazy idempotent settlement; Settle now; Last Man Standing confirmation
-- [ ] Dispatches, toast, per-person breakdown by source, Ledger breakdown lines
-- [ ] "How points work" page
-- [ ] End-to-end script: two players log drinks and water through caps, a Happy Hour, a Cheers, a delete, and an hour and a day settling
+- [x] Settings definition, defaults, storage, Admin form
+- [x] Rules module with unit tests: base, pace cap (partial credit), BAC ceiling, water limit, hydration boost, multiplier stacking, Cheers windows
+- [x] Ledger migration (decimal points, source, breakdown, drink link, group, award key, void), both stores, contract tests
+- [x] Water logging; drinks record their catalogue name and category so Drink of the Day can match
+- [x] Score on log; void on delete, including Cheers re-check
+- [x] Happy Hour and Drink of the Day (admin controls, banner)
+- [x] Hourly and daily award calculators with unit tests; lazy idempotent settlement; Settle now; Last Man Standing confirmation
+- [x] Dispatches, toast, per-person breakdown by source, Ledger breakdown lines
+- [x] "How points work" page
+- [x] End-to-end script: two players log drinks and water through caps, a Happy Hour, a Cheers, a delete, and an hour and a day settling
 
-Open questions:
-1. **Hour Winner, "cumulative count for that day":** does the +2 go to whoever earned the most drink points *in that hour*, or to whoever has the most drink points *so far that day* at the end of each hour? The second means the day's leader collects +2 every hour. I've assumed the second because of "cumulative"; say if you meant the first.
-2. **Stacked multipliers have no ceiling as written.** With M12, one drink can be 1.5 × 2 × 2 × 2 (Groom Tax) × 3 (Bartender's) × 3 (slot) = 108×, about 324 points for one standard drink, against +15 for the top daily award. "Then caps apply" suggests you want a limit: a setting for the maximum combined multiplier, default 6×?
-3. **Drinks already logged before this ships:** score them at the plain base rate (3 per standard drink, no caps or multipliers), or start everyone's drink points from zero at deploy?
-4. **Fastest Climb** pays for getting from 0.00 to 0.18% as fast as possible, and Drunkest Sailor's tie-break pays for getting to 0.18% first. Those two are the only rules here that reward speed to a very high number rather than the number itself. One change I'd make: measure Fastest Climb to the top of the Smooth Sailing band (0.10%) instead of to the ceiling. Your call; it's a setting either way.
-5. **Above the ceiling or over the pace cap, do flat rewards still pay?** As written a paused drink "still spins the slot", and a Jackpot (+15) or Rob the Leader would then pay while multipliers pay nothing, which makes drinking past the ceiling worth a spin. Recommendation: paused drinks spin for show only.
+Decisions from Peter (2026-10-08):
+1. Hour Winner is cumulative: the most drink points so far in the day.
+2. Stacked multipliers are capped by a "maximum combined multiplier" setting, default 6×.
+3. Drink points start from zero; nothing logged before this is back-filled (accounts are being reset anyway).
+4. Fastest Climb and Drunkest Sailor stay as specified (to the ceiling).
+5. Pace cap default is 10 standard drinks per rolling hour.
+6. "Rum Log" is now "Grog Log"; "Hydration King" is now "Hydro Homie".
+
+How it turned out, where it matters later:
+- Code: `src/lib/points/` — `settings.ts` (every number, with ranges; the Admin form is generated from it), `score.ts` and `awards.ts` (pure rules), `service.ts` (the rules against the store: log, delete, Happy Hour, Drink of the Day, settlement, status), `format.ts` and `log.ts` (display helpers).
+- Schema: `water_logs`, `app_settings`, `drink_logs.category`, and on `point_events`: decimal `delta`, `source`, `breakdown`, `drink_id`, `group_id`, unique `award_key`, `voided_at`. **`npm run db:setup` must be run against the live database before this is deployed.**
+- Water is its own table, not a drink, so drink counts and BAC code never see it.
+- Settlement runs inside `/api/points/status` and `/api/points`, at most once per clock hour per server instance, and looks back 12 hours and 2 days. If nobody opens the app for longer than that after an hour ends, that hour's awards are skipped; Admin's "Settle now" covers the same window.
+- Awards are decided from the data as it stands when they settle. Deleting a drink afterwards reverses that drink's own points and its Cheers, not an award it helped win.
+- A Cheers that was taken back can form again if enough people still have drinks inside the window when someone else logs.
+- `npm run test:e2e:points` (42 checks) against a fresh `npm run dev:mock`; clock-dependent settlement is covered by the unit tests instead.
+
+Still open, moved to M12: whether a drink that earns 0 (paused or over the pace cap) may still win flat slot prizes. Recommendation stays "spin for show only".
 
 ### M12 — Points economy B: games (planned, awaiting go-ahead)
 
@@ -382,7 +395,7 @@ Six games on top of M11's ledger. Each writes ordinary ledger entries with its o
 
 **5. Bartender's Choice**
 - Admin button assigns each active player a random catalogue drink (no water; weighted towards things a bar actually serves).
-- Logging that exact drink within 60 minutes is 3×. The Rum Log shows the assignment with a countdown and a one-tap "Log it".
+- Logging that exact drink within 60 minutes is 3×. The Grog Log shows the assignment with a countdown and a one-tap "Log it".
 
 **6. Snitch Line**
 - Report a player with a photo and a short reason. If 2 other players (not the reporter, not the accused) upvote within 30 minutes: accused −5, reporter +3. Otherwise it expires.
@@ -405,8 +418,92 @@ Open questions:
 4. **Dead Weight and flat bonuses:** does a Dead-Weighted drink still pay a Jackpot or Cheers? Suggest no: that drink earns nothing at all.
 5. **Side bets close** when the first player reports a result. OK?
 6. **Limits to stop spam:** one open snitch report per reporter, and one outgoing unanswered challenge per pair. OK?
+7. **Drinks that earn 0** (points paused, or wholly over the pace cap): do flat slot prizes (Jackpot, Rob the Leader) still pay? Recommendation: the reels spin for show only.
 
-Size and order: M11 is the foundation and has to ship first. M12 is six separate features; each is usable on its own, so they can go out one at a time in the order above.
+### M13 — Achievements and merit badges (planned, awaiting go-ahead; builds after M12)
+
+Two kinds of badge on top of the M11 ledger and the M12 notices and feed lines.
+
+- **Achievements** have one holder per period (a party day, or the whole weekend): "first to…" or "most…". The holder is recomputed live from the data while the period runs and is locked at the cutoff (4am party time, the M11 `dayCutoffHour` setting).
+- **Merit badges** go to anyone who meets the condition. Repeatable ones show a count ("Pentakill ×2").
+
+**How it is built**
+
+- **Tables:** `badges` (name, description, image, emoji fallback, kind, period, points, active, hidden-until-earned, where it comes from, and either a rule or the name of a coded condition) and `badge_awards` (badge, person, period, when, what caused it, a unique key, optional admin reason, revoked-at, seen-at).
+- **Three sources**, one evaluator interface, so the rest of the app never cares which it is:
+  1. **Manual:** created in Admin, awarded and revoked by hand.
+  2. **Rule-based:** a small JSON rule built in Admin with no code. Four rule types: *Count* (N drinks of a category, tag or exact drink, or waters, within a rolling hour, a day or the weekend), *Threshold* (estimated BAC at or above X), *Time of day* (a drink, or a drink of a category, before or after HH:MM), *First/most per day* (first to a BAC threshold; most photos, tagged photos, waters, drinks, drinks of a category, Groom Taxes, curses received). A pure `describeRule()` writes the plain-English preview shown under the builder, so the preview and the evaluator can't disagree.
+  3. **Coded:** conditions the builder can't express, written as pure functions. They appear in Admin with name, image, description, points and active editable; the rule is read-only and labelled "coded".
+- **When things are checked:** merit badges are checked on the event that can earn them (a drink, a water, a photo). BAC only rises when a drink is logged, so every BAC condition is checked at drink time. Achievement holders are computed on read while the day runs, then written and paid by the same lazy, idempotent settlement M11 uses for daily awards.
+- **Points** go through the M11 ledger as a new `badge` source with a unique key, so they show in the history and in "points by source". Revoking a badge voids its entry. Deleting the drink, water or photo that earned a merit badge revokes it, the same way a drink delete reverses a Cheers.
+- **Editing points** affects future awards only. "Recalculate all" (with a confirm) voids and reissues that badge's existing ledger entries at the new value.
+- **The pop:** the earner's phone shows a full-screen card once per award, tracked on the server (`seen_at`) so it doesn't repeat on a second device. The feed line ("🎮 Jake earned PENTAKILL") uses the M12 system lines in the Captain's Log, with the badge's emoji.
+
+**Photo tagging** (needed for Paparazzi and Sleeping Beauty, useful on its own)
+
+- When posting: optionally tag people from the player list, and optionally mark the photo "asleep". Tags are sent with the post; Rahul's upload flow is not touched.
+- Tags show under the photo as tappable names, opening that person's trophy case. An "asleep" mark shows as a chip.
+- Bulk export CSV gains `tagged` and `asleep` columns (zip export and `npm run export-photos`).
+- Schema: `post_tags (post_id, profile_id)`, `posts.asleep`, `posts.pinned_until`.
+
+**Initial set**
+
+| Badge | Kind | Source | Condition |
+|---|---|---|---|
+| Designated Driver | Achievement, daily | Rule (first) | first to reach 0.08% that day |
+| Hydro Hero | Achievement, daily | Rule (most) | most waters that day |
+| Perez Hilton | Achievement, daily | Rule (most) | most photos that day |
+| Paparazzi | Achievement, daily | Rule (most) | most photos that day that tag at least one other person |
+| Lightweight | Achievement, daily | Coded | reached 0.10% that day on the fewest drinks |
+| Sleeping Beauty | Achievement, daily | Coded + admin | first "asleep" photo of the day with the sleeper tagged; an admin confirms, then it is awarded and the photo is pinned in the feed |
+| Take the Wheel Cap'n | Merit | Rule (threshold) | reached 0.08% |
+| Triple Kill / Quadkill / Pentakill | Merit, repeatable | Rule (count) | 3 / 4 / 5 drinks in a rolling hour |
+| Sophisticated Gentleman | Merit | Rule (count) | logged a drink tagged "fruity" |
+| Breakfast of Champions | Merit | Rule (time of day) | a drink before 10:00 |
+| Hair of the Dog | Merit | Coded | first drink of the day before noon, after going over 0.08% the night before |
+| Second Wind | Merit | Coded | dropped back to 0.00%, then climbed back over 0.05%, the same day |
+
+Paparazzi is in your "coded" list, but your builder's "most tagged photos" metric expresses it exactly, so it is seeded as a rule (see question 6). Drinks gain a `tags` list in `src/data/drinks.json` ("fruity" to start), recorded on the logged drink the way `category` is now.
+
+**Screens**
+
+- **Admin > Badges:** every badge with its current holders; edit name, description, image, emoji fallback, kind, points, active, hidden-until-earned; the rule builder with its preview; award or revoke by hand with a reason (also from a player's row in People); "Recalculate all"; the Sleeping Beauty confirmation queue. Images are cropped square and resized to 256 px in the browser, then stored in Blob (a data URL in mock mode, as avatars do).
+- **Trophy case** on the Leaderboard tab: today's achievement holders, earned merit badges with counts, and locked badges greyed with their descriptions (hidden-until-earned ones show "???").
+- **Profile and the person sheet:** earned badges with counts.
+- **Full-screen pop** and the **feed line**, as above.
+
+**Tests**
+
+Unit tests for every rule type and every coded condition, including: the 4am cutoff on both sides, first/most ties (earliest wins), rolling-hour counts across the hour boundary, repeat counts, revocation on delete, and `describeRule` output for each rule type. Contract tests for the new store methods on both stores. An end-to-end script for tag → asleep → confirm → pin, and for a manual award and revoke.
+
+Checklist (in build order):
+- [ ] Photo tagging and the "asleep" mark: schema, composer, display, export columns
+- [ ] Badge tables and store methods; ledger `badge` source; award, revoke, seen
+- [ ] Rule types as pure functions with `describeRule`; coded conditions; unit tests
+- [ ] Merit checks on log/post, revocation on delete; achievement holders live and at settlement
+- [ ] Seed the initial set; `tags` on catalogue drinks
+- [ ] Admin > Badges: list, editor, rule builder, image upload, manual award/revoke, Recalculate all, Sleeping Beauty queue
+- [ ] Trophy case, badges on profile and person sheet, full-screen pop, feed line
+- [ ] End-to-end script
+
+Depends on M12 for: system lines in the Captain's Log, the per-person notices, and the "Groom Taxes" and "curses received" metrics. If you would rather have badges before the games, the first two are small and can be built here instead; the two metrics would simply be unavailable in the builder until M12.
+
+Open questions:
+1. **"Cup tab":** I've read this as the Leaderboard tab (it is headed "The Crider Cup"). It already has four views (Standings, Trends, Challenges, Ledger) and a fifth doesn't fit a phone. Proposal: Standings, Trends, Trophies, Challenges, with the Ledger moving to a link beside "How points work". Or should the tab itself be renamed "Cup"?
+2. **Points:** you gave no values. Proposal: achievements +5, merit badges +2, Sleeping Beauty +10, all editable. Or should badges be worth nothing by default?
+3. **When achievements pay.** Recommended: at the 4am lock only. While the day runs the trophy case shows "currently held by…". Paying live would mean taking points back each time a "most" badge changes hands. The pop and feed line would fire when a "first" badge is claimed (it can't change hands) and at the lock for "most" badges.
+4. **Repeats for merit badges.** Proposal: BAC, time-of-day and fruity badges at most once per party day; the Kill badges repeat only with a fresh set of drinks (no drink counts twice towards the same badge), and reaching five in an hour earns Triple, Quad and Penta in turn.
+5. **Lightweight:** read as "of everyone who reached 0.10% that day, whoever had logged the fewest drinks in that session when they got there; ties go to whoever got there first". Right?
+6. **Paparazzi** as a rule rather than coded: OK?
+7. **Hydro Hero and Landlubber (Hydro Homie)** are both "most waters that day", so the same person would be paid twice. Keep both, or retire the M11 daily award when this ships?
+8. **Tagging:** can a tagged person remove themselves from a photo? Can the poster add tags after posting? If an "asleep" photo tags two people, does the first one tagged get Sleeping Beauty?
+9. **Sleeping Beauty pin:** pinned to the top of the feed until the next 4am?
+10. **Fruity:** I'll propose the list of catalogue drinks to tag when I build it. Custom drinks and ones found by barcode search can't be fruity. OK?
+11. **Two names against your own rule.** CLAUDE.md rule 5 (from your first brief) says the app never implies someone is fine to drive and never references a legal limit. "Designated Driver" for the first person to 0.08% and "Take the Wheel Cap'n" at 0.08% are jokes that do the opposite on their face. I'll build them as written if you confirm; the alternative is keeping the names and writing the descriptions so the wheel is plainly the ship's.
+
+Size and order: M11 is the foundation and is built. M13 builds after M12 unless you say otherwise (see its dependency note).
+
+M12 is six separate features; each is usable on its own, so they can go out one at a time in the order above.
 
 ## Decisions from Peter (2026-10-07)
 

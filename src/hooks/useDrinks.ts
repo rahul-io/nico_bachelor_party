@@ -4,21 +4,24 @@ import useSWR from "swr";
 import { config } from "@/config";
 import { apiFetch } from "@/lib/api";
 import { alcoholGrams } from "@/lib/bac";
-import type { DrinkInput, DrinkLog } from "@/lib/store/types";
+import type { DrinkInput, LoggedDrink } from "@/lib/store/types";
 import { useIdentity } from "./useProfile";
 
 /** This device's drink log, newest first, with optimistic add/remove. */
 export function useDrinks() {
   const identity = useIdentity();
-  const { data, error, isLoading, mutate } = useSWR<DrinkLog[]>(
+  const { data, error, isLoading, mutate } = useSWR<LoggedDrink[]>(
     identity ? "/api/drinks" : null,
-    (path: string) => apiFetch<DrinkLog[]>(path),
+    (path: string) => apiFetch<LoggedDrink[]>(path),
     { refreshInterval: config.pollIntervalMs },
   );
 
   async function addDrink(input: DrinkInput) {
-    const optimistic: DrinkLog = {
+    const optimistic: LoggedDrink = {
       ...input,
+      category: input.category ?? null,
+      points: null,
+      pointsLine: null,
       alcoholG:
         input.volumeOz != null && input.abv != null
           ? alcoholGrams(input.volumeOz, input.abv)
@@ -29,7 +32,7 @@ export function useDrinks() {
     };
     await mutate(
       async (current = []) => {
-        const created = await apiFetch<DrinkLog>("/api/drinks", { method: "POST", body: input });
+        const created = await apiFetch<LoggedDrink>("/api/drinks", { method: "POST", body: input });
         return [created, ...current];
       },
       {
