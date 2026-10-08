@@ -24,9 +24,6 @@ export function BacCard({ estimate }: { estimate: BacEstimate | null }) {
             ? `${estimate.sessionDrinks} ${estimate.sessionDrinks === 1 ? "drink" : "drinks"} since ${formatTime(estimate.sessionStart)}`
             : "Nothing in the log. Pour something."}
         </p>
-        <p className="mt-2 font-script text-sm italic leading-snug text-sand/80">
-          Standing orders: bragging rights only. Nobody takes the wheel on its word.
-        </p>
       </div>
     </PhotoBand>
   );

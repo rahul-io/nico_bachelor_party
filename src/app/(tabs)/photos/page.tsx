@@ -60,7 +60,7 @@ export default function PhotosPage() {
 
   return (
     <div className="space-y-4">
-      <PageTitle eyebrow="Photo proof" title="Captain's Log" flourish="If it isn't in the log, it never happened." />
+      <PageTitle eyebrow="Photo proof" title="Captain's Log" />
       {config.albumUrl && (
         <a
           href={config.albumUrl}

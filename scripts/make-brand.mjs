@@ -26,12 +26,23 @@ for (const [source, name, width, quality, crop] of photos) {
   console.log(`${out(name)}  ${info.width}x${info.height}  ${Math.round(info.size / 1024)} KB`);
 }
 
+/** Marks supplied as their own transparent files: trimmed and resized. */
+const singles = [
+  // [source, output, width]
+  ["crest", "lockup", 720],
+  ["divider", "rope", 900],
+];
+
+for (const [source, name, width] of singles) {
+  const cut = await sharp(src(source)).trim().png().toBuffer();
+  const info = await sharp(cut).resize({ width }).webp({ quality: 90 }).toFile(out(name));
+  console.log(`${out(name)}  ${info.width}x${info.height}  ${Math.round(info.size / 1024)} KB`);
+}
+
 /** Marks cut out of the transparent logo sheet, trimmed tight. */
 const marks = [
-  ["logo-sheet", "lockup", { left: 0, top: 110, width: 420, height: 410 }],
   ["logo-sheet", "capn-crider", { left: 20, top: 520, width: 330, height: 370 }],
   ["logo-sheet", "commodores-challenge", { left: 380, top: 540, width: 430, height: 330 }],
-  ["logo-sheet", "rope", { left: 945, top: 858, width: 445, height: 46 }],
 ];
 
 for (const [source, name, crop] of marks) {

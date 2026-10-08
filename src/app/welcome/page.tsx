@@ -107,7 +107,7 @@ function LoginForm({ onDone }: { onDone: (session: SessionResponse) => void }) {
       <Button type="submit" variant="primary" block disabled={busy || !name.trim() || !password}>
         {busy ? "Checking…" : "Log in"}
       </Button>
-      <p className="text-center text-sm text-muted">Forgot it? An admin can reset your password.</p>
+      <p className="text-center text-sm text-muted">Forgot it? Walk the plank.</p>
       <Status status={status} />
     </form>
   );

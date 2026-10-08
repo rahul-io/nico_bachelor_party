@@ -5,6 +5,7 @@ import { DayPicker } from "@/components/schedule/DayPicker";
 import { EventCard } from "@/components/schedule/EventCard";
 import { Card } from "@/components/ui/Card";
 import { PhotoBand } from "@/components/ui/PhotoBand";
+import { Splash } from "@/components/ui/Splash";
 import { config } from "@/config";
 import { useNow } from "@/hooks/useNow";
 import { useSchedule } from "@/hooks/useSchedule";
@@ -33,14 +34,15 @@ export default function SchedulePage() {
   return (
     <div className="space-y-4">
       <PhotoBand image="/brand/hero-sunset.webp" focus="object-[70%_center]">
+        <Splash className="absolute right-4 top-4 text-gold-hi" />
         <div className="px-5 pb-5 pt-24">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-hi">Ahoy, crew</p>
           <h1 className="font-display text-3xl font-bold leading-tight">The Voyage</h1>
-          <p className="mt-0.5 font-script text-lg italic text-sand/90">
-            {highlighted
-              ? `${highlight?.kind === "now" ? "Under way" : "Next port of call"}: ${highlighted.title}`
-              : "Drink. Explore. Compete. Legend awaits."}
-          </p>
+          {highlighted && (
+            <p className="mt-0.5 text-sand/90">
+              {highlight?.kind === "now" ? "Under way" : "Next port of call"}: {highlighted.title}
+            </p>
+          )}
         </div>
       </PhotoBand>
 
