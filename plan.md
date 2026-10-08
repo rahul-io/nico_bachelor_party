@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1–M4 done (2026-10-07). M3 and M4 are verified against the real Neon database and Vercel Blob store from local dev. Not yet verified on the deployed site. M5 is next.**
+Status: **M1–M4 done and live-tested from local dev. M5 (polish, home-screen install) not started. M6–M8 below are planned and waiting for Peter's go-ahead; nothing in them is built.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -97,6 +97,94 @@ Local dev with `.env.local` set talks to the **live** database and Blob store. C
 - [ ] `manifest.ts`, icons, apple-touch-icon, theme-color, standalone display
 - [ ] Real schedule entered; test on an actual iPhone and Android phone
 - [ ] Deploy checklist walked through with Rahul
+
+### M6 — Admin schedule calendar (planned, awaiting go-ahead)
+
+Admin > Schedule gets a `List | Calendar` toggle. The list and form stay as they are; the calendar is a second way to drive the same form and the same `/api/admin/events` API.
+
+**Library: FullCalendar v7 (`@fullcalendar/react` 7.1.x), standard MIT features only.**
+- It is the only free option that covers everything asked for in one package: time-grid day and multi-day views, drag-to-create, drag-to-move, resize from the bottom edge, and long-press dragging on touch. react-big-calendar's drag-and-drop is a weaker add-on on touch, and Schedule-X needs paid plugins for part of it.
+- v7 resolves named time zones itself (`timeZone: "America/Los_Angeles"`), so no Luxon/Moment plugin. Events crossing midnight render across day columns natively.
+- v7 ships no fixed CSS and is themed through class names and CSS variables, which fits the "tokens in globals.css only" rule.
+- Time-grid and interaction are MIT. Nothing from the premium scheduler package (timeline, resources) is needed.
+- Risk: v7 is a recent major release (its React entry points and CSS variable names changed from v6). The first checklist item is a short spike; if drag, resize or long-press misbehave with React 19 / Next 16, fall back to v6.1.21 with `timeZone: "UTC"` and wall-clock times converted through our own `partyTimeToIso` (safe because the weekend has no DST change).
+- New dependencies: `@fullcalendar/react` and its peer `temporal-polyfill`. Loaded only on `/admin` (dynamic import), so guests never download it.
+
+Checklist:
+- [ ] Spike: v7 time-grid with move, resize, select and long-press under React 19 / Next 16; confirm or fall back to v6
+- [ ] Extract the event form from `SchedulePanel` into `EventForm`, shown inline in List view and in a sheet over the Calendar view
+- [ ] Calendar views limited to Oct 8–11: "Day" (default on phones, with the existing day picker) and "Weekend" (4 columns, default on laptops)
+- [ ] Tap or drag an empty slot → form prefilled with that start/end; tap an event → same form to edit or delete
+- [ ] Drag to move and drag the bottom edge to resize → saved immediately via `PATCH /api/admin/events/[id]`, reverted on failure
+- [ ] Toast primitive with "Undo" after each move/resize (restores the previous start/end with another PATCH)
+- [ ] All times in party timezone whatever the device's; overnight events render across midnight; events with no end time show as one hour until resized
+- [ ] Polling paused while a drag is in progress so the event doesn't jump; guests see changes through the normal 10 s poll
+- [ ] FullCalendar colours, borders and radii mapped to theme tokens in `globals.css`; check on a phone (long-press) and a laptop
+
+### M7 — Reactions and comments (planned, awaiting go-ahead)
+
+Data model:
+
+| Table | Columns |
+|---|---|
+| `post_reactions` | post_id, profile_id, emoji, created_at — primary key (post_id, profile_id, emoji); both ids cascade on delete |
+| `post_comments` | id, post_id, profile_id, body (≤ 280), bac_at_comment?, created_at; both ids cascade on delete |
+
+- The emoji set is fixed in code (🍺 😂 🔥 😬 ❤️ 💀) and enforced server-side. A person can have several different reactions on one photo; each toggles independently.
+- `bac_at_comment` follows the post rule exactly: computed once server-side when the comment is created, stored only if the commenter's setting is on at that moment, never recomputed. The profile toggle is relabelled "Show my BAC on my posts and comments".
+- The polled feed carries only counts: per-emoji totals, which ones are mine, and the comment count, from one aggregate query. Names of reactors and the comment thread load when a photo is opened (`GET /api/posts/[id]`), and that view polls on its own while open.
+- Comment timestamps use the viewer's local time, like post timestamps.
+
+Checklist:
+- [ ] Schema, both stores, contract tests
+- [ ] `POST/DELETE /api/posts/[id]/reactions`, `POST /api/posts/[id]/comments`, `DELETE /api/comments/[id]` (own comment or admin)
+- [ ] Feed: reaction bar under each photo with counts, tap to toggle (optimistic), comment count
+- [ ] Double-tap a photo = 🔥 (adds, never removes). Photos only: on videos a double-tap belongs to the player
+- [ ] Long-press a count → who reacted (also listed in the opened photo, since long-press is hard to discover)
+- [ ] Photo detail view: full-size media, reactors, flat comment thread with avatar/name/time/BAC, composer with 280-character counter
+- [ ] Delete own comment; admin can delete any
+- [ ] Export: add reaction and comment counts to `photos.csv` and a `comments.csv`
+
+Open questions:
+1. Opening a photo: with double-tap taken, a single tap on the photo has to wait about a quarter of a second to rule out a double-tap. Alternative: open only from the comment count/button and leave single tap unused. Recommendation: single tap opens, with the short delay.
+2. Should deleting a comment or un-reacting be visible to others in any way? Assumed no.
+
+### M8 — Photo map (planned, awaiting go-ahead)
+
+Photos tab gets a `Feed | Map` toggle.
+
+Data model: `posts` gains `lat`, `lng` (double precision, nullable), `location_source` (`exif` | `device` | `event`, nullable) and `event_id` (nullable, set null if the event is deleted). `events` gains `lat`, `lng` so a tagged event can supply coordinates.
+
+Libraries: `leaflet` 1.9 (BSD-2) and `leaflet.markercluster` 1.5 (MIT), used directly in a small client component. Not `react-leaflet`: its current release is under the Hippocratic licence rather than MIT/BSD. `exifr` (MIT) reads GPS from the original file before anything is resized.
+
+Things that change the design, found while planning:
+- **EXIF GPS will usually be missing on phones.** iOS Safari has stripped location from photos chosen through a web page since 16.4 (iOS 17 added a per-pick "include location" option for library photos; photos taken through the picker's camera still lose it), and Android's photo picker redacts it for web uploads. Source (a) will mostly help on laptops, so on phones the location will normally be (b): where the phone is at upload time, not where the photo was taken.
+- **Videos uploaded as-is can carry location inside the file** (MP4/MOV metadata), and the browser can't strip it without re-encoding. iOS appears to strip it on web uploads; Android behaviour is unverified. Needs a decision (below).
+- **Schedule events have no coordinates today**, only a location name and a Maps search string, so "tag an event" needs events to get a lat/lng first.
+- **Photos are already stripped.** Every photo is re-encoded through a canvas before upload, which drops all EXIF. The one gap is the fallback that uploads the original when the browser can't decode it; M8 closes that by refusing the upload instead.
+- **The map is as public as the site.** There are no accounts, so anyone with the link can create a profile and see where photos were taken, including the house.
+
+Tile usage limits:
+- OpenStreetMap's standard tiles (`tile.openstreetmap.org`) need no key but come with a usage policy and no SLA: visible "© OpenStreetMap contributors" attribution, no bulk downloading or prefetching, normal browser caching, a Referer must be sent, and heavy use can be blocked without notice. There is no published request cap. Fifteen people browsing a map for a weekend is well within intended use.
+- OSM's standard tiles are light-coloured. "Dark-themed" would be done with a CSS filter on the tile layer (no extra service). CARTO's dark basemap now watermarks tiles requested without a key; a free key (5 million tiles a month, non-commercial) removes it, and would add one env var.
+- Geocoding event locations with OSM's Nominatim, if used, is limited to one request per second and must run server-side with an identifying User-Agent. Only Admin would trigger it, on saving an event.
+
+Checklist:
+- [ ] Schema, both stores, contract tests; round stored coordinates (see question 3)
+- [ ] Read EXIF GPS from the original file before shrinking; skip for videos
+- [ ] Geolocation fallback: one explanatory prompt before the browser's own, choice remembered on the device, never re-asked after "no"
+- [ ] Optional "tag a schedule event" in the composer
+- [ ] Admin event form: set an event's coordinates (search by name, then confirm or drag a pin)
+- [ ] Refuse photo uploads that could not be re-encoded, so no original with EXIF reaches Blob
+- [ ] Map view: Leaflet + OSM tiles with attribution, dark styling, clustered thumbnail markers, tap a marker to open the photo
+- [ ] Posts without a location (including everything posted before M8) simply don't appear on the map
+- [ ] `photos.csv` gains lat, lng and location source
+
+Open questions:
+1. Priority when someone tags an event **and** device location is available: as written, device location (b) wins over the tag (c). Recommendation: an explicit tag should win over ambient device location, since people often upload later from somewhere else; EXIF still comes first.
+2. Videos and embedded location: (i) accept the risk and document it, (ii) only allow videos from devices where we can confirm stripping, or (iii) add a client-side MP4 metadata stripper (more work, one more dependency). Recommendation: (i) for this weekend, noted in the composer.
+3. Coordinate precision: store full precision, or round to about 100 m so the map shows the neighbourhood rather than the doorstep? Recommendation: round to 3 decimal places (~110 m).
+4. Dark tiles: CSS-filtered OSM (no key, looks slightly artificial) or CARTO dark with a free key (cleaner, one more env var for Rahul)? Recommendation: CSS-filtered OSM.
 
 ## Decisions from Peter (2026-10-07)
 
