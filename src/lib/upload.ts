@@ -21,18 +21,18 @@ async function drawScaled(file: File, maxSide: number): Promise<HTMLCanvasElemen
 }
 
 /**
- * Shrinks a photo to at most `maxSide` px as a JPEG, which keeps phone photos
- * well under the size cap. Falls back to the original if the browser can't decode it.
+ * Makes a lightweight feed preview. The original file is uploaded separately,
+ * untouched. Skip animated GIFs and formats the browser can't decode.
  */
-export async function shrinkPhoto(file: File, maxSide = 2000, quality = 0.85): Promise<File> {
-  if (file.type === "image/gif") return file;
+export async function createPhotoPreview(file: File, maxSide = 1600, quality = 0.8): Promise<File | null> {
+  if (file.type === "image/gif") return null;
   try {
     const canvas = await drawScaled(file, maxSide);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
-    if (!blob) return file;
-    return new File([blob], file.name.replace(/\.[^.]*$/, "") + ".jpg", { type: "image/jpeg" });
+    if (!blob) return null;
+    return new File([blob], "preview-" + file.name.replace(/\.[^.]*$/, "") + ".jpg", { type: "image/jpeg" });
   } catch {
-    return file;
+    return null;
   }
 }
 
@@ -58,4 +58,25 @@ export async function uploadMedia(
     onUploadProgress: ({ percentage }) => onProgress(percentage),
   });
   return blob.url;
+}
+
+/** Store original bytes for export and a separate, optional image for the feed. */
+export async function uploadPostMedia(
+  file: File,
+  kind: MediaType,
+  identity: Identity,
+  onProgress: (percentage: number) => void,
+): Promise<{ url: string; previewUrl: string | null }> {
+  const preview = kind === "image" ? await createPhotoPreview(file) : null;
+  const totalBytes = file.size + (preview?.size ?? 0);
+  const url = await uploadMedia(file, kind, identity, (percentage) => {
+    onProgress(totalBytes ? (percentage * file.size) / totalBytes : percentage);
+  });
+  let previewUrl: string | null = null;
+  if (preview) {
+    previewUrl = await uploadMedia(preview, "image", identity, (percentage) => {
+      onProgress((100 * file.size + percentage * preview.size) / totalBytes);
+    });
+  }
+  return { url, previewUrl };
 }

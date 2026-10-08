@@ -69,3 +69,6 @@ create table if not exists posts (
 );
 
 create index if not exists posts_created_idx on posts (created_at desc);
+
+-- Existing posts keep their stored image; new uploads retain an original plus a preview.
+alter table posts add column if not exists preview_url text;

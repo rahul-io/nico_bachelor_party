@@ -45,9 +45,9 @@ export function PostCard({ post, canDelete, onDelete }: PostCardProps) {
         {post.mediaType === "video" ? (
           <video src={post.url} controls playsInline preload="metadata" className="max-h-[75vh] w-full" />
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element -- served straight from Blob
+          // eslint-disable-next-line @next/next/no-img-element -- lightweight preview served straight from Blob
           <img
-            src={post.url}
+            src={post.previewUrl ?? post.url}
             alt={post.caption ?? `Photo by ${post.posterName}`}
             loading="lazy"
             className="max-h-[75vh] w-full object-contain"

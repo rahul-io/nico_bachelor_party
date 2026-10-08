@@ -20,7 +20,7 @@ The UI always calls `/api/*`; route handlers always call `getStore()`. `getStore
 
 **Where challenges live.** On the Leaderboard tab, as a `Standings | Challenges | History` segmented control. Challenges are how you get points, so they belong next to the points; a sixth tab would crowd the nav. In Admin, awarding points can start from a challenge to prefill the amount and reason.
 
-**Uploads.** Browser → Vercel Blob directly using `upload()` and a `handleUpload` route that issues a short-lived token after checking profile, content type and size. Post metadata is saved by the client after the upload resolves (the `onUploadCompleted` webhook can't reach localhost). Proposed caps: images 10 MB (downscaled client-side to ~2000 px first), videos 100 MB, avatars resized to 256 px. Without a Blob token, uploads are kept as in-memory data/object URLs so the flow is still clickable.
+**Uploads.** Browser → Vercel Blob directly using `upload()` and a `handleUpload` route that issues a short-lived token after checking profile, content type and size. Post metadata is saved by the client after the upload resolves (the `onUploadCompleted` webhook can't reach localhost). Caps: original images 50 MB, videos 100 MB. Photos retain original bytes for exports and have a separate 1600 px JPEG feed preview when browser decoding is supported; avatars are resized separately. Without a Blob token, uploads are kept as small in-memory images so the flow is still clickable.
 
 **Admin auth.** `POST /api/admin/login` compares against `ADMIN_PASSWORD` (timing-safe), sets an httpOnly, SameSite=Lax, Secure cookie containing an HMAC-signed expiry (`SESSION_SECRET`). Local dev with no password set accepts `admin` and says so on screen; production with no password set refuses all logins.
 
@@ -33,7 +33,7 @@ The UI always calls `/api/*`; route handlers always call `getStore()`. `getStore
 | `events` | id, starts_at, ends_at?, title, location?, maps_query?, notes? |
 | `challenges` | id, title, description, points, active, created_at |
 | `point_events` | id, profile_id, delta, reason?, challenge_id?, created_at |
-| `posts` | id, profile_id, blob_url, media_type, caption?, bac_at_post?, created_at |
+| `posts` | id, profile_id, url (original), preview_url?, media_type, caption?, bac_at_post?, created_at |
 
 `posts.bac_at_post` is a snapshot: computed server-side once when the post is created, and only if the poster has `show_bac_on_posts` on at that moment; otherwise null. It is never recomputed, and toggling the setting later does not change existing posts.
 
@@ -79,7 +79,7 @@ Once Rahul sends the env vars: put them in `.env.local` (or `vercel env pull .en
 ### M4 — Photo Feed + Vercel Blob
 - [x] `handleUpload` route with identity, type and size checks; uploads go browser → Blob directly
 - [x] Composer (photo/video + caption, progress bar), feed newest-first with uploader and time
-- [x] Photos are shrunk to 2000 px JPEG in the browser before upload; videos upload as-is (multipart above 8 MB)
+- [x] Photos upload in original quality with separate 1600 px JPEG feed previews; videos upload as-is (multipart above 8 MB)
 - [x] Delete own post; admin delete any (also removes the blob); deleting a profile removes its posts' blobs
 - [x] "Open shared Google Photos album" button (shown when `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL` is set)
 - [x] BAC snapshot on posts: `bac_at_post` stored at creation when the poster's "show BAC on my posts" setting is on; feed renders "Rahul (0.06%) posted a photo"; never recomputed
@@ -207,5 +207,5 @@ Decisions (Peter, 2026-10-08):
 2. Height in feet/inches, weight in pounds (stored metric).
 3. Sex: male/female only, no third option; the form defaults to male.
 4. A lost device means a new profile; Admin can delete stale profiles.
-5. Upload caps: 10 MB photos, 100 MB videos.
+5. Upload caps: 50 MB original photos, 100 MB videos.
 6. Admin is not in the bottom nav; guests see four tabs and admins go to `/admin`.

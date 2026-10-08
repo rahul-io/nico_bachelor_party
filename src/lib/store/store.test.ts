@@ -166,6 +166,7 @@ describe.each<[string, () => Promise<Store>]>([
     const photo = await store.createPost({
       profileId: profile.id,
       url: "https://x.public.blob.vercel-storage.com/posts/a.jpg",
+      previewUrl: "https://x.public.blob.vercel-storage.com/posts/preview-a.jpg",
       mediaType: "image",
       caption: "Cheers",
       bacAtPost: 0.0623,
@@ -179,6 +180,9 @@ describe.each<[string, () => Promise<Store>]>([
     });
     expect(photo).toMatchObject({ profileId: profile.id, mediaType: "image", caption: "Cheers", bacAtPost: 0.0623 });
     expect(photo.createdAt).toMatch(isoPattern);
+    expect(photo.previewUrl).toBe("https://x.public.blob.vercel-storage.com/posts/preview-a.jpg");
+    expect((await store.listPosts()).find((p) => p.id === photo.id)?.previewUrl).toBe(photo.previewUrl);
+    expect(video.previewUrl).toBeNull();
     expect(video).toMatchObject({ mediaType: "video", caption: null, bacAtPost: null });
     expect(await store.getPost(photo.id)).toEqual(photo);
     expect(await store.getPost("missing")).toBeNull();

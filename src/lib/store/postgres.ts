@@ -61,6 +61,7 @@ const toPost = (row: Row): Post => ({
   id: row.id as string,
   profileId: row.profile_id as string,
   url: row.url as string,
+  previewUrl: (row.preview_url as string | null | undefined) ?? null,
   mediaType: row.media_type as Post["mediaType"],
   caption: row.caption as string | null,
   bacAtPost: row.bac_at_post as number | null,
@@ -229,8 +230,8 @@ export function createPostgresStore(sql: Sql): Store {
 
     async createPost(input) {
       const [row] = await sql`
-        insert into posts (profile_id, url, media_type, caption, bac_at_post)
-        values (${input.profileId}, ${input.url}, ${input.mediaType}, ${input.caption}, ${input.bacAtPost})
+        insert into posts (profile_id, url, preview_url, media_type, caption, bac_at_post)
+        values (${input.profileId}, ${input.url}, ${input.previewUrl ?? null}, ${input.mediaType}, ${input.caption}, ${input.bacAtPost})
         returning *`;
       return toPost(row);
     },

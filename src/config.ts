@@ -17,7 +17,7 @@ export const config = {
   /** Share link of the Google Photos album; the button is hidden when unset. */
   albumUrl: process.env.NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL || null,
   upload: {
-    maxImageBytes: 10 * 1024 * 1024,
+    maxImageBytes: 50 * 1024 * 1024,
     maxVideoBytes: 100 * 1024 * 1024,
   },
 } as const;
