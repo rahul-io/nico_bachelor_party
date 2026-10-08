@@ -74,9 +74,9 @@ export function PostCard({ post, canDelete, onDelete, onOpen, onReact }: PostCar
           <video src={post.url} controls playsInline preload="metadata" className="max-h-[75vh] w-full" />
         ) : (
           <button type="button" onClick={tapPhoto} aria-label="Open photo. Double-tap to react." className="block w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element -- served straight from Blob */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- lightweight preview served straight from Blob */}
             <img
-              src={post.url}
+              src={post.previewUrl ?? post.url}
               alt={post.caption ?? `Photo by ${post.posterName}`}
               loading="lazy"
               draggable={false}

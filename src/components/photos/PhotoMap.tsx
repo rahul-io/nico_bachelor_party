@@ -52,7 +52,7 @@ export function PhotoMap({ posts, onOpen }: PhotoMapProps) {
         }).load(
           located.map((post) => ({
             type: "Feature" as const,
-            properties: { postId: post.id, url: post.url, video: post.mediaType === "video" },
+            properties: { postId: post.id, url: post.previewUrl ?? post.url, video: post.mediaType === "video" },
             geometry: { type: "Point" as const, coordinates: [post.lng as number, post.lat as number] },
           })),
         );
@@ -166,7 +166,7 @@ export function PhotoMap({ posts, onOpen }: PhotoMapProps) {
                       "▶"
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element -- served straight from Blob
-                      <img src={post.url} alt="" loading="lazy" className="size-full object-cover" />
+                      <img src={post.previewUrl ?? post.url} alt="" loading="lazy" className="size-full object-cover" />
                     )}
                   </button>
                 </li>

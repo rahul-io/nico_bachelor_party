@@ -265,7 +265,7 @@ export const mockStore: Store = {
   },
 
   async createPost(input) {
-    const post: Post = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...input };
+    const post: Post = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...input, previewUrl: input.previewUrl ?? null };
     data().posts.push(post);
     return post;
   },

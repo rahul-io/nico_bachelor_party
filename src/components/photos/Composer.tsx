@@ -15,7 +15,7 @@ import type { Coordinates } from "@/lib/location";
 import { MAX_CAPTION, mediaRules, megabytes } from "@/lib/media";
 import type { MediaType } from "@/lib/store/types";
 import { dayKey, dayParts, formatTime } from "@/lib/time";
-import { inlinePhoto, readPhotoGps, shrinkPhoto, uploadMedia } from "@/lib/upload";
+import { inlinePhoto, readPhotoGps, uploadPostMedia } from "@/lib/upload";
 
 interface Draft {
   file: File;
@@ -58,10 +58,9 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
     if (kind === "video" && !uploadsEnabled) {
       return setStatus({ text: "Videos aren't available in demo mode.", error: true });
     }
-    // Photos get shrunk before upload, so only videos are checked against the cap here.
-    if (kind === "video" && file.size > mediaRules.video.maxBytes) {
+    if (uploadsEnabled && file.size > mediaRules[kind].maxBytes) {
       return setStatus({
-        text: `That video is ${megabytes(file.size)}. The limit is ${megabytes(mediaRules.video.maxBytes)}; trim it or put it in the Google Photos album.`,
+        text: `That ${kind === "video" ? "video" : "photo"} is ${megabytes(file.size)}. The limit is ${megabytes(mediaRules[kind].maxBytes)}; ${kind === "video" ? "trim it or " : ""}put it in the Google Photos album.`,
         error: true,
       });
     }
@@ -85,20 +84,21 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
     if (!draft || !identity) return;
     const ok = await run(async () => {
       let url: string;
+      let previewUrl: string | null = null;
       if (!uploadsEnabled) {
         url = await inlinePhoto(draft.file);
       } else {
-        const file = draft.kind === "image" ? await shrinkPhoto(draft.file) : draft.file;
+        const file = draft.file;
         if (file.size > mediaRules[draft.kind].maxBytes) {
           throw new Error(`That file is over the ${megabytes(mediaRules[draft.kind].maxBytes)} limit.`);
         }
-        url = await uploadMedia(file, draft.kind, identity, setProgress);
+        ({ url, previewUrl } = await uploadPostMedia(file, draft.kind, identity, setProgress));
       }
       // The server picks between these: photo GPS, then the tagged event, then the device.
       const device = !draft.exif && sharing === "yes" ? await currentPosition() : null;
       await apiFetch("/api/posts", {
         method: "POST",
-        body: { url, caption, eventId: eventId || null, exif: draft.exif, device },
+        body: { url, previewUrl, caption, eventId: eventId || null, exif: draft.exif, device },
       });
     }, "Posted");
     if (ok) {
@@ -115,6 +115,9 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
           Post a photo or video
           <input type="file" accept="image/*,video/*" onChange={pick} className="sr-only" />
         </label>
+        <p className="text-sm text-muted">
+          {uploadsEnabled ? "Photos are saved in original quality for downloads." : "Demo mode saves smaller previews only."}
+        </p>
         {status && <Status status={status} />}
       </div>
     );

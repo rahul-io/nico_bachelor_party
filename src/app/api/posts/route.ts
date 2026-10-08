@@ -41,12 +41,18 @@ export async function POST(req: Request) {
 
   const body = (await readJson(req)) as Record<string, unknown> | null;
   const url = typeof body?.url === "string" ? body.url : "";
+  const previewUrl = typeof body?.previewUrl === "string" ? body.previewUrl : null;
   const caption = typeof body?.caption === "string" ? body.caption.trim() : "";
   if (!url) return jsonError("Nothing was uploaded", 400);
   if (caption.length > MAX_CAPTION) return jsonError(`Caption is too long (max ${MAX_CAPTION} characters)`, 400);
 
   const mediaType = await inspectUpload(url, profile.id);
   if (mediaType !== "image" && mediaType !== "video") return jsonError(mediaType, 400);
+  if (previewUrl) {
+    if (mediaType !== "image" || !env.blobToken) return jsonError("Only uploaded photos can have previews", 400);
+    const previewType = await inspectUpload(previewUrl, profile.id);
+    if (previewType !== "image") return jsonError("Invalid photo preview", 400);
+  }
 
   const store = getStore();
   const bacAtPost = await bacSnapshot(store, profile);
@@ -65,6 +71,7 @@ export async function POST(req: Request) {
   const post = await store.createPost({
     profileId: profile.id,
     url,
+    previewUrl,
     mediaType,
     caption: caption || null,
     bacAtPost,

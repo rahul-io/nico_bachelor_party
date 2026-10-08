@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1–M8 code done (2026-10-08). M6–M8 were tested on mock data only, on purpose, because guests are using the live site; the new SQL is covered by the contract tests against an in-process Postgres. Open: real schedule and challenges in `/admin`, real-phone testing, deploy checklist.**
+Status: **M1–M8 code done (2026-10-08) and merged with Rahul's full-resolution upload change. M6–M8 were tested on mock data only, on purpose, because guests are using the live site; the new SQL is covered by contract tests against an in-process Postgres. Not pushed. Open: the originals-vs-location decision in M8, running `npm run db:setup` on the live database before deploying, real schedule and challenges in `/admin`, real-phone testing.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -20,7 +20,7 @@ The UI always calls `/api/*`; route handlers always call `getStore()`. `getStore
 
 **Where challenges live.** On the Leaderboard tab, as a `Standings | Challenges | History` segmented control. Challenges are how you get points, so they belong next to the points; a sixth tab would crowd the nav. In Admin, awarding points can start from a challenge to prefill the amount and reason.
 
-**Uploads.** Browser → Vercel Blob directly using `upload()` and a `handleUpload` route that issues a short-lived token after checking profile, content type and size. Post metadata is saved by the client after the upload resolves (the `onUploadCompleted` webhook can't reach localhost). Proposed caps: images 10 MB (downscaled client-side to ~2000 px first), videos 100 MB, avatars resized to 256 px. Without a Blob token, uploads are kept as in-memory data/object URLs so the flow is still clickable.
+**Uploads.** Browser → Vercel Blob directly using `upload()` and a `handleUpload` route that issues a short-lived token after checking profile, content type and size. Post metadata is saved by the client after the upload resolves (the `onUploadCompleted` webhook can't reach localhost). Caps: original images 50 MB, videos 100 MB. Photos retain original bytes for exports and have a separate 1600 px JPEG feed preview when browser decoding is supported; avatars are resized separately. Without a Blob token, uploads are kept as small in-memory images so the flow is still clickable.
 
 **Admin auth.** `POST /api/admin/login` compares against `ADMIN_PASSWORD` (timing-safe), sets an httpOnly, SameSite=Lax, Secure cookie containing an HMAC-signed expiry (`SESSION_SECRET`). Local dev with no password set accepts `admin` and says so on screen; production with no password set refuses all logins.
 
@@ -33,7 +33,7 @@ The UI always calls `/api/*`; route handlers always call `getStore()`. `getStore
 | `events` | id, starts_at, ends_at?, title, location?, maps_query?, notes? |
 | `challenges` | id, title, description, points, active, created_at |
 | `point_events` | id, profile_id, delta, reason?, challenge_id?, created_at |
-| `posts` | id, profile_id, blob_url, media_type, caption?, bac_at_post?, created_at |
+| `posts` | id, profile_id, url (original), preview_url?, media_type, caption?, bac_at_post?, created_at |
 
 `posts.bac_at_post` is a snapshot: computed server-side once when the post is created, and only if the poster has `show_bac_on_posts` on at that moment; otherwise null. It is never recomputed, and toggling the setting later does not change existing posts.
 
@@ -79,7 +79,7 @@ Once Rahul sends the env vars: put them in `.env.local` (or `vercel env pull .en
 ### M4 — Photo Feed + Vercel Blob
 - [x] `handleUpload` route with identity, type and size checks; uploads go browser → Blob directly
 - [x] Composer (photo/video + caption, progress bar), feed newest-first with uploader and time
-- [x] Photos are shrunk to 2000 px JPEG in the browser before upload; videos upload as-is (multipart above 8 MB)
+- [x] Photos upload in original quality with separate 1600 px JPEG feed previews; videos upload as-is (multipart above 8 MB)
 - [x] Delete own post; admin delete any (also removes the blob); deleting a profile removes its posts' blobs
 - [x] "Open shared Google Photos album" button (shown when `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL` is set)
 - [x] BAC snapshot on posts: `bac_at_post` stored at creation when the poster's "show BAC on my posts" setting is on; feed renders "Rahul (0.06%) posted a photo"; never recomputed
@@ -158,7 +158,7 @@ Things that change the design, found while planning:
 - **EXIF GPS will usually be missing on phones.** iOS Safari has stripped location from photos chosen through a web page since 16.4 (iOS 17 added a per-pick "include location" option for library photos; photos taken through the picker's camera still lose it), and Android's photo picker redacts it for web uploads. Source (a) will mostly help on laptops, so on phones the location will normally be (b): where the phone is at upload time, not where the photo was taken.
 - **Videos uploaded as-is can carry location inside the file** (MP4/MOV metadata), and the browser can't strip it without re-encoding. iOS appears to strip it on web uploads; Android behaviour is unverified. Accepted as-is (decision 2).
 - **Schedule events have no coordinates today**, only a location name and a Maps search string, so "tag an event" needs events to get a lat/lng first.
-- **Photos are already stripped.** Every photo is re-encoded through a canvas before upload, which drops all EXIF. The one gap is the fallback that uploads the original when the browser can't decode it; M8 closes that by refusing the upload instead.
+- **Photos are no longer stripped.** When M8 was planned every photo was re-encoded before upload, which dropped all EXIF. Since 98e33ba the untouched original is uploaded alongside a re-encoded preview; only the preview is metadata-free.
 - **The map is as public as the site.** There are no accounts, so anyone with the link can create a profile and see where photos were taken, including the house.
 
 Tile usage limits:
@@ -173,13 +173,18 @@ Checklist:
 - [x] "Put my posts on the photo map" opt-in in the composer, with the reason spelled out; the browser's own prompt appears when it is first ticked; choice remembered per device
 - [x] Optional "Where was this?" event tag in the composer
 - [x] Admin event form: "Find on map" (OpenStreetMap Nominatim, server-side, admin-only), then tap the map or drag the pin
-- [x] Photos that can't be re-encoded are refused instead of uploaded as originals, so no EXIF reaches Blob
+- [ ] Keep location metadata out of the public files. **Not in place.** Rahul's "photos now saving in full resolution" change (98e33ba, merged in) uploads untouched originals on purpose, so EXIF, including GPS when the phone includes it, is in the original file, and the feed API returns that file's URL. Needs a decision; options below.
 - [x] Map view: Leaflet + OSM tiles with attribution, dark via CSS filter, thumbnail markers, clusters; tap a marker to open the photo
 - [x] Photos sharing one spot (e.g. all tagged with the same event) open as a thumbnail list instead of zooming forever
 - [x] `photos.csv` has lat, lng and location source
 - [ ] Device-location permission flow on a real phone (the browser prompt could not be exercised here)
 
 Clustering uses `supercluster` (ISC) rather than `leaflet.markercluster`: it is a plain data library with no dependency on Leaflet's global, and it can tell when a cluster will never split.
+
+Open decision (originals vs. location metadata), for Peter and Rahul:
+- (a) Leave as is: originals untouched and their URLs public. Simplest; a photo taken with location on can reveal where, to anyone who has the site link.
+- (b) Keep originals untouched but stop sending their URLs to guests: the feed API returns only the preview, originals are reachable only through the Admin export. No change to stored files; small code change.
+- (c) Strip location from the original before upload (lossless for JPEG, re-encode for other formats). The stored file is then no longer byte-identical to the camera file, and Rahul's upload tests that assert "untouched" would change.
 
 Decisions (Peter, 2026-10-08):
 1. Location priority is EXIF, then an explicitly tagged event, then device location. An explicit tag beats ambient device location.
@@ -193,5 +198,5 @@ Decisions (Peter, 2026-10-08):
 2. Height in feet/inches, weight in pounds (stored metric).
 3. Sex: male/female only, no third option; the form defaults to male.
 4. A lost device means a new profile; Admin can delete stale profiles.
-5. Upload caps: 10 MB photos, 100 MB videos.
+5. Upload caps: 50 MB original photos, 100 MB videos.
 6. Admin is not in the bottom nav; guests see four tabs and admins go to `/admin`.

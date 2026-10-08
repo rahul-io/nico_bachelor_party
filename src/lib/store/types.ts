@@ -89,7 +89,10 @@ export type LocationSource = "exif" | "event" | "device";
 export interface Post {
   id: string;
   profileId: string;
+  /** Original upload, used by exports. */
   url: string;
+  /** Smaller feed image; absent for older posts, videos or unsupported formats. */
+  previewUrl?: string | null;
   mediaType: MediaType;
   caption: string | null;
   /** The poster's estimated BAC when they posted, if they had that setting on. Never recomputed. */

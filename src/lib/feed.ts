@@ -79,7 +79,9 @@ export async function bacSnapshot(store: Store, profile: Profile): Promise<numbe
 
 /** Deletes the files behind posts. Best effort: a missing blob must not block removing the post. */
 export async function deletePostFiles(posts: Post[]): Promise<void> {
-  const urls = posts.map((post) => post.url).filter(isBlobUrl);
+  const urls = [...new Set(posts.flatMap((post) => [post.url, post.previewUrl]).filter(
+    (url): url is string => typeof url === "string" && isBlobUrl(url),
+  ))];
   if (urls.length === 0 || !env.blobToken) return;
   try {
     await del(urls);

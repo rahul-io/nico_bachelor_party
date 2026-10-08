@@ -99,8 +99,8 @@ export function PostDetailSheet({ postId, viewerId, isAdmin, onClose, onReact, o
             {post.mediaType === "video" ? (
               <video src={post.url} controls playsInline preload="metadata" className="max-h-[60vh] w-full" />
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element -- served straight from Blob
-              <img src={post.url} alt={post.caption ?? `Photo by ${post.posterName}`} className="max-h-[60vh] w-full object-contain" />
+              // eslint-disable-next-line @next/next/no-img-element -- lightweight preview served straight from Blob
+              <img src={post.previewUrl ?? post.url} alt={post.caption ?? `Photo by ${post.posterName}`} className="max-h-[60vh] w-full object-contain" />
             )}
           </div>
 

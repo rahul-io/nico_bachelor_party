@@ -97,3 +97,6 @@ alter table posts add column if not exists lat double precision;
 alter table posts add column if not exists lng double precision;
 alter table posts add column if not exists location_source text;
 alter table posts add column if not exists event_id text references events (id) on delete set null;
+
+-- Existing posts keep their stored image; new uploads retain an original plus a preview.
+alter table posts add column if not exists preview_url text;

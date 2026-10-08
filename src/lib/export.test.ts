@@ -24,6 +24,19 @@ const post = (over: Partial<FeedPost>): FeedPost => ({
 const tz = "America/Los_Angeles";
 
 describe("exportEntries", () => {
+  it("exports the original photo URL and format, never the feed preview", () => {
+    const original = "https://x.public.blob.vercel-storage.com/posts/p/IMG_1-abc123.HEIC";
+    const entries = exportEntries([post({
+      url: original,
+      previewUrl: "https://x.public.blob.vercel-storage.com/posts/p/preview-IMG_1-xyz.jpg",
+    })], tz);
+    expect(entries[0].fileName).toMatch(/\.heic$/);
+    expect(entries[0].post.url).toBe(original);
+    const csv = exportCsv(entries, tz);
+    expect(csv).toContain(original);
+    expect(csv).not.toContain("preview-");
+  });
+
   it("names files by party-local date, time, poster and BAC", () => {
     const [plain, withBac] = exportEntries(
       [
