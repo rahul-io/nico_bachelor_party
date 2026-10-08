@@ -1,7 +1,7 @@
 import { del, head } from "@vercel/blob";
 import { connection } from "next/server";
 import { env } from "@/lib/env";
-import { bacSnapshot, buildFeed, isBlobUrl } from "@/lib/feed";
+import { bacSnapshot, buildFeed, forGuests, isBlobUrl } from "@/lib/feed";
 import { getRequestProfile, jsonError, readJson } from "@/lib/http";
 import { parseCoordinates, resolveLocation } from "@/lib/location";
 import { MAX_CAPTION, MOCK_IMAGE, MOCK_IMAGE_MAX_CHARS, mediaRules, mediaTypeOf } from "@/lib/media";
@@ -80,5 +80,5 @@ export async function POST(req: Request) {
     locationSource: location?.source ?? null,
     eventId: event?.id ?? null,
   });
-  return Response.json(post, { status: 201 });
+  return Response.json(forGuests(post), { status: 201 });
 }

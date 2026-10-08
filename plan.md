@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1–M8 code done (2026-10-08) and merged with Rahul's full-resolution upload change. M6–M8 were tested on mock data only, on purpose, because guests are using the live site; the new SQL is covered by contract tests against an in-process Postgres. Not pushed. Open: the originals-vs-location decision in M8, running `npm run db:setup` on the live database before deploying, real schedule and challenges in `/admin`, real-phone testing.**
+Status: **M1–M8 done and merged with Rahul's full-resolution upload and drink-search changes (2026-10-08). M6–M8 were tested on mock data only, on purpose, because guests are using the live site. Open: real schedule and challenges in `/admin`, real-phone testing (long-press drag, location prompt), checking the deployed site.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -173,7 +173,7 @@ Checklist:
 - [x] "Put my posts on the photo map" opt-in in the composer, with the reason spelled out; the browser's own prompt appears when it is first ticked; choice remembered per device
 - [x] Optional "Where was this?" event tag in the composer
 - [x] Admin event form: "Find on map" (OpenStreetMap Nominatim, server-side, admin-only), then tap the map or drag the pin
-- [ ] Keep location metadata out of the public files. **Not in place.** Rahul's "photos now saving in full resolution" change (98e33ba, merged in) uploads untouched originals on purpose, so EXIF, including GPS when the phone includes it, is in the original file, and the feed API returns that file's URL. Needs a decision; options below.
+- [x] Keep photo locations out of what guests can fetch: originals stay untouched (Rahul's 98e33ba), but their URLs are never sent to guests; the feed and opened-photo API return only the re-encoded preview (`forGuests`). Originals are read only by the Admin export and the export script.
 - [x] Map view: Leaflet + OSM tiles with attribution, dark via CSS filter, thumbnail markers, clusters; tap a marker to open the photo
 - [x] Photos sharing one spot (e.g. all tagged with the same event) open as a thumbnail list instead of zooming forever
 - [x] `photos.csv` has lat, lng and location source
@@ -181,10 +181,7 @@ Checklist:
 
 Clustering uses `supercluster` (ISC) rather than `leaflet.markercluster`: it is a plain data library with no dependency on Leaflet's global, and it can tell when a cluster will never split.
 
-Open decision (originals vs. location metadata), for Peter and Rahul:
-- (a) Leave as is: originals untouched and their URLs public. Simplest; a photo taken with location on can reveal where, to anyone who has the site link.
-- (b) Keep originals untouched but stop sending their URLs to guests: the feed API returns only the preview, originals are reachable only through the Admin export. No change to stored files; small code change.
-- (c) Strip location from the original before upload (lossless for JPEG, re-encode for other formats). The stored file is then no longer byte-identical to the camera file, and Rahul's upload tests that assert "untouched" would change.
+Decision (Peter, 2026-10-08): originals stay untouched and private to the server (option b). Known limits: an original's Blob URL is unguessable rather than access-controlled, the uploader's own browser sees it during upload, and a photo with no preview (GIF, or a format the browser could not decode) is shown from its original file. Photos uploaded between Rahul's deploy and this change had their original URL visible in the feed API for that window.
 
 Decisions (Peter, 2026-10-08):
 1. Location priority is EXIF, then an explicitly tagged event, then device location. An explicit tag beats ambient device location.

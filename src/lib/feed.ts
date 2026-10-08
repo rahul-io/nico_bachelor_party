@@ -16,6 +16,17 @@ export function isBlobUrl(url: string): boolean {
   }
 }
 
+/**
+ * A post as guests receive it. Original photo files are kept untouched for
+ * exports and can carry camera metadata, including where the photo was taken,
+ * so their URLs never leave the server: the preview stands in for the photo.
+ * Posts without a preview (videos, GIFs, formats the browser couldn't decode,
+ * and posts from before previews existed) have only the one file to show.
+ */
+export function forGuests<T extends Post>(post: T): T {
+  return post.previewUrl ? { ...post, url: post.previewUrl, previewUrl: null } : post;
+}
+
 async function feedPosts(store: Store, viewerId: string | null): Promise<{ posts: FeedPost[]; profiles: Profile[] }> {
   const [posts, profiles, reactionCounts, commentCounts] = await Promise.all([
     store.listPosts(),
@@ -26,9 +37,18 @@ async function feedPosts(store: Store, viewerId: string | null): Promise<{ posts
   return { posts: assembleFeed(posts, profiles, reactionCounts, commentCounts, REACTIONS), profiles };
 }
 
-/** `viewerId` only decides which reactions are flagged as "mine". */
+/**
+ * The feed as guests see it. `viewerId` only decides which reactions are
+ * flagged as "mine". Original file URLs are withheld; see `forGuests`.
+ */
 export async function buildFeed(store: Store, viewerId: string | null = null): Promise<Feed> {
-  return { uploadsEnabled: env.blobToken !== null, posts: (await feedPosts(store, viewerId)).posts };
+  const { posts } = await feedPosts(store, viewerId);
+  return { uploadsEnabled: env.blobToken !== null, posts: posts.map(forGuests) };
+}
+
+/** Every post with its original file URL. Server-side use only (the admin export). */
+export async function buildExportFeed(store: Store): Promise<FeedPost[]> {
+  return (await feedPosts(store, null)).posts;
 }
 
 export async function buildPostDetail(store: Store, postId: string, viewerId: string | null): Promise<PostDetail | null> {
@@ -42,7 +62,7 @@ export async function buildPostDetail(store: Store, postId: string, viewerId: st
 
   const people = new Map(profiles.map((profile) => [profile.id, profile]));
   return {
-    post,
+    post: forGuests(post),
     reactors: REACTIONS.map((emoji) => ({
       emoji,
       names: reactions

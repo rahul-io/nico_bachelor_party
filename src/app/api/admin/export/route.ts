@@ -2,7 +2,7 @@ import { downloadZip } from "client-zip";
 import { config } from "@/config";
 import { isAdmin } from "@/lib/auth";
 import { exportCommentsCsv, exportCsv, exportEntries } from "@/lib/export";
-import { buildAllComments, buildFeed } from "@/lib/feed";
+import { buildAllComments, buildExportFeed } from "@/lib/feed";
 import { jsonError } from "@/lib/http";
 import { getStore } from "@/lib/store";
 
@@ -14,8 +14,8 @@ export async function GET() {
   if (!(await isAdmin())) return jsonError("Not authorized", 401);
 
   const store = getStore();
-  const [feed, comments] = await Promise.all([buildFeed(store), buildAllComments(store)]);
-  const entries = exportEntries(feed.posts, config.timezone);
+  const [posts, comments] = await Promise.all([buildExportFeed(store), buildAllComments(store)]);
+  const entries = exportEntries(posts, config.timezone);
 
   async function* files() {
     yield { name: "photos.csv", lastModified: new Date(), input: exportCsv(entries, config.timezone) };
