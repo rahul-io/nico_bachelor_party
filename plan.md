@@ -1,6 +1,8 @@
 # Plan
 
-Status: **scaffold done, waiting for approval to start M1.**
+Status: **plan approved 2026-10-07. M1 in progress.**
+
+Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
 ## Key decisions
 
@@ -26,12 +28,14 @@ The UI always calls `/api/*`; route handlers always call `getStore()`. `getStore
 
 | Table | Columns |
 |---|---|
-| `profiles` | id, token, name, avatar_url, height_cm, weight_kg, sex, created_at |
+| `profiles` | id, token, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts (default true), created_at |
 | `drink_logs` | id, profile_id, name, volume_oz, abv, alcohol_g, consumed_at |
 | `events` | id, starts_at, ends_at?, title, location?, maps_query?, notes? |
 | `challenges` | id, title, description, points, active, created_at |
 | `point_events` | id, profile_id, delta, reason?, challenge_id?, created_at |
-| `posts` | id, profile_id, blob_url, media_type, caption?, created_at |
+| `posts` | id, profile_id, blob_url, media_type, caption?, bac_at_post?, created_at |
+
+`posts.bac_at_post` is a snapshot: computed server-side once when the post is created, and only if the poster has `show_bac_on_posts` on at that moment; otherwise null. It is never recomputed, and toggling the setting later does not change existing posts.
 
 Points totals and drink counts are derived by query. The ~100-drink catalogue is a static JSON file, not a table.
 
@@ -41,7 +45,7 @@ Points totals and drink counts are derived by query. The ~100-drink catalogue is
 - [ ] Theme tokens in `globals.css`; UI primitives (Button, Card, Sheet, Input, Avatar)
 - [ ] `(tabs)` layout with bottom nav, safe-area padding, header with profile avatar
 - [ ] `Store` interface + in-memory store + seed data; `env.ts`, `config.ts`
-- [ ] Minimal profile create/edit (name, height, weight, sex) — pulled forward from M2 because the tracker can't work without it; photo comes in M2
+- [ ] Minimal profile create/edit (name, height, weight, sex, "show BAC on my posts" toggle) — pulled forward from M2 because the tracker can't work without it; photo comes in M2
 - [ ] Schedule: day picker, event cards, Google Maps links, current/next highlight
 - [ ] `drinks.json` (~100 drinks) + fuzzy search
 - [ ] Tracker: search, quick-select buttons, category / standard drink / custom fallback, drink log with delete, BAC recalculated every minute, "rough estimate for fun" labelling
@@ -51,8 +55,9 @@ Points totals and drink counts are derived by query. The ~100-drink catalogue is
 - [ ] Profile photo (client-side resize) and full edit screen
 - [ ] Leaderboard: avatar, name, points, drinks, BAC; sort toggle
 - [ ] Challenges list and points history on the Leaderboard tab
-- [ ] Admin login/logout with cookie session
+- [ ] Admin at `/admin` (not in the bottom nav): login/logout with cookie session
 - [ ] Admin: schedule CRUD, challenge CRUD, award/deduct points with reason
+- [ ] Admin: delete stale profiles (and their drinks, points, posts)
 
 ### M3 — Postgres + polling
 - [ ] `db/schema.sql`, `npm run db:setup`, optional seed script
@@ -64,6 +69,7 @@ Points totals and drink counts are derived by query. The ~100-drink catalogue is
 - [ ] `handleUpload` route with type/size checks
 - [ ] Composer (photo/video + caption, progress bar), feed newest-first with uploader and time
 - [ ] Delete own post; admin delete any (also removes the blob)
+- [ ] BAC snapshot on posts: store `bac_at_post` at creation when the poster's "show BAC on my posts" setting is on; feed renders "Rahul (0.06%) posted a photo"; never recomputed
 - [ ] "Open shared Google Photos album" button
 - [ ] Move avatars to Blob
 
@@ -73,11 +79,11 @@ Points totals and drink counts are derived by query. The ~100-drink catalogue is
 - [ ] Real schedule entered; test on an actual iPhone and Android phone
 - [ ] Deploy checklist walked through with Rahul
 
-## Open questions for Peter
+## Decisions from Peter (2026-10-07)
 
-1. **Dates, city and timezone** of the weekend? Needed for the day picker and the "current/next" logic (events render in the party's timezone, not the phone's).
-2. **Units**: I'm assuming feet/inches and pounds for input (stored metric). OK?
-3. **Sex field**: male/female only (what the formula needs), or add a "prefer not to say" that uses the average of the two constants?
-4. **Lost profile**: if someone clears their browser or switches phones they'd make a new profile. Good enough, or should Admin be able to delete/merge stale profiles?
-5. **Upload caps** of 10 MB photos / 100 MB videos — fine? Vercel Blob quota depends on Rahul's plan; a weekend of phone videos can add up, which is another reason to steer bulk uploads to the Google Photos album.
-6. **Admin tab visibility**: visible to everyone in the nav with a password gate (as specified), or hidden behind a long-press / `/admin` URL so the nav has four tabs for normal guests?
+1. Oct 8–11, 2026, San Diego, Pacific time.
+2. Height in feet/inches, weight in pounds (stored metric).
+3. Sex: male/female only, no third option; the form defaults to male.
+4. A lost device means a new profile; Admin can delete stale profiles.
+5. Upload caps: 10 MB photos, 100 MB videos.
+6. Admin is not in the bottom nav; guests see four tabs and admins go to `/admin`.

@@ -2,7 +2,7 @@
 
 # Nico's Bachelor Party App
 
-Mobile-first web app for one weekend, ~10–15 people. Five tabs: Schedule, Sobriety Tracker, Leaderboard, Photo Feed, Admin. See [plan.md](plan.md) for milestones and current status — update its checkboxes as work lands.
+Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time), ~10–15 people. Four tabs in the bottom nav: Schedule, Sobriety Tracker, Leaderboard, Photo Feed. Admin lives at `/admin` and is deliberately not linked from the nav. See [plan.md](plan.md) for milestones and current status — update its checkboxes as work lands.
 
 ## People and workflow
 
@@ -29,11 +29,12 @@ Mobile-first web app for one weekend, ~10–15 people. Five tabs: Schedule, Sobr
 5. **Sobriety tracker is a toy.** Always labelled as a rough estimate for fun. Never render copy, colours, or icons implying someone is fine to drive, "under the limit", or "sober" — no green/safe states tied to a BAC number, no references to legal limits.
 6. **No Google Photos API.** The Photos tab only links out to the shared album via `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL`.
 7. **Body metrics are private.** Height, weight and sex are never returned from the API for anyone but the requesting profile. Leaderboard BAC is computed server-side.
+9. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number.
 8. **Mobile first.** Design for a ~380px-wide phone at night: dark theme, tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
 
 ## Identity
 
-No accounts. First visit creates a profile (display name, photo, height, weight, sex). The server returns a public `id` and a private `token`; both are kept in localStorage and the token is sent as a header on writes. Losing localStorage means making a new profile.
+No accounts. First visit creates a profile (display name, photo, height, weight, sex). The server returns a public `id` and a private `token`; both are kept in localStorage and the token is sent as a header on writes. Losing localStorage means making a new profile; Admin can delete stale ones. Height is entered in feet/inches and weight in pounds, stored metric. Sex is male/female only and the form defaults to male.
 
 ## BAC math (`src/lib/bac.ts`, pure and unit-tested)
 
@@ -51,7 +52,8 @@ src/
     layout.tsx, globals.css        root layout, theme tokens
     manifest.ts, icon/apple-icon   home-screen install
     (tabs)/                        layout with bottom nav
-      schedule/ tracker/ leaderboard/ photos/ admin/
+      schedule/ tracker/ leaderboard/ photos/
+    admin/                         password-gated, not in the nav
     profile/                       create / edit profile
     api/                           route handlers (thin: validate → getStore())
       admin/…                      cookie-gated
