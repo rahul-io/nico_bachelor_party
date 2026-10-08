@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1–M8 live. M10 (reskin, day and night modes) and M9 (invite gate + accounts) are built and tested locally, not yet pushed. Deploying M9 needs the steps in its section, in order.**
+Status: **M1–M10 live (M9 invite gate + accounts and M10 reskin deployed 2026-10-08). M11 (drink points, awards, multipliers) and M12 (games) are planned and waiting for Peter's go-ahead; nothing in them is built.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -258,7 +258,7 @@ Built 2026-10-08 from Peter's brief and boards. The design rules now live in CLA
 - [x] Header: live-text wordmark, centred mascot badge, toggle and avatar. Bottom nav: navy with gold line icons and a centre gold "log a drink" button, as in the mobile mockup
 - [x] Gold primary buttons with navy lettering; white cards with the soft navy shadow; navy selected tabs by day, gold at night
 - [x] Sea-chart backgrounds (parchment by day, navy at night), veiled
-- [x] Welcome screen: sunset photograph, full crest, script tagline, rope divider
+- [x] Welcome screen: sunset photograph, full crest, rotating toast (the written taglines were cut), rope divider
 - [x] Schedule: "The Voyage" hero that names what is under way or next; coral "Under way", gold "Next port of call"
 - [x] Rum Log: BAC gauge against the tiki bar; drink picker; "Entries"
 - [x] Leaderboard: gold leader row with a crown, quiet highlight on your own row; Challenges under the Commodore's Challenge plaque; History renamed Ledger
@@ -269,6 +269,144 @@ Built 2026-10-08 from Peter's brief and boards. The design rules now live in CLA
 - [ ] Not used yet: the achievement badges and filled icon set on the icon sheet (there is no achievements feature), the wood and underwater images
 
 Things a later pass could add: achievement badges, a themed empty-state illustration, the Cap'n Crider ribbon mark somewhere it earns its place.
+
+### M11 — Points economy A: drink points, awards, multipliers (planned, awaiting go-ahead)
+
+Today points exist only when an admin awards them. This milestone makes logging drinks and water earn points automatically, adds computed daily and hourly awards, and adds admin-run multipliers. Every number below is a default, editable in Admin > Points settings.
+
+**How it is built**
+
+- **One rules module, pure and unit-tested** (`src/lib/points/`): given a drink, the person's recent log, their BAC, the active multipliers and the settings, it returns the points and a breakdown. No database or clock inside it, so every cap and multiplier can be tested with plain inputs.
+- **Points are calculated once, on the server, when the drink is logged**, and written to the existing ledger (`point_events`) with the breakdown that produced them. Totals stay a sum of the ledger. Changing a setting later affects future drinks only; nothing is recalculated behind people's backs.
+- **Ledger changes:** points become decimals to one place (`12.6`), and each entry gains a `source` (drink, water, award, hourly, cheers, admin, challenge, and the game sources in M12), a `breakdown` (the factors, for the history line), a link to the drink that caused it, a group id tying together entries from one cause, and a unique `award_key` so an award can never be paid twice.
+- **Reversal:** deleting a drink voids every ledger entry linked to it (shown struck through in the history rather than vanishing). If that drink was part of a Cheers and fewer than the required number of people remain in the window, the whole Cheers is voided. Later drinks are not re-scored (their pace cap and hydration boost stay as they were at the time).
+- **Settings:** one typed settings object with these defaults in code, stored as a row in the database once edited. Admin > Points settings is a form generated from that definition, with "Reset to defaults".
+- **Awards are settled lazily and idempotently.** There is no scheduler today, so the first request after an hour ends or after the 4am cutoff computes that period's awards and writes them under a unique key (two phones asking at once can't double-pay). Admin also gets "Settle now". A Vercel cron can be added later if exact timing matters.
+- **"Day" means 4:00am to 4:00am party time** everywhere in this milestone.
+- **Announcements:** awards appear in the Ledger, in a "Dispatches" strip at the top of the Leaderboard, and as a one-time toast the next time each person opens the app. No push notifications.
+
+**Rules as planned**
+
+| Rule | Default | How it is applied |
+|---|---|---|
+| Base | 3 pts per standard drink | standard drinks = ethanol grams ÷ 14, from the logged volume and ABV |
+| Pace cap | 6 standard drinks per rolling hour | only the part of a drink that fits under the cap earns; the rest earns 0 |
+| BAC ceiling | 0.18% | if estimated BAC just before the drink is at or above it, the drink logs, shows, and earns 0; tracker shows "points paused" and nothing else |
+| Water | +1 each, max 2 scoring per hour | a new Water quick button; water never counts as a drink or touches BAC |
+| Hydration boost | 1.5× | banked by a water, spent by the next alcoholic drink; does not stack |
+| Happy Hour | 2× | admin starts it with a duration; banner on every screen while it runs |
+| Drink of the Day | 2× | admin picks a catalogue drink or a category per day |
+| Cheers | +3 each | 4 or more different people log a drink within 5 minutes; flat, not multiplied; one per person per window |
+
+Order of operations for one drink: standard drinks → pace cap → × 3 → × hydration × Happy Hour × Drink of the Day (and the M12 multipliers) → BAC ceiling (0 if paused). Flat bonuses (Cheers) are added separately.
+
+**Daily awards** (settled at the 4am cutoff)
+
+| Award | Points | Decided by |
+|---|---|---|
+| Smooth Sailing (Cruise Control) | +15 | most minutes that day with estimated BAC inside 0.04–0.10% |
+| Drunkest Sailor (Peak BAC) | +10 | highest estimated BAC that day, counted only up to the ceiling; ties go to whoever got there first |
+| Fastest Climb | +8 | shortest time from 0.00 to the ceiling, using only the capped part of each drink |
+| Landlubber (Hydration King) | +5 | most waters logged |
+| Last Man Standing | +10 | last person to post a photo after 1am; proposed automatically, paid only when an admin confirms it |
+
+**Hourly awards** (settled when each clock hour ends, only if at least 2 people logged in it)
+
+- Hour Winner, +2 (see question 1 for what "cumulative" means here).
+- Top BAC of the hour, +1: highest estimated BAC reached in that hour, counted up to the ceiling.
+
+**Screens**
+
+- Rum Log: Water button; after each drink a result line with the breakdown; "points paused" state; Happy Hour and Drink of the Day shown where they apply.
+- Leaderboard: Dispatches strip; tap a person to see their points by source; the Ledger shows the breakdown on every entry, e.g. "IPA 1.4 std × 3 = 4.2 × 1.5 hydration = 6.3".
+- "How points work": a page linked from the Leaderboard, written from the current settings so it is never out of date.
+- Admin: Points settings; start/stop Happy Hour; set Drink of the Day; confirm Last Man Standing; Settle now.
+
+Checklist:
+- [ ] Settings definition, defaults, storage, Admin form
+- [ ] Rules module with unit tests: base, pace cap (partial credit), BAC ceiling, water limit, hydration boost, multiplier stacking, Cheers windows
+- [ ] Ledger migration (decimal points, source, breakdown, drink link, group, award key, void), both stores, contract tests
+- [ ] Water logging; drinks record their catalogue name and category so Drink of the Day can match
+- [ ] Score on log; void on delete, including Cheers re-check
+- [ ] Happy Hour and Drink of the Day (admin controls, banner)
+- [ ] Hourly and daily award calculators with unit tests; lazy idempotent settlement; Settle now; Last Man Standing confirmation
+- [ ] Dispatches, toast, per-person breakdown by source, Ledger breakdown lines
+- [ ] "How points work" page
+- [ ] End-to-end script: two players log drinks and water through caps, a Happy Hour, a Cheers, a delete, and an hour and a day settling
+
+Open questions:
+1. **Hour Winner, "cumulative count for that day":** does the +2 go to whoever earned the most drink points *in that hour*, or to whoever has the most drink points *so far that day* at the end of each hour? The second means the day's leader collects +2 every hour. I've assumed the second because of "cumulative"; say if you meant the first.
+2. **Stacked multipliers have no ceiling as written.** With M12, one drink can be 1.5 × 2 × 2 × 2 (Groom Tax) × 3 (Bartender's) × 3 (slot) = 108×, about 324 points for one standard drink, against +15 for the top daily award. "Then caps apply" suggests you want a limit: a setting for the maximum combined multiplier, default 6×?
+3. **Drinks already logged before this ships:** score them at the plain base rate (3 per standard drink, no caps or multipliers), or start everyone's drink points from zero at deploy?
+4. **Fastest Climb** pays for getting from 0.00 to 0.18% as fast as possible, and Drunkest Sailor's tie-break pays for getting to 0.18% first. Those two are the only rules here that reward speed to a very high number rather than the number itself. One change I'd make: measure Fastest Climb to the top of the Smooth Sailing band (0.10%) instead of to the ceiling. Your call; it's a setting either way.
+5. **Above the ceiling or over the pace cap, do flat rewards still pay?** As written a paused drink "still spins the slot", and a Jackpot (+15) or Rob the Leader would then pay while multipliers pay nothing, which makes drinking past the ceiling worth a spin. Recommendation: paused drinks spin for show only.
+
+### M12 — Points economy B: games (planned, awaiting go-ahead)
+
+Six games on top of M11's ledger. Each writes ordinary ledger entries with its own source, so the history, per-person breakdown and drink-delete reversal work the same way for all of them. All random outcomes are drawn on the server.
+
+**New shared pieces**
+
+- **Notices:** a small per-person inbox (bell in the header, toast on open) for "you were cursed by…", "you were challenged", "your wager was settled", "you were reported". In-app only.
+- **System lines in the Captain's Log:** short text entries between photos ("Jake hit JACKPOT 🎰").
+- **Display identity:** one function decides the name and avatar everyone else sees for a person, so a Name Hijack or Avatar Swap shows consistently on the leaderboard, feed, comments, reactions and chart. Login names never change.
+- **Spending:** curses and stakes are paid from your points total, and you can't spend below zero. Stakes are held (deducted) when a wager is accepted or a side bet is placed, and refunded if it is declined or voided, so nobody can stake the same points twice.
+
+**1. Slot machine on every drink**
+- Outcome is drawn when the drink is logged and returned with it; the 3-reel animation is display only and skippable after one second. Closing the app mid-spin changes nothing.
+- Defaults: 1× 55%, 2× 15%, 3× 5%, Bust 0.5× 12%, Jackpot +15 2%, Rob the Leader (take 5 from #1) 6%, Pay It Forward (this drink's points go to a random other player) 5%. Odds are validated to total 100%.
+- The leader can't rob themselves: reroll. Rob takes at most what the leader has.
+- Non-1× results get a line in the Ledger and the Captain's Log.
+
+**2. Groom Tax**
+- Admin sets which profile is the groom.
+- If a player and the groom log drinks within 2 minutes of each other and either posts a photo marked "Groom Tax" naming that player, the player's drink is doubled and the groom gets +1.
+- Whether both are really in the photo can't be checked by the app. It is on the honour system, visible to everyone in the feed, and an admin can void it.
+
+**3. Head-to-head wagers**
+- Challenge a player with a stake and a description; they accept or decline. Unanswered challenges expire.
+- Both report the winner. Agreement transfers the stake; disagreement sends it to Admin.
+- Side bets: anyone else picks a side and stakes points while the wager is open; the pot is split among the winning side in proportion to their stakes. If nobody backed the winner, side bets are refunded.
+- Open wagers are listed on the Leaderboard tab.
+
+**4. Curses**
+
+| Curse | Cost | Effect |
+|---|---|---|
+| Name Hijack | 10 | target shows under a name you choose (max 24 characters) for 2 hours; an admin can revert it |
+| Dead Weight | 8 | target's next drink scores 0 |
+| Avatar Swap | 6 | target's avatar becomes a feed photo you pick, until midnight |
+| Shield | 5 | blocks the next curse aimed at you; the curser still pays |
+
+- The target is told who cursed them. At most one active curse of each type per target.
+
+**5. Bartender's Choice**
+- Admin button assigns each active player a random catalogue drink (no water; weighted towards things a bar actually serves).
+- Logging that exact drink within 60 minutes is 3×. The Rum Log shows the assignment with a countdown and a one-tap "Log it".
+
+**6. Snitch Line**
+- Report a player with a photo and a short reason. If 2 other players (not the reporter, not the accused) upvote within 30 minutes: accused −5, reporter +3. Otherwise it expires.
+- Open reports are listed with their countdown.
+
+Checklist (in the order I'd build them):
+- [ ] Notices, system lines in the feed, display identity, spending and holds
+- [ ] Slot machine: odds settings, server draw, reel animation, Rob and Pay It Forward transfers, reversal on delete
+- [ ] Bartender's Choice: catalogue "orderable" weights, assignment, countdown, 3×
+- [ ] Groom Tax: groom setting, photo marking, retroactive doubling, admin void
+- [ ] Curses: shop, the four effects, Shield, expiry, admin revert
+- [ ] Wagers: challenge, accept/decline, reporting, dispute queue in Admin, side bets and payout maths
+- [ ] Snitch Line: report, upvotes, expiry, payout
+- [ ] Unit tests for slot odds and rerolls, wager and side-bet payouts, curse rules, snitch thresholds; end-to-end script per game
+
+Open questions:
+1. **Slot re-rolls by deleting.** Deleting a drink reverses its slot result, so someone can log, see a Bust, delete, and log again for a fresh spin. Recommendation: a drink logged within 10 minutes of deleting one reuses the deleted drink's result.
+2. **"Active player"** for Bartender's Choice and Pay It Forward: anyone who has logged a drink or water in the last 3 hours?
+3. **Groom Tax photo window:** how long after the two drinks may the photo be posted? Suggest 10 minutes.
+4. **Dead Weight and flat bonuses:** does a Dead-Weighted drink still pay a Jackpot or Cheers? Suggest no: that drink earns nothing at all.
+5. **Side bets close** when the first player reports a result. OK?
+6. **Limits to stop spam:** one open snitch report per reporter, and one outgoing unanswered challenge per pair. OK?
+
+Size and order: M11 is the foundation and has to ship first. M12 is six separate features; each is usable on its own, so they can go out one at a time in the order above.
 
 ## Decisions from Peter (2026-10-07)
 

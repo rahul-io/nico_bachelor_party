@@ -42,6 +42,15 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 8. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number. Comments follow the same rule (`bac_at_comment`); both go through `bacSnapshot()` in `src/lib/feed.ts`.
 9. **Mobile first, day and night.** Design for a ~380px-wide phone. Every screen must work in both modes (toggle in the header; default follows the phone). Tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
 
+## Planned, not built
+
+**M11 (drink points, awards, multipliers) and M12 (games)** are specified in plan.md and wait for Peter's go-ahead. Until they ship, points exist only as admin awards. When building them:
+- Every number is a default in one typed settings object and editable in Admin > Points settings. No magic numbers in rules code.
+- Scoring rules live in a pure module (`src/lib/points/`) with no database or clock inside, and are unit-tested.
+- Points are computed on the server when the thing happens and written to the ledger with their breakdown; nothing is recalculated later. Random outcomes are drawn on the server, never in the browser.
+- Anything a drink triggered must be voidable when that drink is deleted, and awards must be idempotent (unique key per award and period).
+- The BAC ceiling pauses points without commentary ("points paused" and nothing more), consistent with rule 5.
+
 ## Access and identity
 
 Two layers, both httpOnly signed cookies. Nothing guest-facing may trust a profile id sent by the client.
