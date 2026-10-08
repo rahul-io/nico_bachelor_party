@@ -1,10 +1,10 @@
 // Regenerates the in-app logo and the link-preview image from design/logo-source.webp.
 //   node scripts/make-logo.mjs
-// The background colour mirrors --color-canvas in src/app/globals.css.
+// The background colour mirrors --color-chrome in src/app/globals.css.
 import sharp from "sharp";
 
 const SOURCE = "design/logo-source.webp";
-const CANVAS = "#0b0a12";
+const CHROME = "#0b1f33";
 
 // Trim the transparent margin, then pad back to a square so the artwork is centred.
 const trimmed = await sharp(SOURCE).trim().toBuffer({ resolveWithObject: true });
@@ -25,7 +25,7 @@ console.log("public/logo.png (512px, transparent)");
 
 // 1200x630 is the size link previews expect.
 const badge = await sharp(square).resize(520, 520).png().toBuffer();
-await sharp({ create: { width: 1200, height: 630, channels: 4, background: CANVAS } })
+await sharp({ create: { width: 1200, height: 630, channels: 4, background: CHROME } })
   .composite([{ input: badge, gravity: "centre" }])
   .png()
   .toFile("public/og.png");

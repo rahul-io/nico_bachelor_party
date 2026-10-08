@@ -9,6 +9,7 @@ import { PostCard } from "@/components/photos/PostCard";
 import { PhotoMap } from "@/components/photos/PhotoMap";
 import { PostDetailSheet } from "@/components/photos/PostDetailSheet";
 import { Card } from "@/components/ui/Card";
+import { PageTitle } from "@/components/ui/PageTitle";
 import { Segmented } from "@/components/ui/Segmented";
 import { Status } from "@/components/ui/Status";
 import { config } from "@/config";
@@ -59,12 +60,13 @@ export default function PhotosPage() {
 
   return (
     <div className="space-y-4">
+      <PageTitle eyebrow="Photo proof" title="Captain's Log" flourish="If it isn't in the log, it never happened." />
       {config.albumUrl && (
         <a
           href={config.albumUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex min-h-14 items-center justify-center gap-2 rounded-control border border-accent bg-surface px-4 text-base font-semibold text-accent transition active:scale-[0.97]"
+          className="flex min-h-14 items-center justify-center gap-2 rounded-control border border-line bg-surface px-4 text-base font-semibold text-link shadow-card transition active:scale-[0.97]"
         >
           <ExternalLink className="size-5" aria-hidden />
           Open shared Google Photos album
@@ -79,7 +81,7 @@ export default function PhotosPage() {
 
       {view === "map" && feed && <PhotoMap posts={feed.posts} onOpen={setOpenId} />}
       {view === "feed" && feed?.posts.length === 0 && (
-        <Card className="text-muted">No photos yet. Be the first.</Card>
+        <Card className="text-muted">The log is empty. Make the first entry.</Card>
       )}
 
       <ul className={view === "feed" ? "space-y-4" : "hidden"}>

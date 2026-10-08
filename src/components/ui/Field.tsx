@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 
 // text-base (16px) keeps iOS Safari from zooming in on focus.
 export const inputClass =
-  "min-h-tap w-full rounded-control border border-line bg-raised px-3 text-base text-ink placeholder:text-muted focus:border-primary focus:outline-none";
+  "min-h-tap w-full rounded-control border border-line bg-raised px-3 text-base text-ink placeholder:text-muted focus:border-accent focus:outline-none";
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;

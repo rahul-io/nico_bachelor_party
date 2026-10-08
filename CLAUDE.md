@@ -18,6 +18,7 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 ## Stack
 
 - Next.js 16 (App Router, TypeScript, `src/`), React 19, Tailwind CSS v4, lucide-react for icons.
+- Fonts via `next/font/google`: Inter (`font-sans`, all functional UI), Fraunces (`font-display`, headlines and titles), Playfair Display Italic (`font-script` + `italic`, the occasional decorative line).
 - Next 16 differs from older versions (see AGENTS.md): read `node_modules/next/dist/docs/` before using an API you haven't used in this repo yet.
 - Data: Postgres (Neon via Vercel Marketplace) through `@neondatabase/serverless` tagged-template SQL. No ORM.
 - Media: Vercel Blob (`@vercel/blob`) with **client-side uploads** via the `handleUpload` route handler (`/api/blob/upload`). Never proxy file bytes through a route handler. The client then calls `POST /api/posts` with the blob URL, and the server re-validates it with `head()` before saving. Limits live in `src/lib/media.ts`.
@@ -30,20 +31,19 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 
 1. **Runs without credentials.** If `DATABASE_URL` / `BLOB_READ_WRITE_TOKEN` are missing, the app falls back to in-memory mock data and every tab must still be clickable. Never import a DB or Blob client at module top level in a way that throws when env vars are absent.
 2. **One data seam.** UI only talks to `/api/*` (through SWR hooks in `src/hooks`). Route handlers only talk to `getStore()` from `src/lib/store`. Both the mock and Postgres stores implement the same `Store` interface; add a method to the interface, both implementations, `db/schema.sql` and the contract suite in `src/lib/store/store.test.ts` together. That suite runs every case against the mock and against a real in-process Postgres (PGlite), which is how SQL gets tested without credentials.
-3. **Theme tokens live in one place**: `src/app/globals.css` (Tailwind v4 `@theme`). The two unavoidable copies are `config.brand` (manifest and status-bar colour) and the palette in `scripts/make-icons.mjs`; change them together and re-run the icon script. There is no `tailwind.config.*`. Components use token utilities (`bg-surface`, `text-muted`, `rounded-card`…), never hex values, arbitrary color values, or Tailwind's default palette (`bg-zinc-900`).
+3. **Theme tokens live in one place**: `src/app/globals.css` (Tailwind v4 `@theme`, with night-mode overrides under `[data-theme="night"]`). There is no `tailwind.config.*`. Components use token utilities, never hex values, arbitrary colour values or Tailwind's default palette. The unavoidable copies are `config.brand.chrome` (manifest and status-bar colour) and the navy in `scripts/make-icons.mjs` / `make-logo.mjs`; change them together and re-run both scripts.
 4. **Admin password stays server-side.** Checked in a route handler against `ADMIN_PASSWORD` with a timing-safe compare; session is a signed httpOnly cookie. No `NEXT_PUBLIC_` admin anything. Every `/api/admin/*` handler and every admin-only action verifies the cookie itself. In production with `ADMIN_PASSWORD` unset, admin login is disabled (fail closed); in dev it falls back to a documented dev password.
-5. **Sobriety tracker is a toy.** Always labelled as a rough estimate for fun. Never render copy, colours, or icons implying someone is fine to drive, "under the limit", or "sober" — no green/safe states tied to a BAC number, no references to legal limits.
+5. **BAC is shown plainly, and never as a verdict.** Peter asked on 2026-10-08 for the hedging removed: no "rough estimate", "just for fun" or similar disclaimers anywhere. What still holds: never render copy, colours or icons implying someone is fine to drive, "under the limit" or "sober"; no green or teal on a BAC number; no references to legal limits. The one line that remains is the in-voice standing order on the Rum Log gauge (`BacCard`); remove it only if Peter asks.
 6. **No Google Photos API.** The Photos tab only links out to the shared album via `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL`.
 7. **Body metrics are private.** Height, weight and sex are never returned from the API for anyone but the requesting profile. Leaderboard and trend-chart BAC is computed server-side.
 10. **Polled responses stay small.** Anything fetched on the 10 s poll must not carry image data. Avatars live in `profiles.avatar_data` and are served by `/api/avatars/[id]?v=hash` with immutable caching; `avatar_url` holds only that short URL. Never `select *` from `profiles`.
 11. **Original photo URLs never reach guests.** Photos are uploaded as untouched originals (kept for exports) plus a 1600 px JPEG preview (`uploadPostMedia`). Originals can contain EXIF, including GPS, so every response to a guest goes through `forGuests()` in `src/lib/feed.ts`, which swaps the original URL for the preview. Only the admin export (`buildExportFeed`) and `scripts/export-photos.mts` read originals. Never return a raw `Post` from a guest-facing route. Posts with no preview (videos, GIFs, undecodable formats) expose their only file. A post's map location lives in the database (`lat`, `lng`, `location_source`), chosen by `resolveLocation`: EXIF, then a tagged event, then device location.
 8. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number. Comments follow the same rule (`bac_at_comment`); both go through `bacSnapshot()` in `src/lib/feed.ts`.
-9. **Mobile first.** Design for a ~380px-wide phone at night: dark theme, tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
+9. **Mobile first, day and night.** Design for a ~380px-wide phone. Every screen must work in both modes (toggle in the header; default follows the phone). Tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
 
 ## Planned, not built
 
 - **M9, invite gate + accounts** (plan.md). Until it is built, the Identity section below is how things work. When building it: the gate is enforced in `src/proxy.ts` and fails closed; sessions are signed httpOnly cookies checked against `profiles.session_version`; passwords are hashed with `bcryptjs` and never logged or returned; failed attempts are counted in the database, not in memory; nothing guest-facing may trust a profile id sent by the client.
-- **M10, reskin** (plan.md) is still a discussion. Do not start restyling from the reference boards without a go-ahead.
 
 ## Identity
 
@@ -103,6 +103,19 @@ scripts/
   export-photos.mts                downloads every post + photos.csv; runs on plain Node type-stripping,
                                    so anything it imports must use relative `.ts` paths and no `@/` alias
 ```
+
+## Design: "private yacht club meets tropical rum bar"
+
+Mock-serious maritime tradition against a gloriously unserious bachelor-party competition. The reference boards are denser than the product should be: real screens stay clean.
+
+- **Proportions:** about 70% navy and sand, 20% gold and rum amber, 10% tropical accents.
+- **Frame:** header and bottom nav are navy (`bg-chrome`) in both modes. Content is sand and white by day, deeper navy at night. The sea-chart background sits behind every page, veiled so it stays a texture.
+- **Accent jobs:** gold = prestige and rewards (primary buttons via `goldFill`, points, the leader's row). Teal (`lagoon`) = progress and completion only, never on BAC. Coral = playful alerts ("Under way", deductions, errors).
+- **Token pairs to know:** `primary`/`on-primary` is the gold fill with navy lettering. `accent` is gold-toned *text* (rum amber by day because gold is too pale on white, gold at night). `select`/`on-select` is the chosen tab or day. `link` is ocean by day. Fixed brand colours (`navy`, `sand`, `gold`, `gold-hi`, `coral`, `lagoon`, `sunset`…) are for things that must not change with the mode, such as lettering on photographs.
+- **Type:** Fraunces Bold for page titles, event names and challenge titles; Inter for everything functional; one Playfair italic line per screen at most. Small-caps eyebrows (`text-xs font-semibold uppercase tracking-[0.16em]`) label sections. Use `PageTitle`.
+- **Voice:** navigation labels stay plain (Schedule, Rum Log, Leaders, Capt's Log); headings and empty states carry the theme (The Voyage, Captain's Log, The Bridge, "Under way", "Next port of call", "Ledger"). Functional copy, errors and anything about money or safety stay literal.
+- **Photography and marks** live in `public/brand` (built by `scripts/make-brand.mjs` from `design/brand`). Use them on a few chosen surfaces only: the welcome screen, the Schedule hero, the Rum Log gauge, the Challenges plaque. `PhotoBand` puts a navy wash under sand lettering. The crest and the Commodore's Challenge lockup have navy lettering, so they sit on sand or a bright photo, never on navy.
+- **Icons:** lucide line icons (ShipWheel, BottleWine, Trophy, BookOpenText, Anchor…), gold on navy. The raster icon sheet in `design/brand` is reference only.
 
 ## Conventions
 

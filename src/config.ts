@@ -15,9 +15,9 @@ export const config = {
   days,
   /**
    * Colours the browser needs outside CSS (manifest, status bar). Must match
-   * --color-canvas in globals.css; scripts/make-icons.mjs mirrors the palette too.
+   * --color-chrome in globals.css; the icon and logo scripts mirror it too.
    */
-  brand: { canvas: "#0b0a12" },
+  brand: { chrome: "#0b1f33" },
   pollIntervalMs: 10_000,
   /** Share link of the Google Photos album; the button is hidden when unset. */
   albumUrl: process.env.NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL || null,

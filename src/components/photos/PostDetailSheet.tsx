@@ -95,7 +95,7 @@ export function PostDetailSheet({ postId, viewerId, isAdmin, onClose, onReact, o
         </p>
       ) : (
         <>
-          <div className="bg-canvas">
+          <div className="bg-navy">
             {post.mediaType === "video" ? (
               <video src={post.url} controls playsInline preload="metadata" className="max-h-[60vh] w-full" />
             ) : (

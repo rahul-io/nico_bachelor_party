@@ -10,7 +10,7 @@ interface SegmentedProps<T extends string> {
 
 export function Segmented<T extends string>({ options, value, onChange, label, size = "md" }: SegmentedProps<T>) {
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1 rounded-control border border-line bg-surface p-1">
+    <div role="tablist" aria-label={label} className="flex gap-1 rounded-control border border-line bg-surface p-1 shadow-card">
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -23,7 +23,7 @@ export function Segmented<T extends string>({ options, value, onChange, label, s
             className={cn(
               "flex-1 rounded-[calc(var(--radius-control)-0.25rem)] px-2 font-medium transition",
               size === "md" ? "min-h-tap text-base" : "min-h-9 text-sm",
-              active ? "bg-primary text-on-primary" : "text-muted",
+              active ? "bg-select text-on-select" : "text-muted",
             )}
           >
             {option.label}

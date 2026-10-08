@@ -1,40 +1,69 @@
 @import "tailwindcss";
 
 /*
- * Theme tokens. This is the only place colors, fonts, radii and layout sizes
- * are defined; components use the generated utilities (bg-surface, text-muted,
- * rounded-card, h-nav…). Restyle the app by editing this block.
+ * The Crider Cup theme: private yacht club meets tropical rum bar.
+ *
+ * This file is the only place colours, fonts, radii, shadows and layout sizes
+ * are defined. Components use the generated utilities (bg-surface, text-muted,
+ * rounded-card, shadow-card…), never hex values.
+ *
+ * Proportions to keep: about 70% navy and sand, 20% gold and rum amber, 10%
+ * tropical accents. Jobs for the accents:
+ *   gold    prestige and rewards (points, primary actions, the current leader)
+ *   teal    progress and completion (never on a BAC number)
+ *   coral   playful alerts ("under way", deductions, errors)
  */
 @theme static {
-  /* Surfaces */
-  --color-canvas: #0b0a12;
-  --color-surface: #16141f;
-  --color-raised: #221f30;
-  --color-line: #322e45;
+  /* Brand palette. Fixed; the same in day and night. */
+  --color-navy: #0b1f33;
+  --color-navy-deep: #071626;
+  --color-ocean: #0e6ba8;
+  --color-lagoon: #2ec4b6;
+  --color-gold: #d4a574;
+  --color-gold-hi: #e8c79a;
+  --color-gold-lo: #b88a52;
+  --color-rum: #a35a16;
+  --color-sand: #f7f1e6;
+  --color-palm: #233e2f;
+  --color-coral: #ff6b5b;
+  --color-sunset: #ffb347;
+  --color-charcoal: #1e1e1e;
 
-  /* Text */
-  --color-ink: #f4f1ff;
-  --color-muted: #a39fb8;
+  /* The app's frame (header, bottom nav) is navy in both modes. */
+  --color-chrome: #0b1f33;
+  --color-on-chrome: #f7f1e6;
 
-  /* Brand */
-  --color-primary: #ff4d8d;
-  --color-on-primary: #1a0410;
-  --color-accent: #ffc53d;
-  --color-on-accent: #1f1500;
-  --color-danger: #ff6b6b;
+  /* Semantic tokens: DAY values. Night overrides follow below. */
+  --color-canvas: #f7f1e6;
+  --color-surface: #ffffff;
+  --color-raised: #f3ead9;
+  --color-line: #e3d7c2;
+  --color-ink: #0b1f33;
+  --color-muted: #586777;
+  /* Filled actions: gold with navy lettering, in both modes. */
+  --color-primary: #d4a574;
+  --color-on-primary: #0b1f33;
+  /* Gold-toned text and marks. Gold itself is too pale on white, so day uses rum amber. */
+  --color-accent: #a35a16;
+  --color-on-accent: #fffaf0;
+  --color-link: #0e6ba8;
+  /* The selected item in a set of tabs or days. */
+  --color-select: #0b1f33;
+  --color-on-select: #f7f1e6;
+  /* Coral, darkened enough to read as text on white. */
+  --color-danger: #c8442f;
 
   /* Shape */
-  --radius-card: 1.25rem;
-  --radius-control: 0.875rem;
+  --radius-card: 1rem;
+  --radius-control: 0.625rem;
+  --shadow-card: 0 8px 24px rgb(11 31 51 / 0.1);
 
   /* Layout */
   --spacing-tap: 2.75rem;
   --spacing-nav: 4.25rem;
-  --spacing-header: 3.5rem;
+  --spacing-header: 3.75rem;
   --container-app: 32rem;
-}
 
-@theme static {
   /* Double-tap reaction burst. */
   --animate-pop: pop 0.7s ease-out forwards;
 
@@ -59,22 +88,76 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-display: var(--font-bricolage), var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Inter: all functional UI, scores, navigation, descriptions. */
+  --font-sans: var(--font-inter);
+  /* Fraunces Bold: headlines, event identity, challenge titles. */
+  --font-display: var(--font-fraunces);
+  /* Playfair Display Italic: the occasional decorative label. Use with `italic`. */
+  --font-script: var(--font-playfair);
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+/* NIGHT: navy surfaces, sand lettering, gold doing what rum amber does by day. */
+[data-theme="night"] {
+  --color-canvas: #071626;
+  --color-surface: #0f2a43;
+  --color-raised: #173852;
+  --color-line: #284660;
+  --color-ink: #f7f1e6;
+  --color-muted: #a3b3c2;
+  --color-accent: #d4a574;
+  --color-on-accent: #0b1f33;
+  --color-link: #e8c79a;
+  --color-select: #d4a574;
+  --color-on-select: #0b1f33;
+  --color-danger: #ff6b5b;
+  --shadow-card: 0 8px 24px rgb(0 0 0 / 0.35);
+  color-scheme: dark;
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   background: var(--color-canvas);
 }
 
 body {
-  background: var(--color-canvas);
   color: var(--color-ink);
   -webkit-tap-highlight-color: transparent;
   /* Stops the page rubber-banding behind the fixed header and nav when installed. */
   overscroll-behavior-y: none;
+}
+
+/*
+ * The chart behind every page: an old sea chart on parchment by day, the same
+ * waters at night. Fixed to the screen so content scrolls over it, and veiled
+ * with the canvas colour so it stays a texture and never competes with text.
+ */
+body::before {
+  --chart: url("/brand/bg-day.webp");
+  --veil: color-mix(in srgb, var(--color-canvas) 62%, transparent);
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(var(--veil), var(--veil)),
+    var(--chart) center / cover no-repeat,
+    var(--color-canvas);
+}
+
+[data-theme="night"] body::before {
+  --chart: url("/brand/bg-night.webp");
+  --veil: color-mix(in srgb, var(--color-canvas) 45%, transparent);
+}
+
+@media (min-aspect-ratio: 1/1) {
+  body::before {
+    --chart: url("/brand/bg-day-wide.webp");
+  }
+
+  [data-theme="night"] body::before {
+    --chart: url("/brand/bg-night-wide.webp");
+  }
 }
 
 /* Keyboard users get a visible focus ring; taps don't. */
@@ -91,10 +174,15 @@ body {
 }
 
 /*
- * Maps (Leaflet). OpenStreetMap's standard tiles are light, so the tile layer
- * alone is inverted to sit in the dark theme; markers and controls are not.
+ * Maps (Leaflet) on OpenStreetMap's standard tiles. By day the tiles are warmed
+ * towards the parchment; at night they are inverted to sit in the navy theme.
+ * Only the tile layer is filtered; markers and controls are not.
  */
 .party-map .leaflet-tile-pane {
+  filter: sepia(0.3) saturate(0.85);
+}
+
+[data-theme="night"] .party-map .leaflet-tile-pane {
   filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.6);
 }
 
@@ -104,7 +192,7 @@ body {
 }
 
 .party-map .leaflet-control-attribution {
-  background: color-mix(in srgb, var(--color-canvas) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
   color: var(--color-muted);
 }
 
@@ -113,7 +201,7 @@ body {
 }
 
 .party-map .leaflet-bar a {
-  background: var(--color-raised);
+  background: var(--color-surface);
   color: var(--color-ink);
   border-color: var(--color-line);
 }
@@ -127,31 +215,31 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  border: 2px solid var(--color-ink);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.6);
+  border: 2px solid var(--color-gold);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
 }
 
 .photo-marker {
   object-fit: cover;
-  background: var(--color-raised);
+  background: var(--color-navy);
 }
 
 .photo-marker-video {
-  color: var(--color-accent);
+  color: var(--color-gold);
   font-size: 1.125rem;
 }
 
 .photo-cluster {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--color-navy);
+  color: var(--color-gold-hi);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .pin-marker {
-  background: var(--color-accent);
-  border-color: var(--color-on-accent);
-  color: var(--color-on-accent);
+  background: var(--color-gold);
+  border-color: var(--color-navy);
+  color: var(--color-navy);
   font-size: 1.25rem;
 }
 
@@ -167,9 +255,9 @@ body {
   --fc-classic-background-event: var(--color-accent);
   --fc-classic-background-event-opacity: 15%;
   --fc-classic-background-event-foreground-opacity: 50%;
-  --fc-classic-highlight: color-mix(in srgb, var(--color-accent) 25%, transparent);
-  --fc-classic-today: color-mix(in srgb, var(--color-accent) 8%, transparent);
-  --fc-classic-now: var(--color-accent);
+  --fc-classic-highlight: color-mix(in srgb, var(--color-lagoon) 25%, transparent);
+  --fc-classic-today: color-mix(in srgb, var(--color-gold) 12%, transparent);
+  --fc-classic-now: var(--color-coral);
   --fc-classic-small-dot-width: 8px;
   --fc-classic-large-dot-width: 10px;
 

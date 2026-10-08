@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DayPicker } from "@/components/schedule/DayPicker";
 import { EventCard } from "@/components/schedule/EventCard";
 import { Card } from "@/components/ui/Card";
+import { PhotoBand } from "@/components/ui/PhotoBand";
 import { config } from "@/config";
 import { useNow } from "@/hooks/useNow";
 import { useSchedule } from "@/hooks/useSchedule";
@@ -26,16 +27,29 @@ export default function SchedulePage() {
   const today = dayKey(now);
   const selected = picked ?? defaultDay(today);
   const highlight = events ? findHighlight(events, now) : null;
+  const highlighted = highlight ? events?.find((event) => event.id === highlight.id) : undefined;
   const dayEvents = events?.filter((event) => dayKey(event.startsAt) === selected);
 
   return (
     <div className="space-y-4">
+      <PhotoBand image="/brand/hero-sunset.webp" focus="object-[70%_center]">
+        <div className="px-5 pb-5 pt-24">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-hi">Ahoy, crew</p>
+          <h1 className="font-display text-3xl font-bold leading-tight">The Voyage</h1>
+          <p className="mt-0.5 font-script text-lg italic text-sand/90">
+            {highlighted
+              ? `${highlight?.kind === "now" ? "Under way" : "Next port of call"}: ${highlighted.title}`
+              : "Drink. Explore. Compete. Legend awaits."}
+          </p>
+        </div>
+      </PhotoBand>
+
       <DayPicker days={config.days} selected={selected} today={today} onSelect={setPicked} />
-      <h1 className="font-display text-xl font-bold">{dayParts(selected).long}</h1>
+      <h2 className="font-display text-xl font-bold">{dayParts(selected).long}</h2>
 
       {!events && error && <Card className="text-muted">Couldn&apos;t load the schedule. Retrying…</Card>}
       {!events && !error && <Card className="text-muted">Loading…</Card>}
-      {dayEvents?.length === 0 && <Card className="text-muted">Nothing planned yet for this day.</Card>}
+      {dayEvents?.length === 0 && <Card className="text-muted">Nothing charted for this day yet.</Card>}
 
       <ol className="space-y-3">
         {dayEvents?.map((event) => (

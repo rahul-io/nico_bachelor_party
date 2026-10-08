@@ -92,7 +92,7 @@ export function ChallengesPanel() {
               type="checkbox"
               checked={draft.active}
               onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
-              className="size-5 accent-primary"
+              className="size-5 accent-accent"
             />
             Visible to guests
           </label>

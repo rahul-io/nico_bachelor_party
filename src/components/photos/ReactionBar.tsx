@@ -55,7 +55,7 @@ export function ReactionBar({ reactions, onToggle, onShowReactors }: ReactionBar
             }}
             className={cn(
               "flex min-h-tap flex-1 select-none items-center justify-center gap-1 rounded-control border text-base transition active:scale-95 [-webkit-touch-callout:none]",
-              mine ? "border-primary bg-raised" : "border-line bg-surface",
+              mine ? "border-accent bg-raised" : "border-line bg-surface",
             )}
           >
             <span aria-hidden>{emoji}</span>

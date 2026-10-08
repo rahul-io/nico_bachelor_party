@@ -4,6 +4,7 @@ import { BacCard } from "@/components/tracker/BacCard";
 import { DrinkLogList } from "@/components/tracker/DrinkLogList";
 import { DrinkPicker } from "@/components/tracker/DrinkPicker";
 import { Card } from "@/components/ui/Card";
+import { PageTitle } from "@/components/ui/PageTitle";
 import { useDrinks } from "@/hooks/useDrinks";
 import { useNow } from "@/hooks/useNow";
 import { useProfile } from "@/hooks/useProfile";
@@ -20,12 +21,13 @@ export default function TrackerPage() {
 
   return (
     <div className="space-y-4">
+      <PageTitle eyebrow="Ship's stores" title="Rum Log" />
       <BacCard estimate={estimate} />
       <DrinkPicker onAdd={addDrink} />
 
       <section className="space-y-2">
         <h2 className="font-display text-lg font-bold">
-          Your log{drinks && drinks.length > 0 && ` (${drinks.length})`}
+          Entries{drinks && drinks.length > 0 && ` (${drinks.length})`}
         </h2>
         {drinks ? (
           <DrinkLogList drinks={drinks} onDelete={(id) => void removeDrink(id).catch(() => {})} />

@@ -1,62 +1,34 @@
-// Regenerates the app icons from the SVG below. Run after changing the artwork or brand colours:
-//   node scripts/make-icons.mjs
-// Colours here mirror the theme tokens in src/app/globals.css.
+// Regenerates the app icons: the mascot badge on navy. Run after changing the logo or the navy:
+//   node scripts/make-logo.mjs && node scripts/make-icons.mjs
+// The navy mirrors --color-chrome in src/app/globals.css.
 import { mkdirSync } from "node:fs";
 import sharp from "sharp";
 
-const CANVAS = "#0b0a12";
-const PRIMARY = "#ff4d8d";
-const ACCENT = "#ffc53d";
-const ACCENT_SHADE = "#e3a51a";
-const INK = "#f4f1ff";
+const CHROME = "#0b1f33";
+const BADGE = "public/logo.png";
 
 /**
- * @param {object} options
- * @param {number} options.scale   Artwork scale. Maskable icons keep it inside the central safe zone.
- * @param {number} options.radius  Corner radius of the background; 0 for full-bleed squares.
+ * @param {number} size   Output size in pixels.
+ * @param {number} scale  How much of the square the badge fills. Maskable icons keep it inside the safe zone.
+ * @param {number} radius Corner radius as a fraction of the size; 0 for full-bleed squares.
  */
-function svg({ scale, radius }) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <radialGradient id="glow" cx="50%" cy="45%" r="60%">
-      <stop offset="0%" stop-color="${PRIMARY}" stop-opacity="0.55"/>
-      <stop offset="100%" stop-color="${PRIMARY}" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="512" height="512" rx="${radius}" fill="${CANVAS}"/>
-  <rect width="512" height="512" rx="${radius}" fill="url(#glow)"/>
-  <g transform="translate(256 256) scale(${scale}) translate(-270 -250)">
-    <path d="M316 228h26a38 38 0 0 1 38 38v34a38 38 0 0 1-38 38h-26" fill="none" stroke="${ACCENT}" stroke-width="24" stroke-linecap="round"/>
-    <rect x="176" y="196" width="140" height="170" rx="20" fill="${ACCENT}"/>
-    <rect x="212" y="244" width="16" height="92" rx="8" fill="${ACCENT_SHADE}"/>
-    <rect x="264" y="244" width="16" height="92" rx="8" fill="${ACCENT_SHADE}"/>
-    <g fill="${INK}">
-      <rect x="170" y="186" width="152" height="30" rx="15"/>
-      <circle cx="194" cy="182" r="30"/>
-      <circle cx="238" cy="166" r="38"/>
-      <circle cx="286" cy="176" r="32"/>
-      <circle cx="310" cy="194" r="22"/>
-      <rect x="192" y="200" width="24" height="52" rx="12"/>
-    </g>
-  </g>
-</svg>`;
+async function icon(size, scale, radius, file) {
+  const badge = await sharp(BADGE)
+    .resize(Math.round(size * scale), Math.round(size * scale))
+    .png()
+    .toBuffer();
+  const corner = Math.round(size * radius);
+  const background = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${corner}" fill="${CHROME}"/></svg>`,
+  );
+  await sharp(background).composite([{ input: badge, gravity: "centre" }]).png().toFile(file);
+  console.log(`${file} (${size}px)`);
 }
-
-const rounded = svg({ scale: 1.35, radius: 112 });
-const square = svg({ scale: 1.35, radius: 0 });
-const maskable = svg({ scale: 1.0, radius: 0 });
 
 mkdirSync("public/icons", { recursive: true });
 
-const outputs = [
-  [rounded, 96, "src/app/icon.png"],
-  [square, 180, "src/app/apple-icon.png"],
-  [rounded, 192, "public/icons/icon-192.png"],
-  [rounded, 512, "public/icons/icon-512.png"],
-  [maskable, 512, "public/icons/maskable-512.png"],
-];
-
-for (const [source, size, file] of outputs) {
-  await sharp(Buffer.from(source), { density: 300 }).resize(size, size).png().toFile(file);
-  console.log(`${file} (${size}px)`);
-}
+await icon(96, 0.92, 0.22, "src/app/icon.png");
+await icon(180, 0.9, 0, "src/app/apple-icon.png");
+await icon(192, 0.92, 0.22, "public/icons/icon-192.png");
+await icon(512, 0.92, 0.22, "public/icons/icon-512.png");
+await icon(512, 0.68, 0, "public/icons/maskable-512.png");

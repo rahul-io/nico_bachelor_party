@@ -4,9 +4,10 @@ import { mapsUrl, type Highlight } from "@/lib/schedule";
 import type { ScheduleEvent } from "@/lib/store/types";
 import { formatTime } from "@/lib/time";
 
-const badge: Record<Highlight["kind"], string> = {
-  now: "Happening now",
-  next: "Up next",
+// Coral is the playful alert (it's happening); gold marks what's next.
+const badge: Record<Highlight["kind"], { label: string; className: string }> = {
+  now: { label: "Under way", className: "bg-coral text-navy" },
+  next: { label: "Next port of call", className: "bg-primary text-on-primary" },
 };
 
 export function EventCard({ event, highlight }: { event: ScheduleEvent; highlight: Highlight["kind"] | null }) {
@@ -15,20 +16,25 @@ export function EventCard({ event, highlight }: { event: ScheduleEvent; highligh
   return (
     <article
       className={cn(
-        "rounded-card border bg-surface p-4",
-        highlight ? "border-primary ring-1 ring-primary" : "border-line",
+        "rounded-card border bg-surface p-4 shadow-card",
+        highlight ? "border-accent ring-1 ring-accent" : "border-line",
       )}
     >
       {highlight && (
-        <p className="mb-2 inline-block rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-on-primary">
-          {badge[highlight]}
+        <p
+          className={cn(
+            "mb-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide",
+            badge[highlight].className,
+          )}
+        >
+          {badge[highlight].label}
         </p>
       )}
-      <p className="text-sm font-semibold text-accent tabular-nums">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent tabular-nums">
         {formatTime(event.startsAt)}
         {event.endsAt && ` – ${formatTime(event.endsAt)}`}
       </p>
-      <h2 className="font-display text-lg font-bold leading-snug">{event.title}</h2>
+      <h3 className="font-display text-xl font-bold leading-snug">{event.title}</h3>
 
       {event.location &&
         (maps ? (
@@ -36,7 +42,7 @@ export function EventCard({ event, highlight }: { event: ScheduleEvent; highligh
             href={maps}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 flex min-h-tap items-center gap-1.5 text-primary underline-offset-4 active:underline"
+            className="mt-1 flex min-h-tap items-center gap-1.5 text-link underline-offset-4 active:underline"
           >
             <MapPin className="size-4 shrink-0" aria-hidden />
             {event.location}

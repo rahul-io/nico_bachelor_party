@@ -4,7 +4,7 @@ import { env } from "@/lib/env";
 export function DemoBanner() {
   if (env.databaseUrl) return null;
   return (
-    <p className="bg-accent px-4 py-1.5 text-center text-xs font-semibold text-on-accent">
+    <p className="bg-sunset px-4 py-1.5 text-center text-xs font-semibold text-navy">
       Demo mode: no database connected, so nothing here is saved.
     </p>
   );

@@ -147,7 +147,7 @@ export function TrendChart() {
                   strokeWidth={selected ? 3 : 2}
                   strokeLinejoin="round"
                   strokeLinecap="round"
-                  className={selected ? "stroke-primary" : "stroke-muted/45"}
+                  className={selected ? "stroke-accent" : "stroke-muted/45"}
                 />
               );
             })}
@@ -160,7 +160,7 @@ export function TrendChart() {
                 x2={avatarX}
                 y2={avatarY[i]}
                 strokeWidth={1}
-                className={player.id === selectedId ? "stroke-primary" : "stroke-muted/45"}
+                className={player.id === selectedId ? "stroke-accent" : "stroke-muted/45"}
               />
             ))}
 
@@ -174,7 +174,7 @@ export function TrendChart() {
                     cy={y(player[metric][index])}
                     r={player.id === selectedId ? 5 : 4}
                     strokeWidth={2}
-                    className={cn("stroke-surface", player.id === selectedId ? "fill-primary" : "fill-muted")}
+                    className={cn("stroke-surface", player.id === selectedId ? "fill-accent" : "fill-muted")}
                   />
                 ))}
               </g>
@@ -206,7 +206,7 @@ export function TrendChart() {
                 name={player.name}
                 src={player.avatarUrl}
                 size="xs"
-                className={player.id === selectedId ? "ring-2 ring-primary" : undefined}
+                className={player.id === selectedId ? "ring-2 ring-accent" : undefined}
               />
             </button>
           ))}
@@ -217,7 +217,7 @@ export function TrendChart() {
           {scrub === null ? (
             <p className="text-right text-xs text-muted">Drag across the chart to look back</p>
           ) : (
-            <button type="button" onClick={() => setScrub(null)} className="min-h-tap px-2 text-sm text-primary">
+            <button type="button" onClick={() => setScrub(null)} className="min-h-tap px-2 text-sm text-link">
               Back to now
             </button>
           )}
@@ -234,7 +234,7 @@ export function TrendChart() {
                   aria-pressed={selected}
                   className="flex min-h-tap w-full items-center gap-2.5 text-left"
                 >
-                  <span className={cn("h-6 w-1 shrink-0 rounded-full", selected ? "bg-primary" : "bg-transparent")} aria-hidden />
+                  <span className={cn("h-6 w-1 shrink-0 rounded-full", selected ? "bg-accent" : "bg-transparent")} aria-hidden />
                   <span className="w-5 shrink-0 text-center text-sm font-semibold tabular-nums text-muted">{rank + 1}</span>
                   <Avatar name={player.name} src={player.avatarUrl} size="xs" />
                   <span className={cn("min-w-0 flex-1 truncate", selected && "font-semibold")}>{player.name}</span>
@@ -254,11 +254,6 @@ export function TrendChart() {
     <Card className="space-y-3 p-3">
       <Segmented options={metrics} value={metric} onChange={setMetric} label="Chart" size="sm" />
       {body}
-      {metric === "bac" && (
-        <p className="text-xs text-muted">
-          BAC numbers are rough guesses, just for fun. They can&apos;t tell you whether anyone is able to drive.
-        </p>
-      )}
     </Card>
   );
 }

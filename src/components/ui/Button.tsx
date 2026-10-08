@@ -3,11 +3,14 @@ import { cn } from "@/lib/cn";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
+/** The gold fill used for the one prestige action on a screen. Navy lettering in both modes. */
+export const goldFill = "bg-linear-to-b from-gold-hi to-gold text-navy font-semibold shadow-sm";
+
 const variants: Record<Variant, string> = {
-  primary: "bg-primary text-on-primary font-semibold",
-  secondary: "bg-raised text-ink border border-line font-medium",
+  primary: goldFill,
+  secondary: "bg-surface text-ink border border-line font-medium",
   ghost: "text-muted font-medium",
-  danger: "bg-raised text-danger border border-line font-medium",
+  danger: "bg-surface text-danger border border-danger/40 font-medium",
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

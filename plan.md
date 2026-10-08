@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1–M8 done and live-deployed from `main`. The app is now called The Crider Cup. M9 (invite gate + accounts) is planned and waiting for Peter's go-ahead; M10 (reskin) is under discussion. Nothing in M9 or M10 is built.**
+Status: **M1–M8 live. M10 (reskin, day and night modes) built. M9 (invite gate + accounts) approved and in progress.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -207,7 +207,7 @@ Sessions are stateless. "Log out everywhere" works by bumping a `session_version
 
 **Passwords.** `bcryptjs` (pure JavaScript, cost 10): no native binary to break on Windows or Vercel. Minimum 6 characters, maximum 72 bytes (bcrypt ignores anything longer). Never logged, never returned by any API. New dependency: `bcryptjs`.
 
-**Rate limiting.** Serverless instances don't share memory, so failed attempts are counted in Postgres (`auth_attempts`: key, time), in memory in mock mode. Proposed limits per 15 minutes: 20 wrong invite codes per IP; 5 wrong passwords per name; 30 wrong passwords per IP. The per-IP numbers are loose on purpose: everyone on the house Wi-Fi shares one IP. The client IP comes from Vercel's `x-forwarded-for`.
+**Rate limiting.** Serverless instances don't share memory, so failed attempts are counted in Postgres (`auth_attempts`: key, time), in memory in mock mode. Limits: a name is locked for 5 minutes after 10 wrong passwords; an IP gets 20 wrong invite codes or 30 wrong passwords per 5 minutes. The per-IP numbers are loose on purpose: everyone on the house Wi-Fi shares one IP. The client IP comes from Vercel's `x-forwarded-for`.
 
 **Data model.**
 
@@ -245,23 +245,29 @@ Checklist:
 
 Deploy order (matters, because the gate fails closed): add `INVITE_CODE` and confirm `SESSION_SECRET` in Vercel → run `npm run db:setup` → push. The moment it deploys, every guest is sent to the invite screen, and existing guests then set a password.
 
-Open questions:
-1. **Timing.** The party is under way. Shipping this mid-weekend interrupts everyone once (code, then password). Ship now, at a quiet moment you pick, or after the weekend?
-2. **Per-name lockout.** Names are on the leaderboard, so anyone inside can lock a friend out for 15 minutes with five wrong guesses. Keep 5 per name as asked, or count per name *and* IP together so only the guesser is slowed? Recommendation: keep per-name but make the lock 5 minutes.
-3. **Invite code matching.** Trim spaces and ignore case, since it will be typed on phones? Recommendation: yes.
-4. **Gate cookie lifetime.** 90 days proposed for "long-lived". OK?
-5. **Note:** there is no PIN or recovery-link code in this repo to remove; that idea never got built here.
+Decisions (Peter, 2026-10-08): go ahead now, the weekend has not started; the invite code ignores case and surrounding spaces; lock a name after 10 wrong passwords, for 5 minutes; gate cookie lasts 90 days. The code itself is set in Vercel and in `.env.local`, never in the repo.
 
-### M10 — Reskin: "yacht club meets rum bar" (under discussion, not planned in detail)
+### M10 — Reskin: "yacht club meets rum bar"
 
-Peter's brief (2026-10-08), with reference boards saved outside the repo:
-- Private yacht club meets a tropical rum bar, with the competitive energy of a bachelor-party Olympics. Mock-serious maritime tradition against gloriously unserious competition.
-- Palette by weight: 70% navy and sand, 20% gold and rum amber, 10% tropical accents. Coral for playful alerts, teal for progress or completion, gold for prestige and rewards.
-- Navy `#0B1F33`, ocean `#0E6BA8`, lagoon `#2EC4B6`, gold `#D4A574`, rum `#A35A16`, sand `#F7F1E6`, palm `#233E2F`, coral `#FF6B5B`, sunset `#FFB347`, charcoal `#1E1E1E`; card radius 16px, button radius 10px, soft navy card shadow.
-- Fraunces Bold for headlines, event identity and challenge titles; Inter for all functional UI; Playfair Display Italic for the occasional decorative label.
-- Screens stay extremely clean. Photographs, nautical ornaments and rum illustrations are used selectively; the boards are denser than the product should be.
+Built 2026-10-08 from Peter's brief and boards. The design rules now live in CLAUDE.md ("Design").
 
-To settle before planning: light (sand) or dark (navy) as the default surface; which image assets exist as separate files; whether the home-screen icon becomes the mascot badge; how far the nautical renaming of features goes.
+- [x] Palette, radii and shadow from the brief as tokens; day (sand and white) and night (navy) modes from the same palette; navy frame in both
+- [x] Day/night toggle in the header; first visit follows the phone's setting; choice remembered; no flash on load
+- [x] Fraunces / Inter / Playfair Display Italic
+- [x] Header: live-text wordmark, centred mascot badge, toggle and avatar. Bottom nav: navy with gold line icons and a centre gold "log a drink" button, as in the mobile mockup
+- [x] Gold primary buttons with navy lettering; white cards with the soft navy shadow; navy selected tabs by day, gold at night
+- [x] Sea-chart backgrounds (parchment by day, navy at night), veiled
+- [x] Welcome screen: sunset photograph, full crest, script tagline, rope divider
+- [x] Schedule: "The Voyage" hero that names what is under way or next; coral "Under way", gold "Next port of call"
+- [x] Rum Log: BAC gauge against the tiki bar; drink picker; "Entries"
+- [x] Leaderboard: gold leader row with a crown, quiet highlight on your own row; Challenges under the Commodore's Challenge plaque; History renamed Ledger
+- [x] Captain's Log: the photo feed, "Add a log entry"
+- [x] Admin is "The Bridge"; calendar and maps follow the tokens (maps are warmed by day, inverted at night)
+- [x] Home-screen icon and link preview: mascot badge on navy
+- [x] "Rough estimate" wording removed everywhere (Peter, 2026-10-08)
+- [ ] Not used yet: the achievement badges and filled icon set on the icon sheet (there is no achievements feature), the wood and underwater images
+
+Things a later pass could add: achievement badges, a themed empty-state illustration, the Cap'n Crider ribbon mark somewhere it earns its place.
 
 ## Decisions from Peter (2026-10-07)
 

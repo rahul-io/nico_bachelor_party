@@ -1,5 +1,6 @@
 "use client";
 
+import { Crown } from "lucide-react";
 import { useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
@@ -7,6 +8,7 @@ import { Segmented } from "@/components/ui/Segmented";
 import { usePolled } from "@/hooks/usePolled";
 import { useIdentity } from "@/hooks/useProfile";
 import { formatBac } from "@/lib/bac";
+import { cn } from "@/lib/cn";
 import type { LeaderboardEntry } from "@/lib/store/types";
 
 const sorts = [
@@ -36,17 +38,24 @@ export function Standings() {
     <div className="space-y-3">
       <Segmented options={sorts} value={sort} onChange={setSort} label="Sort by" size="sm" />
 
-      <ol className="divide-y divide-line rounded-card border border-line bg-surface">
+      <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {ranked.map((entry, index) => (
-          <li key={entry.id} className="flex items-center gap-3 px-3 py-3">
-            <span className="w-5 shrink-0 text-center font-display font-bold tabular-nums text-muted">
-              {index + 1}
+          <li
+            key={entry.id}
+            className={cn(
+              "flex items-center gap-3 px-3 py-3",
+              // Gold for whoever leads; a quiet tint so you can find yourself.
+              index === 0 ? "bg-gold/20" : entry.id === identity?.id && "bg-raised",
+            )}
+          >
+            <span className="flex w-5 shrink-0 justify-center font-display font-bold tabular-nums text-muted">
+              {index === 0 ? <Crown className="size-5 text-accent" aria-label="1" /> : index + 1}
             </span>
             <Avatar name={entry.name} src={entry.avatarUrl} />
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">
                 {entry.name}
-                {entry.id === identity?.id && <span className="ml-1.5 text-sm font-normal text-primary">you</span>}
+                {entry.id === identity?.id && <span className="ml-1.5 text-sm font-normal text-link">you</span>}
               </p>
               <p className="text-sm tabular-nums text-muted">
                 {sorts
@@ -57,17 +66,11 @@ export function Standings() {
             </div>
             <div className="shrink-0 text-right">
               <p className="font-display text-xl font-bold tabular-nums text-accent">{stat(entry, sort)}</p>
-              <p className="text-xs uppercase tracking-wide text-muted">
-                {sort === "bac" ? "est. BAC" : unit(entry, sort)}
-              </p>
+              <p className="text-xs uppercase tracking-wide text-muted">{unit(entry, sort)}</p>
             </div>
           </li>
         ))}
       </ol>
-
-      <p className="px-1 text-xs text-muted">
-        BAC numbers are rough guesses, just for fun. They can&apos;t tell you whether anyone is able to drive.
-      </p>
     </div>
   );
 }

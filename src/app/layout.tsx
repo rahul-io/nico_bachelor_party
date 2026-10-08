@@ -1,21 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Inter, Playfair_Display } from "next/font/google";
 import { config } from "@/config";
+import { themeBootScript } from "@/lib/theme";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
 });
 
-const display = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
   subsets: ["latin"],
+  style: "italic",
 });
 
 const description = `${config.tagline} · ${config.location}`;
@@ -48,16 +50,21 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: config.brand.canvas,
-  colorScheme: "dark",
+  // The header is navy in both day and night mode.
+  themeColor: config.brand.chrome,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
+    // The boot script sets data-theme before React loads, so the attribute differs from the server's.
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${display.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${inter.variable} ${fraunces.variable} ${playfair.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+      </head>
       <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>
   );

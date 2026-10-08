@@ -85,7 +85,7 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
         onChange={(event) => setName(event.target.value)}
         maxLength={30}
         autoComplete="nickname"
-        placeholder="What the boys call you"
+        placeholder="What the crew calls you"
       />
 
       <div className="grid grid-cols-3 gap-2">
@@ -125,7 +125,7 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
               className={cn(
                 "flex min-h-tap cursor-pointer items-center justify-center rounded-control border font-medium transition",
                 sex === value
-                  ? "border-primary bg-primary text-on-primary"
+                  ? "border-select bg-select text-on-select"
                   : "border-line bg-raised text-muted",
               )}
             >
@@ -142,7 +142,7 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
           ))}
         </div>
         <p className="mt-2 text-xs text-muted">
-          Height, weight and sex are only used for your BAC estimate. Nobody else can see them.
+          Height, weight and sex are only used to work out your BAC. Nobody else can see them.
         </p>
       </fieldset>
 
@@ -151,18 +151,18 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
           type="checkbox"
           checked={showBac}
           onChange={(event) => setShowBac(event.target.checked)}
-          className="size-5 shrink-0 accent-primary"
+          className="size-5 shrink-0 accent-accent"
         />
         <span>
           <span className="block font-medium">Show my BAC on my posts and comments</span>
           <span className="block text-xs text-muted">
-            Stamps your estimate at the moment you post or comment.
+            Stamps your BAC on each entry at the moment you post or comment.
           </span>
         </span>
       </label>
 
       <Button type="submit" variant="primary" block disabled={saving}>
-        {saving ? "Saving…" : initial ? "Save changes" : "Let's go"}
+        {saving ? "Saving…" : initial ? "Save changes" : "Come aboard"}
       </Button>
       <p aria-live="polite" className={cn("min-h-5 text-center text-sm", status?.error ? "text-danger" : "text-muted")}>
         {status?.text}

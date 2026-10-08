@@ -1,23 +1,33 @@
-import { Card } from "@/components/ui/Card";
+import { PhotoBand } from "@/components/ui/PhotoBand";
 import { formatBac, type BacEstimate } from "@/lib/bac";
 import { formatTime } from "@/lib/time";
 
+/**
+ * The gauge at the top of the Rum Log, set against the tiki bar. The number is
+ * sand, like all lettering on photographs: it is never coloured teal or green,
+ * which would read as a verdict.
+ */
 export function BacCard({ estimate }: { estimate: BacEstimate | null }) {
   return (
-    <Card className="text-center">
-      <p className="text-sm font-medium uppercase tracking-wide text-muted">Estimated BAC</p>
-      <p className="my-1 font-display text-6xl font-bold tabular-nums text-accent">
-        {estimate ? formatBac(estimate.bac) : "–"}
-      </p>
-      <p className="text-muted">
-        {estimate?.sessionStart
-          ? `${estimate.sessionDrinks} ${estimate.sessionDrinks === 1 ? "drink" : "drinks"} since ${formatTime(estimate.sessionStart)}`
-          : "Log a drink to get started"}
-      </p>
-      <p className="mt-3 border-t border-line pt-3 text-xs leading-relaxed text-muted">
-        A rough guess, just for fun. It can&apos;t tell you whether anyone is able to drive, so
-        never use it for that.
-      </p>
-    </Card>
+    <PhotoBand
+      image="/brand/tiki.webp"
+      focus="object-left"
+      wash="bg-linear-to-l from-navy via-navy/75 to-navy/10"
+    >
+      <div className="ml-auto flex min-h-48 w-[62%] flex-col justify-center py-5 pr-5 text-right">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-hi">Blood alcohol</p>
+        <p className="font-display text-5xl font-bold leading-tight tabular-nums">
+          {estimate ? formatBac(estimate.bac) : "–"}
+        </p>
+        <p className="text-sm text-sand/85">
+          {estimate?.sessionStart
+            ? `${estimate.sessionDrinks} ${estimate.sessionDrinks === 1 ? "drink" : "drinks"} since ${formatTime(estimate.sessionStart)}`
+            : "Nothing in the log. Pour something."}
+        </p>
+        <p className="mt-2 font-script text-sm italic leading-snug text-sand/80">
+          Standing orders: bragging rights only. Nobody takes the wheel on its word.
+        </p>
+      </div>
+    </PhotoBand>
   );
 }

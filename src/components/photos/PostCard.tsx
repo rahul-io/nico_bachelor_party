@@ -40,7 +40,7 @@ export function PostCard({ post, canDelete, onDelete, onOpen, onReact }: PostCar
   }
 
   return (
-    <article className="overflow-hidden rounded-card border border-line bg-surface">
+    <article className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
       <header className="flex items-center gap-3 py-2 pl-3 pr-1">
         <Avatar name={post.posterName} src={post.posterAvatarUrl} size="sm" />
         <div className="min-w-0 flex-1">
@@ -50,7 +50,7 @@ export function PostCard({ post, canDelete, onDelete, onOpen, onReact }: PostCar
             {post.bacAtPost !== null && (
               <span className="tabular-nums text-accent"> ({post.bacAtPost.toFixed(2)}%)</span>
             )}{" "}
-            <span className="text-muted">posted a {noun}</span>
+            <span className="text-muted">logged a {noun}</span>
           </p>
           <p className="text-sm text-muted">{formatDeviceWeekdayTime(post.createdAt)}</p>
         </div>
@@ -68,7 +68,7 @@ export function PostCard({ post, canDelete, onDelete, onOpen, onReact }: PostCar
         )}
       </header>
 
-      <div className="relative bg-canvas">
+      <div className="relative bg-navy">
         {post.mediaType === "video" ? (
           // Taps on a video belong to its own controls, so no double-tap here.
           <video src={post.url} controls playsInline preload="metadata" className="max-h-[75vh] w-full" />

@@ -23,7 +23,7 @@ export function DayPicker({ days, selected, today, onSelect }: DayPickerProps) {
             onClick={() => onSelect(day)}
             className={cn(
               "flex min-h-tap flex-1 flex-col items-center rounded-control border py-2 transition active:scale-[0.97]",
-              active ? "border-primary bg-primary text-on-primary" : "border-line bg-surface text-muted",
+              active ? "border-select bg-select text-on-select" : "border-line bg-surface text-muted",
             )}
           >
             <span className="text-xs font-medium uppercase tracking-wide">{weekday}</span>
@@ -31,7 +31,7 @@ export function DayPicker({ days, selected, today, onSelect }: DayPickerProps) {
             <span
               className={cn(
                 "mt-0.5 size-1.5 rounded-full",
-                day === today ? (active ? "bg-on-primary" : "bg-accent") : "bg-transparent",
+                day === today ? (active ? "bg-on-select" : "bg-accent") : "bg-transparent",
               )}
               aria-hidden
             />

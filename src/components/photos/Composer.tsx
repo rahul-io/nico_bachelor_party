@@ -110,13 +110,13 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
   if (!draft) {
     return (
       <div className="space-y-2">
-        <label className="flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-control bg-primary px-4 text-base font-semibold text-on-primary transition active:scale-[0.97]">
+        <label className="flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-control bg-linear-to-b from-gold-hi to-gold px-4 text-base font-semibold text-navy shadow-card transition active:scale-[0.97]">
           <ImagePlus className="size-5" aria-hidden />
-          Post a photo or video
+          Add a log entry
           <input type="file" accept="image/*,video/*" onChange={pick} className="sr-only" />
         </label>
         <p className="text-sm text-muted">
-          {uploadsEnabled ? "Photos are saved in original quality for downloads." : "Demo mode saves smaller previews only."}
+          {uploadsEnabled ? "Photos are kept in original quality for the ship's archive." : "Demo mode saves smaller previews only."}
         </p>
         {status && <Status status={status} />}
       </div>
@@ -125,7 +125,7 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
 
   return (
     <Card className="space-y-3 p-3">
-      <div className="relative overflow-hidden rounded-control bg-canvas">
+      <div className="relative overflow-hidden rounded-control bg-navy">
         {draft.kind === "video" ? (
           <video src={draft.previewUrl} controls playsInline muted className="max-h-80 w-full" />
         ) : (
@@ -137,7 +137,7 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
             type="button"
             onClick={clear}
             aria-label="Remove"
-            className="absolute right-2 top-2 flex size-9 items-center justify-center rounded-full bg-canvas/80 text-ink"
+            className="absolute right-2 top-2 flex size-9 items-center justify-center rounded-full bg-navy/75 text-sand"
           >
             <X className="size-5" aria-hidden />
           </button>
@@ -181,7 +181,7 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
             checked={sharing === "yes"}
             onChange={(event) => toggleSharing(event.target.checked)}
             disabled={busy}
-            className="mt-0.5 size-5 shrink-0 accent-primary"
+            className="mt-0.5 size-5 shrink-0 accent-accent"
           />
           <span className="text-sm">
             <span className="block font-medium">Put my posts on the photo map</span>
@@ -203,7 +203,7 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
           aria-label="Upload progress"
           className="h-2 overflow-hidden rounded-full bg-raised"
         >
-          <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
+          <div className="h-full rounded-full bg-lagoon transition-[width]" style={{ width: `${progress}%` }} />
         </div>
       )}
 
