@@ -78,6 +78,32 @@ export interface LeaderboardEntry extends PublicProfile {
   bac: number;
 }
 
+export type MediaType = "image" | "video";
+
+export interface Post {
+  id: string;
+  profileId: string;
+  url: string;
+  mediaType: MediaType;
+  caption: string | null;
+  /** The poster's estimated BAC when they posted, if they had that setting on. Never recomputed. */
+  bacAtPost: number | null;
+  createdAt: string;
+}
+
+export type PostInput = Omit<Post, "id" | "createdAt">;
+
+export interface FeedPost extends Post {
+  posterName: string;
+  posterAvatarUrl: string | null;
+}
+
+export interface Feed {
+  /** False in mock mode, where only small images can be posted. */
+  uploadsEnabled: boolean;
+  posts: FeedPost[];
+}
+
 export type TrendMetric = "points" | "drinks" | "bac";
 
 /** One value per entry in `Trends.times` for each metric. */
@@ -103,7 +129,7 @@ export interface Store {
   getProfileByToken(id: string, token: string): Promise<Profile | null>;
   updateProfile(id: string, input: ProfileInput): Promise<Profile>;
   listProfiles(): Promise<Profile[]>;
-  /** Also removes the profile's drinks and point events. */
+  /** Also removes the profile's drinks, point events and posts (but not the posts' files). */
   deleteProfile(id: string): Promise<boolean>;
   /** The avatar image as a data URL, kept apart from the profile so lists stay small. */
   setAvatarData(id: string, dataUrl: string | null): Promise<void>;
@@ -130,4 +156,10 @@ export interface Store {
   /** Newest first. */
   listPointEvents(): Promise<PointEvent[]>;
   addPointEvent(input: PointEventInput): Promise<PointEvent>;
+
+  /** Newest first. */
+  listPosts(): Promise<Post[]>;
+  getPost(id: string): Promise<Post | null>;
+  createPost(input: PostInput): Promise<Post>;
+  deletePost(id: string): Promise<boolean>;
 }

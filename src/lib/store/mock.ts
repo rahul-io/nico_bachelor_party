@@ -1,6 +1,6 @@
 import { seedChallenges, seedEvents, seedPeople } from "@/data/seed";
 import { STANDARD_DRINK_G } from "@/lib/bac";
-import type { Challenge, DrinkLog, PointEvent, Profile, ScheduleEvent, Store } from "./types";
+import type { Challenge, DrinkLog, PointEvent, Post, Profile, ScheduleEvent, Store } from "./types";
 
 interface MockData {
   profiles: Map<string, { profile: Profile; token: string }>;
@@ -9,6 +9,7 @@ interface MockData {
   events: ScheduleEvent[];
   challenges: Challenge[];
   pointEvents: PointEvent[];
+  posts: Post[];
 }
 
 // Kept on globalThis so the data survives hot reloads in dev.
@@ -31,6 +32,7 @@ function seed(): MockData {
       ...challenge,
     })),
     pointEvents: [],
+    posts: [],
   };
 
   // Demo guests so the leaderboard isn't empty in mock mode.
@@ -121,6 +123,7 @@ export const mockStore: Store = {
     store.avatars.delete(id);
     removeWhere(store.drinks, (drink) => drink.profileId === id);
     removeWhere(store.pointEvents, (event) => event.profileId === id);
+    removeWhere(store.posts, (post) => post.profileId === id);
     return true;
   },
 
@@ -228,5 +231,23 @@ export const mockStore: Store = {
     };
     data().pointEvents.push(event);
     return event;
+  },
+
+  async listPosts() {
+    return [...data().posts].reverse().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  async getPost(id) {
+    return data().posts.find((post) => post.id === id) ?? null;
+  },
+
+  async createPost(input) {
+    const post: Post = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...input };
+    data().posts.push(post);
+    return post;
+  },
+
+  async deletePost(id) {
+    return removeWhere(data().posts, (post) => post.id === id);
   },
 };

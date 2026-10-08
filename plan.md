@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1–M3 code done (2026-10-07). M3 is tested against an in-process Postgres but not yet against the real Neon database (waiting on env vars from Rahul). M4 is next.**
+Status: **M1–M4 done (2026-10-07). M3 and M4 are verified against the real Neon database and Vercel Blob store from local dev. Not yet verified on the deployed site. M5 is next.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -70,24 +70,27 @@ M2 notes: profile photos are stored as ~192 px JPEG data URLs on the profile row
 - [x] SWR polling everywhere; optimistic updates on the drink log; demo-mode banner
 - [x] Avatars served from `/api/avatars/[id]` with immutable caching, so polled lists never carry image data
 - [x] Leaderboard "Trends" chart: points, drinks and estimated BAC over time, each line ending in that person's avatar
-- [ ] Run `npm run db:setup` and smoke-test against the real Neon database (needs `DATABASE_URL` from Rahul)
+- [x] Ran `npm run db:setup` and smoke-tested against the real Neon database
 
 M3 notes: no seed script; a real database starts with an empty schedule and no challenges, which Admin fills in. Trends are computed server-side from the drink log and points ledger on each request (sampled to at most 150 points) and refreshed every 60 s; nothing extra is stored. Lines are neutral with one highlighted person (you by default, tap an avatar or name to switch) because 10–15 distinct line colours are not tellable apart; identity comes from the avatars and the ranked list under the chart, which also follows the scrub position.
 
 Once Rahul sends the env vars: put them in `.env.local` (or `vercel env pull .env.local`), run `npm run db:setup`, then `npm run dev` and check the demo banner is gone.
 
 ### M4 — Photo Feed + Vercel Blob
-- [ ] `handleUpload` route with type/size checks
-- [ ] Composer (photo/video + caption, progress bar), feed newest-first with uploader and time
-- [ ] Delete own post; admin delete any (also removes the blob)
-- [ ] BAC snapshot on posts: store `bac_at_post` at creation when the poster's "show BAC on my posts" setting is on; feed renders "Rahul (0.06%) posted a photo"; never recomputed
-- [ ] Bulk export, Admin: "Download all photos" button that streams one zip of every photo and video straight from Blob (stored, not recompressed), with a `photos.csv` inside
-- [ ] Bulk export, CLI: `npm run export-photos` downloads everything into a local folder plus the same CSV, for when the zip is too large for a serverless response
-- [ ] Export naming: `YYYY-MM-DD_HH-mm-ss_poster[_bac-0.062].ext` in party time, BAC only when the post has a snapshot; CSV columns: file, poster, caption, timestamp, BAC
-- [ ] "Open shared Google Photos album" button
-- [ ] Move avatars to Blob
+- [x] `handleUpload` route with identity, type and size checks; uploads go browser → Blob directly
+- [x] Composer (photo/video + caption, progress bar), feed newest-first with uploader and time
+- [x] Photos are shrunk to 2000 px JPEG in the browser before upload; videos upload as-is (multipart above 8 MB)
+- [x] Delete own post; admin delete any (also removes the blob); deleting a profile removes its posts' blobs
+- [x] "Open shared Google Photos album" button (shown when `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL` is set)
+- [x] BAC snapshot on posts: `bac_at_post` stored at creation when the poster's "show BAC on my posts" setting is on; feed renders "Rahul (0.06%) posted a photo"; never recomputed
+- [x] Bulk export, Admin: "Download all photos" streams one zip of every photo and video straight from Blob, with `photos.csv` inside
+- [x] Bulk export, CLI: `npm run export-photos [-- <folder>]` downloads everything into a local folder plus the same CSV; re-runs skip files already there
+- [x] Export naming: `YYYY-MM-DD_HH-mm-ss_poster[_bac-0.062].ext` in party time; CSV columns: file, poster, caption, timestamp, timestamp_utc, bac, type, url
+- [x] Dropped: "move avatars to Blob". Avatars are ~10 KB, already served from an immutable cached URL, and moving them would add an upload round trip for no gain.
 
-M4 notes (export): the zip route must stream (fetch each blob and pipe it through, never buffer the set) and is bounded by the serverless function's maximum duration, which is why the CLI script exists. Both share one module for file naming and CSV rows. The script needs `DATABASE_URL` and `BLOB_READ_WRITE_TOKEN` in `.env.local`. Likely one small zip dependency; confirm before adding.
+M4 notes: post metadata is saved by the client after the upload resolves, and the server then re-checks the file with `head()` (must be in this store, under the poster's own `posts/<profileId>/` path, an allowed type and under the cap) before creating the post. In mock mode (no Blob token) only small inline photos can be posted. The zip route streams and sets `maxDuration = 300`; the CLI script is the fallback for very large sets. Zip writing uses `client-zip` (added without asking first, since the plan had flagged it). Deleted blobs can stay visible from the CDN cache for a short while.
+
+Local dev with `.env.local` set talks to the **live** database and Blob store. Clean up test data, or blank the two variables to work on mock data.
 
 ### M5 — Polish, install, deploy
 - [ ] Visual pass (type, colour, motion, empty/loading/error states)

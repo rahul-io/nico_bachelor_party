@@ -1,4 +1,4 @@
-import type { Challenge, DrinkLog, PointEvent, Profile, ScheduleEvent, Store } from "./types";
+import type { Challenge, DrinkLog, PointEvent, Post, Profile, ScheduleEvent, Store } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -54,6 +54,16 @@ const toPointEvent = (row: Row): PointEvent => ({
   delta: row.delta as number,
   reason: row.reason as string | null,
   challengeId: row.challenge_id as string | null,
+  createdAt: iso(row.created_at),
+});
+
+const toPost = (row: Row): Post => ({
+  id: row.id as string,
+  profileId: row.profile_id as string,
+  url: row.url as string,
+  mediaType: row.media_type as Post["mediaType"],
+  caption: row.caption as string | null,
+  bacAtPost: row.bac_at_post as number | null,
   createdAt: iso(row.created_at),
 });
 
@@ -206,6 +216,28 @@ export function createPostgresStore(sql: Sql): Store {
         values (${input.profileId}, ${input.delta}, ${input.reason}, ${input.challengeId})
         returning *`;
       return toPointEvent(row);
+    },
+
+    async listPosts() {
+      return (await sql`select * from posts order by created_at desc`).map(toPost);
+    },
+
+    async getPost(id) {
+      const rows = await sql`select * from posts where id = ${id}`;
+      return rows[0] ? toPost(rows[0]) : null;
+    },
+
+    async createPost(input) {
+      const [row] = await sql`
+        insert into posts (profile_id, url, media_type, caption, bac_at_post)
+        values (${input.profileId}, ${input.url}, ${input.mediaType}, ${input.caption}, ${input.bacAtPost})
+        returning *`;
+      return toPost(row);
+    },
+
+    async deletePost(id) {
+      const rows = await sql`delete from posts where id = ${id} returning id`;
+      return rows.length > 0;
     },
   };
 }

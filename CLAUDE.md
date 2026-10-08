@@ -9,14 +9,15 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 - Rahul owns the GitHub repo (`rahul-io/nico_bachelor_party`) and the Vercel account. Peter builds locally on Windows and pushes to `main`, which auto-deploys.
 - Never push without Peter asking. Never commit `.env*` files other than `.env.example`.
 - Commits use conventional prefixes (`chore:`, `feat:`, `fix:`).
-- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent). Shell is PowerShell (no `&&`).
+- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
+- With `.env.local` filled in, local dev reads and writes the **live** Neon database and Blob store. Delete any test profiles/posts you create (deleting a profile in Admin removes its drinks, points, posts and files), or blank those variables to use mock data. Shell is PowerShell (no `&&`).
 
 ## Stack
 
 - Next.js 16 (App Router, TypeScript, `src/`), React 19, Tailwind CSS v4, lucide-react for icons.
 - Next 16 differs from older versions (see AGENTS.md): read `node_modules/next/dist/docs/` before using an API you haven't used in this repo yet.
 - Data: Postgres (Neon via Vercel Marketplace) through `@neondatabase/serverless` tagged-template SQL. No ORM.
-- Media: Vercel Blob (`@vercel/blob`) with **client-side uploads** via the `handleUpload` route handler. Never proxy file bytes through a route handler.
+- Media: Vercel Blob (`@vercel/blob`) with **client-side uploads** via the `handleUpload` route handler (`/api/blob/upload`). Never proxy file bytes through a route handler. The client then calls `POST /api/posts` with the blob URL, and the server re-validates it with `head()` before saving. Limits live in `src/lib/media.ts`.
 - Live updates: SWR polling with `refreshInterval: 10_000`. No websockets.
 - Drink search: `fuse.js` over a static JSON file, client-side.
 
@@ -57,6 +58,7 @@ src/
     admin/                         password-gated, not in the nav
     profile/                       create / edit profile
     api/                           route handlers (thin: validate → getStore())
+      posts/, blob/upload/         feed, post create/delete, upload tokens
       admin/…                      cookie-gated
       blob/upload/                 handleUpload token exchange
   components/
@@ -71,6 +73,8 @@ src/
     auth.ts, env.ts                admin cookie session, env access
     leaderboard.ts, trends.ts      server-side totals, points history, chart series
     avatar.ts, chart.ts            avatar storage rules; tick/label layout helpers
+    media.ts, feed.ts, upload.ts   upload rules; feed + blob cleanup (server); browser upload helpers
+    export.ts                      export file names + CSV, shared with scripts/ (no runtime imports allowed)
   data/
     drinks.json                    ~100 seeded drinks
     seed.ts                        mock schedule / profiles / challenges
@@ -79,6 +83,8 @@ db/
   schema.sql                       idempotent schema, applied by `npm run db:setup`
 scripts/
   db-setup.mjs                     runs schema.sql against DATABASE_URL
+  export-photos.mts                downloads every post + photos.csv; runs on plain Node type-stripping,
+                                   so anything it imports must use relative `.ts` paths and no `@/` alias
 ```
 
 ## Conventions

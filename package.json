@@ -8,11 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "db:setup": "node scripts/db-setup.mjs"
+    "db:setup": "node scripts/db-setup.mjs",
+    "export-photos": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning scripts/export-photos.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.8.1",
+    "client-zip": "^2.5.1",
     "fuse.js": "^7.5.0",
     "lucide-react": "^1.52.0",
     "next": "16.4.0",

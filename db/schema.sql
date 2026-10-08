@@ -56,3 +56,16 @@ create table if not exists point_events (
 );
 
 create index if not exists point_events_profile_idx on point_events (profile_id);
+
+create table if not exists posts (
+  id text primary key default gen_random_uuid()::text,
+  profile_id text not null references profiles (id) on delete cascade,
+  url text not null,
+  media_type text not null check (media_type in ('image', 'video')),
+  caption text,
+  -- Snapshot taken when the post was created; never recomputed.
+  bac_at_post double precision,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists posts_created_idx on posts (created_at desc);

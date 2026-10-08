@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import useSWR from "swr";
 import { AdminLogin } from "@/components/admin/AdminLogin";
+import { ExportCard } from "@/components/admin/ExportCard";
 import { ChallengesPanel } from "@/components/admin/ChallengesPanel";
 import { PeoplePanel } from "@/components/admin/PeoplePanel";
 import { PointsPanel } from "@/components/admin/PointsPanel";
@@ -67,6 +68,7 @@ export default function AdminPage() {
           {section === "schedule" && <SchedulePanel />}
           {section === "challenges" && <ChallengesPanel />}
           {section === "people" && <PeoplePanel />}
+          <ExportCard />
         </div>
       )}
     </main>

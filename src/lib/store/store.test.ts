@@ -154,6 +154,38 @@ describe.each<[string, () => Promise<Store>]>([
     expect(kept).toMatchObject({ delta: 30, reason: "Test", challengeId: null });
   });
 
+  it("stores posts with their BAC snapshot and removes them with the profile", async () => {
+    const store = await makeStore();
+    const { profile } = await store.createProfile(person);
+    const photo = await store.createPost({
+      profileId: profile.id,
+      url: "https://x.public.blob.vercel-storage.com/posts/a.jpg",
+      mediaType: "image",
+      caption: "Cheers",
+      bacAtPost: 0.0623,
+    });
+    const video = await store.createPost({
+      profileId: profile.id,
+      url: "https://x.public.blob.vercel-storage.com/posts/b.mp4",
+      mediaType: "video",
+      caption: null,
+      bacAtPost: null,
+    });
+    expect(photo).toMatchObject({ profileId: profile.id, mediaType: "image", caption: "Cheers", bacAtPost: 0.0623 });
+    expect(photo.createdAt).toMatch(isoPattern);
+    expect(video).toMatchObject({ mediaType: "video", caption: null, bacAtPost: null });
+    expect(await store.getPost(photo.id)).toEqual(photo);
+    expect(await store.getPost("missing")).toBeNull();
+
+    const ids = (await store.listPosts()).map((p) => p.id);
+    expect(ids.indexOf(video.id)).toBeLessThan(ids.indexOf(photo.id));
+
+    expect(await store.deletePost(video.id)).toBe(true);
+    expect(await store.deletePost(video.id)).toBe(false);
+    await store.deleteProfile(profile.id);
+    expect(await store.getPost(photo.id)).toBeNull();
+  });
+
   it("removes a profile's drinks and points with the profile", async () => {
     const store = await makeStore();
     const { profile, token } = await store.createProfile(person);

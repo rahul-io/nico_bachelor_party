@@ -10,6 +10,11 @@ export const env = {
     return process.env.DATABASE_URL || process.env.POSTGRES_URL || null;
   },
 
+  /** Unset means media uploads fall back to small in-memory images. */
+  get blobToken(): string | null {
+    return process.env.BLOB_READ_WRITE_TOKEN || null;
+  },
+
   /** Null in production when unset, which disables admin login entirely. */
   get adminPassword(): string | null {
     return process.env.ADMIN_PASSWORD || (isProduction ? null : DEV_ADMIN_PASSWORD);
