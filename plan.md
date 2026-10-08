@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1–M8 done and merged with Rahul's full-resolution upload and drink-search changes (2026-10-08). M6–M8 were tested on mock data only, on purpose, because guests are using the live site. Open: real schedule and challenges in `/admin`, real-phone testing (long-press drag, location prompt), checking the deployed site.**
+Status: **M1–M8 done and live-deployed from `main`. The app is now called The Crider Cup. M9 (invite gate + accounts) is planned and waiting for Peter's go-ahead; M10 (reskin) is under discussion. Nothing in M9 or M10 is built.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -188,6 +188,80 @@ Decisions (Peter, 2026-10-08):
 2. Videos: not expected, so no special handling of location embedded in video files. They get a location only from a tag or device location.
 3. Coordinates are stored at full precision, no rounding.
 4. Dark map via a CSS filter over standard OpenStreetMap tiles. No tile API key.
+
+### M9 — Invite-code gate and name + password accounts (planned, awaiting go-ahead)
+
+Replaces the "profile id + token in localStorage" identity with real logins, and puts the whole app behind an invite code. Nothing here is built.
+
+**How the gate is enforced.** One `src/proxy.ts` (Next 16's name for middleware; it runs on Node before every request, static pages included). Without a valid gate cookie, a page request is redirected to `/gate` and an `/api` request gets `401`. Let through without the cookie: `/gate`, `POST /api/gate`, Next's static assets, the manifest, icons, `logo.png` and `og.png` (so a texted link still shows its preview). `/admin` and `/api/admin/*` sit behind the gate too and keep their own password on top. Files in Vercel Blob are on a separate public domain and are not gated; they stay protected only by unguessable URLs, as now.
+
+**Cookies.** Three httpOnly, Secure, SameSite=Lax cookies, all HMAC-signed with `SESSION_SECRET`:
+
+| Cookie | Lifetime | Signed over | Invalidated by |
+|---|---|---|---|
+| gate | 90 days | expiry, keyed with `INVITE_CODE` | changing `INVITE_CODE` |
+| session | 30 days, re-issued when more than a day old | profile id, session version, issued-at | logout (this device), password reset (everywhere) |
+| admin (exists) | 7 days | expiry, keyed with `ADMIN_PASSWORD` | changing `ADMIN_PASSWORD` |
+
+Sessions are stateless. "Log out everywhere" works by bumping a `session_version` number on the profile; every authenticated request already loads the profile, so checking the version costs no extra query. "Log out" on one device just clears that device's cookie. Server-set httpOnly cookies also survive in the iPhone home-screen app, which has its own storage and needs the code and a login once.
+
+**Passwords.** `bcryptjs` (pure JavaScript, cost 10): no native binary to break on Windows or Vercel. Minimum 6 characters, maximum 72 bytes (bcrypt ignores anything longer). Never logged, never returned by any API. New dependency: `bcryptjs`.
+
+**Rate limiting.** Serverless instances don't share memory, so failed attempts are counted in Postgres (`auth_attempts`: key, time), in memory in mock mode. Proposed limits per 15 minutes: 20 wrong invite codes per IP; 5 wrong passwords per name; 30 wrong passwords per IP. The per-IP numbers are loose on purpose: everyone on the house Wi-Fi shares one IP. The client IP comes from Vercel's `x-forwarded-for`.
+
+**Data model.**
+
+| Table | Change |
+|---|---|
+| `profiles` | + `password_hash` (null until set), `must_change_password` (default false), `session_version` (default 1); unique index on `lower(name)` for profiles that have a password |
+| `auth_attempts` | new: key, attempted_at |
+
+The old per-device `token` column stays only so existing profiles can be claimed (below), and is cleared once a password is set.
+
+**Existing profiles.** A device that still holds an old id + token is shown a single "Set a password to keep your profile" screen after the gate. Setting it converts the profile to an account and signs that device in. If the name is already taken by an account, they pick a new one on that screen. A profile whose device is gone can be recovered by Admin with "Reset password", or deleted.
+
+**Screens.**
+- `/gate`: logo, "The Crider Cup", invite code field.
+- `/welcome`: "Create profile" and "Log in".
+- Create profile: name + password first, then the existing fields (height, weight, sex, photo, BAC toggle).
+- Log in: name + password.
+- Profile: "Change password" and "Log out".
+- Forced "Choose a new password" screen after an admin reset.
+- Admin > People: "Reset password" shows a temporary password once, for the admin to pass on.
+
+Checklist:
+- [ ] `INVITE_CODE` in `env.ts` and `.env.example`; dev default when unset; production with it unset rejects every code
+- [ ] `SESSION_SECRET` becomes required in production (today it has a fallback)
+- [ ] Signed-cookie helpers shared by gate, session and admin
+- [ ] `src/proxy.ts` gate with the allow-list above; `/gate` page; `POST /api/gate` with rate limiting
+- [ ] Schema, both stores, contract tests (password fields, name uniqueness, attempts)
+- [ ] `POST /api/auth/signup`, `/login`, `/logout`, `/password`, `/claim`; `GET /api/auth/me`
+- [ ] Every route that used the identity headers switches to the session cookie, including the Blob upload-token route
+- [ ] Client: `useIdentity`/localStorage identity replaced by the session; welcome, signup, login, claim and change-password screens; "Log out"
+- [ ] Admin > People: "Reset password" (temporary password, `must_change_password`, bump `session_version`)
+- [ ] Unit tests: cookie signing and expiry, invite-code change invalidates the gate cookie, hashing, rate limiter
+- [ ] End-to-end script against `npm run dev:mock` with two separate cookie jars: API calls without the gate cookie return 401; wrong code and wrong password are rejected, then rate-limited; login in a second jar restores the same profile; logout in one jar leaves the other signed in; admin reset signs out both and forces a new password
+- [ ] `CLAUDE.md` Identity section rewritten; deploy steps written for Rahul
+
+Deploy order (matters, because the gate fails closed): add `INVITE_CODE` and confirm `SESSION_SECRET` in Vercel → run `npm run db:setup` → push. The moment it deploys, every guest is sent to the invite screen, and existing guests then set a password.
+
+Open questions:
+1. **Timing.** The party is under way. Shipping this mid-weekend interrupts everyone once (code, then password). Ship now, at a quiet moment you pick, or after the weekend?
+2. **Per-name lockout.** Names are on the leaderboard, so anyone inside can lock a friend out for 15 minutes with five wrong guesses. Keep 5 per name as asked, or count per name *and* IP together so only the guesser is slowed? Recommendation: keep per-name but make the lock 5 minutes.
+3. **Invite code matching.** Trim spaces and ignore case, since it will be typed on phones? Recommendation: yes.
+4. **Gate cookie lifetime.** 90 days proposed for "long-lived". OK?
+5. **Note:** there is no PIN or recovery-link code in this repo to remove; that idea never got built here.
+
+### M10 — Reskin: "yacht club meets rum bar" (under discussion, not planned in detail)
+
+Peter's brief (2026-10-08), with reference boards saved outside the repo:
+- Private yacht club meets a tropical rum bar, with the competitive energy of a bachelor-party Olympics. Mock-serious maritime tradition against gloriously unserious competition.
+- Palette by weight: 70% navy and sand, 20% gold and rum amber, 10% tropical accents. Coral for playful alerts, teal for progress or completion, gold for prestige and rewards.
+- Navy `#0B1F33`, ocean `#0E6BA8`, lagoon `#2EC4B6`, gold `#D4A574`, rum `#A35A16`, sand `#F7F1E6`, palm `#233E2F`, coral `#FF6B5B`, sunset `#FFB347`, charcoal `#1E1E1E`; card radius 16px, button radius 10px, soft navy card shadow.
+- Fraunces Bold for headlines, event identity and challenge titles; Inter for all functional UI; Playfair Display Italic for the occasional decorative label.
+- Screens stay extremely clean. Photographs, nautical ornaments and rum illustrations are used selectively; the boards are denser than the product should be.
+
+To settle before planning: light (sand) or dark (navy) as the default surface; which image assets exist as separate files; whether the home-screen icon becomes the mascot badge; how far the nautical renaming of features goes.
 
 ## Decisions from Peter (2026-10-07)
 
