@@ -1,4 +1,4 @@
-import type { Challenge, DrinkLog, PointEvent, Post, Profile, ScheduleEvent, Store } from "./types";
+import type { Challenge, Comment, DrinkLog, PointEvent, Post, Profile, ScheduleEvent, Store } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -37,6 +37,8 @@ const toEvent = (row: Row): ScheduleEvent => ({
   location: row.location as string | null,
   mapsQuery: row.maps_query as string | null,
   notes: row.notes as string | null,
+  lat: row.lat as number | null,
+  lng: row.lng as number | null,
 });
 
 const toChallenge = (row: Row): Challenge => ({
@@ -64,6 +66,19 @@ const toPost = (row: Row): Post => ({
   mediaType: row.media_type as Post["mediaType"],
   caption: row.caption as string | null,
   bacAtPost: row.bac_at_post as number | null,
+  lat: row.lat as number | null,
+  lng: row.lng as number | null,
+  locationSource: row.location_source as Post["locationSource"],
+  eventId: row.event_id as string | null,
+  createdAt: iso(row.created_at),
+});
+
+const toComment = (row: Row): Comment => ({
+  id: row.id as string,
+  postId: row.post_id as string,
+  profileId: row.profile_id as string,
+  body: row.body as string,
+  bacAtComment: row.bac_at_comment as number | null,
   createdAt: iso(row.created_at),
 });
 
@@ -151,8 +166,8 @@ export function createPostgresStore(sql: Sql): Store {
 
     async createEvent(input) {
       const [row] = await sql`
-        insert into events (starts_at, ends_at, title, location, maps_query, notes)
-        values (${input.startsAt}, ${input.endsAt}, ${input.title}, ${input.location}, ${input.mapsQuery}, ${input.notes})
+        insert into events (starts_at, ends_at, title, location, maps_query, notes, lat, lng)
+        values (${input.startsAt}, ${input.endsAt}, ${input.title}, ${input.location}, ${input.mapsQuery}, ${input.notes}, ${input.lat}, ${input.lng})
         returning *`;
       return toEvent(row);
     },
@@ -165,7 +180,9 @@ export function createPostgresStore(sql: Sql): Store {
           title = ${input.title},
           location = ${input.location},
           maps_query = ${input.mapsQuery},
-          notes = ${input.notes}
+          notes = ${input.notes},
+          lat = ${input.lat},
+          lng = ${input.lng}
         where id = ${id}
         returning *`;
       return rows[0] ? toEvent(rows[0]) : null;
@@ -229,14 +246,81 @@ export function createPostgresStore(sql: Sql): Store {
 
     async createPost(input) {
       const [row] = await sql`
-        insert into posts (profile_id, url, media_type, caption, bac_at_post)
-        values (${input.profileId}, ${input.url}, ${input.mediaType}, ${input.caption}, ${input.bacAtPost})
+        insert into posts (profile_id, url, media_type, caption, bac_at_post, lat, lng, location_source, event_id)
+        values (${input.profileId}, ${input.url}, ${input.mediaType}, ${input.caption}, ${input.bacAtPost},
+                ${input.lat}, ${input.lng}, ${input.locationSource}, ${input.eventId})
         returning *`;
       return toPost(row);
     },
 
     async deletePost(id) {
       const rows = await sql`delete from posts where id = ${id} returning id`;
+      return rows.length > 0;
+    },
+
+    async reactionCounts(viewerId) {
+      const rows = await sql`
+        select post_id, emoji, count(*)::int as count, coalesce(bool_or(profile_id = ${viewerId}), false) as mine
+        from post_reactions group by post_id, emoji`;
+      return rows.map((row) => ({
+        postId: row.post_id as string,
+        emoji: row.emoji as string,
+        count: row.count as number,
+        mine: row.mine as boolean,
+      }));
+    },
+
+    async listPostReactions(postId) {
+      const rows = await sql`
+        select post_id, profile_id, emoji from post_reactions where post_id = ${postId} order by created_at`;
+      return rows.map((row) => ({
+        postId: row.post_id as string,
+        profileId: row.profile_id as string,
+        emoji: row.emoji as string,
+      }));
+    },
+
+    async setReaction(reaction, on) {
+      if (on) {
+        await sql`
+          insert into post_reactions (post_id, profile_id, emoji)
+          values (${reaction.postId}, ${reaction.profileId}, ${reaction.emoji})
+          on conflict do nothing`;
+      } else {
+        await sql`
+          delete from post_reactions
+          where post_id = ${reaction.postId} and profile_id = ${reaction.profileId} and emoji = ${reaction.emoji}`;
+      }
+    },
+
+    async commentCounts() {
+      const rows = await sql`select post_id, count(*)::int as count from post_comments group by post_id`;
+      return rows.map((row) => ({ postId: row.post_id as string, count: row.count as number }));
+    },
+
+    async listComments(postId) {
+      return (await sql`select * from post_comments where post_id = ${postId} order by created_at`).map(toComment);
+    },
+
+    async listAllComments() {
+      return (await sql`select * from post_comments order by created_at`).map(toComment);
+    },
+
+    async getComment(id) {
+      const rows = await sql`select * from post_comments where id = ${id}`;
+      return rows[0] ? toComment(rows[0]) : null;
+    },
+
+    async addComment(input) {
+      const [row] = await sql`
+        insert into post_comments (post_id, profile_id, body, bac_at_comment)
+        values (${input.postId}, ${input.profileId}, ${input.body}, ${input.bacAtComment})
+        returning *`;
+      return toComment(row);
+    },
+
+    async deleteComment(id) {
+      const rows = await sql`delete from post_comments where id = ${id} returning id`;
       return rows.length > 0;
     },
   };

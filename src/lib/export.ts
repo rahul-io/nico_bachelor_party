@@ -1,13 +1,28 @@
 // Shared by the Admin zip download and scripts/export-photos.mts.
 // Keep this file free of runtime imports so the script can load it with plain Node.
-import type { FeedPost } from "./store/types";
+import type { FeedComment, FeedPost } from "./store/types";
 
 export interface ExportEntry {
   post: FeedPost;
   fileName: string;
 }
 
-const CSV_HEADER = ["file", "poster", "caption", "timestamp", "timestamp_utc", "bac", "type", "url"];
+const CSV_HEADER = [
+  "file",
+  "poster",
+  "caption",
+  "timestamp",
+  "timestamp_utc",
+  "bac",
+  "type",
+  "reactions",
+  "comments",
+  "lat",
+  "lng",
+  "location_source",
+  "url",
+];
+const COMMENTS_HEADER = ["file", "commenter", "comment", "timestamp", "timestamp_utc", "bac"];
 
 function localStamp(iso: string, timeZone: string): { date: string; time: string } {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -60,9 +75,16 @@ export function exportEntries(posts: FeedPost[], timeZone: string): ExportEntry[
 }
 
 function cell(value: string): string {
-  // A leading =, +, - or @ would be run as a formula by spreadsheet apps.
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  // A leading =, +, - or @ would be run as a formula by spreadsheet apps. Plain
+  // numbers (negative longitudes) are harmless and must stay numeric.
+  const risky = /^[=+\-@\t\r]/.test(value) && !/^-?\d+(\.\d+)?$/.test(value);
+  const safe = risky ? `'${value}` : value;
   return /[",\n\r]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
+}
+
+function toCsv(rows: string[][]): string {
+  // BOM so Excel reads accented names correctly.
+  return "﻿" + rows.map((row) => row.map(cell).join(",")).join("\r\n") + "\r\n";
 }
 
 export function exportCsv(entries: ExportEntry[], timeZone: string): string {
@@ -76,9 +98,33 @@ export function exportCsv(entries: ExportEntry[], timeZone: string): string {
       post.createdAt,
       post.bacAtPost === null ? "" : post.bacAtPost.toFixed(3),
       post.mediaType,
+      String(post.reactions.reduce((sum, reaction) => sum + reaction.count, 0)),
+      String(post.commentCount),
+      post.lat === null ? "" : String(post.lat),
+      post.lng === null ? "" : String(post.lng),
+      post.locationSource ?? "",
       post.url.startsWith("data:") ? "" : post.url,
     ];
   });
-  // BOM so Excel reads accented names correctly.
-  return "\uFEFF" + [CSV_HEADER, ...rows].map((row) => row.map(cell).join(",")).join("\r\n") + "\r\n";
+  return toCsv([CSV_HEADER, ...rows]);
+}
+
+/** One row per comment, keyed to the exported file name of the photo it is on. */
+export function exportCommentsCsv(entries: ExportEntry[], comments: FeedComment[], timeZone: string): string {
+  const files = new Map(entries.map(({ post, fileName }) => [post.id, fileName]));
+  const rows = [...comments]
+    .filter((comment) => files.has(comment.postId))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((comment) => {
+      const { date, time } = localStamp(comment.createdAt, timeZone);
+      return [
+        files.get(comment.postId) ?? "",
+        comment.authorName,
+        comment.body,
+        `${date} ${time}`,
+        comment.createdAt,
+        comment.bacAtComment === null ? "" : comment.bacAtComment.toFixed(3),
+      ];
+    });
+  return toCsv([COMMENTS_HEADER, ...rows]);
 }

@@ -1,6 +1,16 @@
 import { seedChallenges, seedEvents, seedPeople } from "@/data/seed";
 import { STANDARD_DRINK_G } from "@/lib/bac";
-import type { Challenge, DrinkLog, PointEvent, Post, Profile, ScheduleEvent, Store } from "./types";
+import type {
+  Challenge,
+  Comment,
+  DrinkLog,
+  PointEvent,
+  Post,
+  Profile,
+  Reaction,
+  ScheduleEvent,
+  Store,
+} from "./types";
 
 interface MockData {
   profiles: Map<string, { profile: Profile; token: string }>;
@@ -10,6 +20,8 @@ interface MockData {
   challenges: Challenge[];
   pointEvents: PointEvent[];
   posts: Post[];
+  reactions: Reaction[];
+  comments: Comment[];
 }
 
 // Kept on globalThis so the data survives hot reloads in dev.
@@ -33,6 +45,8 @@ function seed(): MockData {
     })),
     pointEvents: [],
     posts: [],
+    reactions: [],
+    comments: [],
   };
 
   // Demo guests so the leaderboard isn't empty in mock mode.
@@ -123,7 +137,10 @@ export const mockStore: Store = {
     store.avatars.delete(id);
     removeWhere(store.drinks, (drink) => drink.profileId === id);
     removeWhere(store.pointEvents, (event) => event.profileId === id);
+    const ownPosts = new Set(store.posts.filter((post) => post.profileId === id).map((post) => post.id));
     removeWhere(store.posts, (post) => post.profileId === id);
+    removeWhere(store.reactions, (r) => r.profileId === id || ownPosts.has(r.postId));
+    removeWhere(store.comments, (c) => c.profileId === id || ownPosts.has(c.postId));
     return true;
   },
 
@@ -182,7 +199,13 @@ export const mockStore: Store = {
   },
 
   async deleteEvent(id) {
-    return removeWhere(data().events, (event) => event.id === id);
+    const store = data();
+    if (!removeWhere(store.events, (event) => event.id === id)) return false;
+    // Tagged photos keep their coordinates; they just lose the link.
+    for (const post of store.posts) {
+      if (post.eventId === id) post.eventId = null;
+    }
+    return true;
   },
 
   async listChallenges() {
@@ -248,6 +271,62 @@ export const mockStore: Store = {
   },
 
   async deletePost(id) {
-    return removeWhere(data().posts, (post) => post.id === id);
+    const store = data();
+    if (!removeWhere(store.posts, (post) => post.id === id)) return false;
+    removeWhere(store.reactions, (r) => r.postId === id);
+    removeWhere(store.comments, (c) => c.postId === id);
+    return true;
+  },
+
+  async reactionCounts(viewerId) {
+    const counts = new Map<string, { postId: string; emoji: string; count: number; mine: boolean }>();
+    for (const reaction of data().reactions) {
+      const key = `${reaction.postId}|${reaction.emoji}`;
+      const entry = counts.get(key) ?? { postId: reaction.postId, emoji: reaction.emoji, count: 0, mine: false };
+      entry.count += 1;
+      entry.mine ||= reaction.profileId === viewerId;
+      counts.set(key, entry);
+    }
+    return [...counts.values()];
+  },
+
+  async listPostReactions(postId) {
+    return data().reactions.filter((r) => r.postId === postId);
+  },
+
+  async setReaction(reaction, on) {
+    const reactions = data().reactions;
+    const same = (r: Reaction) =>
+      r.postId === reaction.postId && r.profileId === reaction.profileId && r.emoji === reaction.emoji;
+    if (!on) removeWhere(reactions, same);
+    else if (!reactions.some(same)) reactions.push({ ...reaction });
+  },
+
+  async commentCounts() {
+    const counts = new Map<string, number>();
+    for (const comment of data().comments) counts.set(comment.postId, (counts.get(comment.postId) ?? 0) + 1);
+    return [...counts].map(([postId, count]) => ({ postId, count }));
+  },
+
+  async listComments(postId) {
+    return data().comments.filter((c) => c.postId === postId);
+  },
+
+  async listAllComments() {
+    return [...data().comments];
+  },
+
+  async getComment(id) {
+    return data().comments.find((c) => c.id === id) ?? null;
+  },
+
+  async addComment(input) {
+    const comment: Comment = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...input };
+    data().comments.push(comment);
+    return comment;
+  },
+
+  async deleteComment(id) {
+    return removeWhere(data().comments, (c) => c.id === id);
   },
 };

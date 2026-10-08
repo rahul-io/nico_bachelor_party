@@ -1,16 +1,17 @@
 import { del, head } from "@vercel/blob";
 import { connection } from "next/server";
-import { estimateBac } from "@/lib/bac";
 import { env } from "@/lib/env";
-import { buildFeed, isBlobUrl } from "@/lib/feed";
+import { bacSnapshot, buildFeed, isBlobUrl } from "@/lib/feed";
 import { getRequestProfile, jsonError, readJson } from "@/lib/http";
+import { parseCoordinates, resolveLocation } from "@/lib/location";
 import { MAX_CAPTION, MOCK_IMAGE, MOCK_IMAGE_MAX_CHARS, mediaRules, mediaTypeOf } from "@/lib/media";
 import { getStore } from "@/lib/store";
 import type { MediaType } from "@/lib/store/types";
 
-export async function GET() {
+export async function GET(req: Request) {
   await connection();
-  return Response.json(await buildFeed(getStore()));
+  // Unverified on purpose: the id only marks which reactions are the viewer's own.
+  return Response.json(await buildFeed(getStore(), req.headers.get("x-profile-id")));
 }
 
 /** Checks an uploaded file really is an allowed photo or video of ours, and says which. */
@@ -48,10 +49,18 @@ export async function POST(req: Request) {
   if (mediaType !== "image" && mediaType !== "video") return jsonError(mediaType, 400);
 
   const store = getStore();
-  // Snapshot: taken once here and stored with the post. It is never recomputed.
-  const bacAtPost = profile.showBacOnPosts
-    ? Math.round(estimateBac(profile, await store.listDrinks(profile.id)).bac * 10_000) / 10_000
-    : null;
+  const bacAtPost = await bacSnapshot(store, profile);
+
+  const event =
+    typeof body?.eventId === "string"
+      ? ((await store.listEvents()).find((candidate) => candidate.id === body.eventId) ?? null)
+      : null;
+  const location = resolveLocation({
+    mediaType,
+    exif: parseCoordinates(body?.exif),
+    event,
+    device: parseCoordinates(body?.device),
+  });
 
   const post = await store.createPost({
     profileId: profile.id,
@@ -59,6 +68,10 @@ export async function POST(req: Request) {
     mediaType,
     caption: caption || null,
     bacAtPost,
+    lat: location?.lat ?? null,
+    lng: location?.lng ?? null,
+    locationSource: location?.source ?? null,
+    eventId: event?.id ?? null,
   });
   return Response.json(post, { status: 201 });
 }

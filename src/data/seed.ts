@@ -2,7 +2,7 @@ import type { ChallengeInput, EventInput } from "@/lib/store/types";
 
 const at = (day: string, time: string) => new Date(`${day}T${time}:00-07:00`).toISOString();
 
-/** Placeholder schedule for mock mode. The real one is entered through Admin. */
+/** Placeholder schedule for mock mode (coordinates are approximate). The real one is entered through Admin. */
 export const seedEvents: EventInput[] = [
   {
     startsAt: at("2026-10-08", "15:00"),
@@ -11,6 +11,8 @@ export const seedEvents: EventInput[] = [
     location: "The house, Pacific Beach",
     mapsQuery: "Pacific Beach, San Diego, CA",
     notes: "Placeholder event. Door code goes here.",
+    lat: 32.7978,
+    lng: -117.2403,
   },
   {
     startsAt: at("2026-10-08", "19:00"),
@@ -19,6 +21,8 @@ export const seedEvents: EventInput[] = [
     location: "Oscars Mexican Seafood",
     mapsQuery: "Oscars Mexican Seafood Pacific Beach San Diego",
     notes: null,
+    lat: 32.7936,
+    lng: -117.2549,
   },
   {
     startsAt: at("2026-10-08", "21:30"),
@@ -27,6 +31,8 @@ export const seedEvents: EventInput[] = [
     location: "Garnet Ave, Pacific Beach",
     mapsQuery: "Garnet Ave, Pacific Beach, San Diego",
     notes: "Stick together. Buy Nico's drinks.",
+    lat: 32.7977,
+    lng: -117.2512,
   },
   {
     startsAt: at("2026-10-09", "09:30"),
@@ -35,6 +41,8 @@ export const seedEvents: EventInput[] = [
     location: "Kono's Cafe",
     mapsQuery: "Kono's Cafe San Diego",
     notes: null,
+    lat: 32.7949,
+    lng: -117.2558,
   },
   {
     startsAt: at("2026-10-09", "12:00"),
@@ -43,6 +51,8 @@ export const seedEvents: EventInput[] = [
     location: "Torrey Pines Golf Course",
     mapsQuery: "Torrey Pines Golf Course",
     notes: "Collared shirts. Tee times start at noon.",
+    lat: 32.9005,
+    lng: -117.2453,
   },
   {
     startsAt: at("2026-10-09", "19:30"),
@@ -51,6 +61,8 @@ export const seedEvents: EventInput[] = [
     location: "Gaslamp Quarter",
     mapsQuery: "Gaslamp Quarter, San Diego",
     notes: "Reservation under Rahul.",
+    lat: 32.7114,
+    lng: -117.1599,
   },
   {
     startsAt: at("2026-10-09", "22:00"),
@@ -59,6 +71,8 @@ export const seedEvents: EventInput[] = [
     location: "Gaslamp Quarter",
     mapsQuery: "Gaslamp Quarter, San Diego",
     notes: null,
+    lat: 32.7114,
+    lng: -117.1599,
   },
   {
     startsAt: at("2026-10-10", "11:00"),
@@ -67,6 +81,8 @@ export const seedEvents: EventInput[] = [
     location: "Mission Beach",
     mapsQuery: "Mission Beach, San Diego",
     notes: "Spikeball, cooler, sunscreen.",
+    lat: 32.7707,
+    lng: -117.2524,
   },
   {
     startsAt: at("2026-10-10", "16:00"),
@@ -75,6 +91,8 @@ export const seedEvents: EventInput[] = [
     location: "Miramar",
     mapsQuery: "AleSmith Brewing Company San Diego",
     notes: null,
+    lat: 32.8884,
+    lng: -117.1497,
   },
   {
     startsAt: at("2026-10-10", "20:00"),
@@ -83,6 +101,8 @@ export const seedEvents: EventInput[] = [
     location: "Little Italy",
     mapsQuery: "Little Italy, San Diego",
     notes: "Dress sharp.",
+    lat: 32.7233,
+    lng: -117.1685,
   },
   {
     startsAt: at("2026-10-11", "10:00"),
@@ -91,6 +111,8 @@ export const seedEvents: EventInput[] = [
     location: "The house",
     mapsQuery: "Pacific Beach, San Diego, CA",
     notes: null,
+    lat: 32.7978,
+    lng: -117.2403,
   },
   {
     startsAt: at("2026-10-11", "12:00"),
@@ -99,6 +121,8 @@ export const seedEvents: EventInput[] = [
     location: "The house",
     mapsQuery: "Pacific Beach, San Diego, CA",
     notes: "Clean up before you leave.",
+    lat: 32.7978,
+    lng: -117.2403,
   },
 ];
 

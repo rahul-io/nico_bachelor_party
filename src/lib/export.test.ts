@@ -12,6 +12,12 @@ const post = (over: Partial<FeedPost>): FeedPost => ({
   createdAt: "2026-10-10T04:14:03.000Z",
   posterName: "Rahul",
   posterAvatarUrl: null,
+  reactions: [],
+  commentCount: 0,
+  lat: null,
+  lng: null,
+  locationSource: null,
+  eventId: null,
   ...over,
 });
 
@@ -53,15 +59,15 @@ describe("exportCsv", () => {
   it("writes one escaped row per post", () => {
     const entries = exportEntries(
       [
-        post({ caption: 'He said "cheers",\nthen fell over', bacAtPost: 0.05 }),
+        post({ caption: 'He said "cheers",\nthen fell over', bacAtPost: 0.05, lat: 32.7157, lng: -117.1611, locationSource: "exif" }),
         post({ id: "2", caption: "=HYPERLINK(1)" }),
       ],
       tz,
     );
     const csv = exportCsv(entries, tz);
-    expect(csv.startsWith("﻿file,poster,caption,timestamp,timestamp_utc,bac,type,url\r\n")).toBe(true);
+    expect(csv.startsWith("﻿file,poster,caption,timestamp,timestamp_utc,bac,type,reactions,comments,lat,lng,location_source,url\r\n")).toBe(true);
     expect(csv).toContain('"He said ""cheers"",\nthen fell over"');
-    expect(csv).toContain("2026-10-09 21:14:03,2026-10-10T04:14:03.000Z,0.050,image,");
+    expect(csv).toContain("2026-10-09 21:14:03,2026-10-10T04:14:03.000Z,0.050,image,0,0,32.7157,-117.1611,exif,");
     expect(csv).toContain(",'=HYPERLINK(1),");
     expect(csv.trimEnd().split("\r\n")).toHaveLength(3);
   });

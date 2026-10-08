@@ -103,6 +103,8 @@ describe.each<[string, () => Promise<Store>]>([
       location: null,
       mapsQuery: null,
       notes: null,
+      lat: null,
+      lng: null,
     });
     const early = await store.createEvent({
       startsAt: "2031-01-01T03:00:00.000Z",
@@ -111,12 +113,16 @@ describe.each<[string, () => Promise<Store>]>([
       location: "Somewhere",
       mapsQuery: "Somewhere, CA",
       notes: "Bring cash",
+      lat: 32.7157,
+      lng: -117.1611,
     });
     expect(early).toMatchObject({
       startsAt: "2031-01-01T03:00:00.000Z",
       endsAt: "2031-01-01T04:30:00.000Z",
       location: "Somewhere",
       notes: "Bring cash",
+      lat: 32.7157,
+      lng: -117.1611,
     });
 
     const ids = (await store.listEvents()).map((e) => e.id);
@@ -169,6 +175,10 @@ describe.each<[string, () => Promise<Store>]>([
       mediaType: "image",
       caption: "Cheers",
       bacAtPost: 0.0623,
+      lat: 32.7157,
+      lng: -117.1611,
+      locationSource: "exif",
+      eventId: null,
     });
     const video = await store.createPost({
       profileId: profile.id,
@@ -176,10 +186,23 @@ describe.each<[string, () => Promise<Store>]>([
       mediaType: "video",
       caption: null,
       bacAtPost: null,
+      lat: null,
+      lng: null,
+      locationSource: null,
+      eventId: null,
     });
-    expect(photo).toMatchObject({ profileId: profile.id, mediaType: "image", caption: "Cheers", bacAtPost: 0.0623 });
+    expect(photo).toMatchObject({
+      profileId: profile.id,
+      mediaType: "image",
+      caption: "Cheers",
+      bacAtPost: 0.0623,
+      lat: 32.7157,
+      lng: -117.1611,
+      locationSource: "exif",
+      eventId: null,
+    });
     expect(photo.createdAt).toMatch(isoPattern);
-    expect(video).toMatchObject({ mediaType: "video", caption: null, bacAtPost: null });
+    expect(video).toMatchObject({ mediaType: "video", caption: null, bacAtPost: null, lat: null, lng: null, locationSource: null });
     expect(await store.getPost(photo.id)).toEqual(photo);
     expect(await store.getPost("missing")).toBeNull();
 
@@ -190,6 +213,116 @@ describe.each<[string, () => Promise<Store>]>([
     expect(await store.deletePost(video.id)).toBe(false);
     await store.deleteProfile(profile.id);
     expect(await store.getPost(photo.id)).toBeNull();
+  });
+
+  it("keeps a tagged photo's coordinates when its event is deleted", async () => {
+    const store = await makeStore();
+    const { profile } = await store.createProfile(person);
+    const event = await store.createEvent({
+      startsAt: "2031-02-01T03:00:00.000Z",
+      endsAt: null,
+      title: "Tagged",
+      location: null,
+      mapsQuery: null,
+      notes: null,
+      lat: 32.9,
+      lng: -117.24,
+    });
+    expect(event).toMatchObject({ lat: 32.9, lng: -117.24 });
+    expect(await store.updateEvent(event.id, { ...event, lat: null, lng: null })).toMatchObject({ lat: null, lng: null });
+
+    const post = await store.createPost({
+      profileId: profile.id,
+      url: "https://x.public.blob.vercel-storage.com/posts/c.jpg",
+      mediaType: "image",
+      caption: null,
+      bacAtPost: null,
+      lat: 32.9,
+      lng: -117.24,
+      locationSource: "event",
+      eventId: event.id,
+    });
+    expect(post.eventId).toBe(event.id);
+
+    await store.deleteEvent(event.id);
+    expect(await store.getPost(post.id)).toMatchObject({ lat: 32.9, lng: -117.24, locationSource: "event", eventId: null });
+    await store.deleteProfile(profile.id);
+  });
+
+  it("tallies reactions per post and viewer", async () => {
+    const store = await makeStore();
+    const a = (await store.createProfile(person)).profile;
+    const b = (await store.createProfile(person)).profile;
+    const base = { url: "https://x.public.blob.vercel-storage.com/posts/r.jpg", mediaType: "image" as const, caption: null, bacAtPost: null, lat: null, lng: null, locationSource: null, eventId: null };
+    const post = await store.createPost({ ...base, profileId: a.id });
+    const other = await store.createPost({ ...base, profileId: a.id });
+
+    await store.setReaction({ postId: post.id, profileId: a.id, emoji: "🔥" }, true);
+    await store.setReaction({ postId: post.id, profileId: a.id, emoji: "🔥" }, true);
+    await store.setReaction({ postId: post.id, profileId: b.id, emoji: "🔥" }, true);
+    await store.setReaction({ postId: post.id, profileId: b.id, emoji: "🍺" }, true);
+    await store.setReaction({ postId: other.id, profileId: b.id, emoji: "💀" }, true);
+    await store.setReaction({ postId: other.id, profileId: a.id, emoji: "💀" }, false);
+
+    const forPost = async (viewer: string | null) =>
+      (await store.reactionCounts(viewer))
+        .filter((entry) => entry.postId === post.id)
+        .sort((x, y) => x.emoji.localeCompare(y.emoji));
+    expect(await forPost(a.id)).toEqual([
+      { postId: post.id, emoji: "🍺", count: 1, mine: false },
+      { postId: post.id, emoji: "🔥", count: 2, mine: true },
+    ].sort((x, y) => x.emoji.localeCompare(y.emoji)));
+    expect((await forPost(null)).every((entry) => entry.mine === false)).toBe(true);
+    expect((await store.listPostReactions(post.id)).map((r) => r.profileId + r.emoji).sort()).toEqual(
+      [a.id + "🔥", b.id + "🔥", b.id + "🍺"].sort(),
+    );
+
+    await store.setReaction({ postId: post.id, profileId: a.id, emoji: "🔥" }, false);
+    expect((await forPost(a.id)).find((entry) => entry.emoji === "🔥")).toMatchObject({ count: 1, mine: false });
+
+    // Reactions go when the reactor's profile or the post goes.
+    await store.deleteProfile(b.id);
+    expect(await forPost(a.id)).toEqual([]);
+    await store.setReaction({ postId: other.id, profileId: a.id, emoji: "💀" }, true);
+    await store.deletePost(other.id);
+    expect((await store.reactionCounts(a.id)).some((entry) => entry.postId === other.id)).toBe(false);
+    await store.deleteProfile(a.id);
+  });
+
+  it("stores comments with their BAC snapshot, oldest first", async () => {
+    const store = await makeStore();
+    const a = (await store.createProfile(person)).profile;
+    const b = (await store.createProfile(person)).profile;
+    const post = await store.createPost({
+      profileId: a.id,
+      url: "https://x.public.blob.vercel-storage.com/posts/k.jpg",
+      mediaType: "image",
+      caption: null,
+      bacAtPost: null,
+      lat: null,
+      lng: null,
+      locationSource: null,
+      eventId: null,
+    });
+
+    const first = await store.addComment({ postId: post.id, profileId: a.id, body: "First", bacAtComment: 0.041 });
+    const second = await store.addComment({ postId: post.id, profileId: b.id, body: "Second", bacAtComment: null });
+    expect(first).toMatchObject({ postId: post.id, profileId: a.id, body: "First", bacAtComment: 0.041 });
+    expect(first.createdAt).toMatch(isoPattern);
+    expect(second.bacAtComment).toBeNull();
+
+    expect((await store.listComments(post.id)).map((c) => c.id)).toEqual([first.id, second.id]);
+    expect(await store.getComment(first.id)).toEqual(first);
+    expect(await store.getComment("missing")).toBeNull();
+    expect((await store.commentCounts()).find((entry) => entry.postId === post.id)?.count).toBe(2);
+    expect((await store.listAllComments()).filter((c) => c.postId === post.id)).toHaveLength(2);
+
+    expect(await store.deleteComment(first.id)).toBe(true);
+    expect(await store.deleteComment(first.id)).toBe(false);
+    await store.deleteProfile(b.id);
+    expect(await store.listComments(post.id)).toEqual([]);
+    expect((await store.commentCounts()).some((entry) => entry.postId === post.id)).toBe(false);
+    await store.deleteProfile(a.id);
   });
 
   it("removes a profile's drinks and points with the profile", async () => {

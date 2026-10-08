@@ -1,5 +1,6 @@
 import { isAvatarDataUrl } from "./avatar";
 import { alcoholGrams } from "./bac";
+import { parseCoordinates } from "./location";
 import type {
   ChallengeInput,
   DrinkInput,
@@ -109,7 +110,24 @@ export function parseEventInput(body: unknown): Result<EventInput> {
   if ((location?.length ?? 0) > 120 || (mapsQuery?.length ?? 0) > 200) return fail("Location is too long");
   if ((notes?.length ?? 0) > 500) return fail("Notes are too long (max 500 characters)");
 
-  return { ok: true, value: { title, startsAt, endsAt, location, mapsQuery, notes } };
+  // Coordinates are optional but come as a pair.
+  const hasCoordinates = body.lat != null || body.lng != null;
+  const coordinates = hasCoordinates ? parseCoordinates(body) : null;
+  if (hasCoordinates && !coordinates) return fail("Map location needs a valid latitude and longitude");
+
+  return {
+    ok: true,
+    value: {
+      title,
+      startsAt,
+      endsAt,
+      location,
+      mapsQuery,
+      notes,
+      lat: coordinates?.lat ?? null,
+      lng: coordinates?.lng ?? null,
+    },
+  };
 }
 
 export function parseChallengeInput(body: unknown): Result<ChallengeInput> {

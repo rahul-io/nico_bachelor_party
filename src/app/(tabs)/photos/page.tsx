@@ -1,10 +1,12 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
+import { useState } from "react";
 import useSWR from "swr";
 import type { AdminSession } from "@/app/admin/page";
 import { Composer } from "@/components/photos/Composer";
 import { PostCard } from "@/components/photos/PostCard";
+import { PostDetailSheet } from "@/components/photos/PostDetailSheet";
 import { Card } from "@/components/ui/Card";
 import { Status } from "@/components/ui/Status";
 import { config } from "@/config";
@@ -12,20 +14,36 @@ import { useAction } from "@/hooks/useAction";
 import { usePolled } from "@/hooks/usePolled";
 import { useIdentity } from "@/hooks/useProfile";
 import { apiFetch } from "@/lib/api";
+import { applyReaction, type ReactionEmoji } from "@/lib/reactions";
 import type { Feed, FeedPost } from "@/lib/store/types";
 
 export default function PhotosPage() {
   const identity = useIdentity();
   const { data: feed, error, mutate } = usePolled<Feed>("/api/posts");
-  // Checked once, not polled: admins get a delete button on every post.
+  // Checked once, not polled: admins get delete buttons on everything.
   const { data: admin } = useSWR<AdminSession>("/api/admin/session", (path: string) =>
     apiFetch<AdminSession>(path),
   );
   const { status, run } = useAction();
+  const [openId, setOpenId] = useState<string | null>(null);
 
   async function remove(post: FeedPost) {
     if (!window.confirm(`Delete this ${post.mediaType === "video" ? "video" : "photo"}? This can't be undone.`)) return;
     await run(() => apiFetch(`/api/posts/${post.id}`, { method: "DELETE" }));
+    await mutate();
+  }
+
+  async function react(post: FeedPost, emoji: ReactionEmoji, on: boolean) {
+    // Show the tap straight away, then let the server have the last word.
+    void mutate(
+      (current) =>
+        current && {
+          ...current,
+          posts: current.posts.map((p) => (p.id === post.id ? applyReaction(p, emoji, on) : p)),
+        },
+      { revalidate: false },
+    );
+    await run(() => apiFetch(`/api/posts/${post.id}/reactions`, { method: "PUT", body: { emoji, on } }));
     await mutate();
   }
 
@@ -56,10 +74,23 @@ export default function PhotosPage() {
               post={post}
               canDelete={post.profileId === identity?.id || admin?.authed === true}
               onDelete={remove}
+              onOpen={(opened) => setOpenId(opened.id)}
+              onReact={react}
             />
           </li>
         ))}
       </ul>
+
+      {openId && (
+        <PostDetailSheet
+          postId={openId}
+          viewerId={identity?.id}
+          isAdmin={admin?.authed === true}
+          onClose={() => setOpenId(null)}
+          onReact={react}
+          onChanged={() => mutate()}
+        />
+      )}
     </div>
   );
 }

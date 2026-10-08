@@ -1,4 +1,4 @@
-// Downloads every photo and video from the feed into a local folder, plus photos.csv.
+// Downloads every photo and video from the feed into a local folder, plus photos.csv and comments.csv.
 // Usage: npm run export-photos [-- <folder>]   (default: photo-export; reads .env.local)
 // Safe to re-run: files that are already there are skipped.
 import { createWriteStream, existsSync, mkdirSync, renameSync, statSync, utimesSync, writeFileSync } from "node:fs";
@@ -7,7 +7,9 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { neon } from "@neondatabase/serverless";
 import { config } from "../src/config.ts";
-import { exportCsv, exportEntries } from "../src/lib/export.ts";
+import { exportCommentsCsv, exportCsv, exportEntries } from "../src/lib/export.ts";
+import { assembleFeed } from "../src/lib/feed-assemble.ts";
+import { REACTIONS } from "../src/lib/reactions.ts";
 import { createPostgresStore, type Sql } from "../src/lib/store/postgres.ts";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
@@ -22,18 +24,29 @@ const outDir = process.argv[2] ?? "photo-export";
 mkdirSync(outDir, { recursive: true });
 
 const store = createPostgresStore(neon(url) as unknown as Sql);
-const [posts, profiles] = await Promise.all([store.listPosts(), store.listProfiles()]);
-const names = new Map(profiles.map((profile) => [profile.id, profile]));
-const entries = exportEntries(
-  posts.map((post) => ({
-    ...post,
-    posterName: names.get(post.profileId)?.name ?? "Someone",
-    posterAvatarUrl: null,
-  })),
-  config.timezone,
-);
+const [posts, profiles, reactionCounts, commentCounts, comments] = await Promise.all([
+  store.listPosts(),
+  store.listProfiles(),
+  store.reactionCounts(null),
+  store.commentCounts(),
+  store.listAllComments(),
+]);
+const names = new Map(profiles.map((profile) => [profile.id, profile.name]));
+const entries = exportEntries(assembleFeed(posts, profiles, reactionCounts, commentCounts, REACTIONS), config.timezone);
 
 writeFileSync(join(outDir, "photos.csv"), exportCsv(entries, config.timezone));
+writeFileSync(
+  join(outDir, "comments.csv"),
+  exportCommentsCsv(
+    entries,
+    comments.map((comment) => ({
+      ...comment,
+      authorName: names.get(comment.profileId) ?? "Someone",
+      authorAvatarUrl: null,
+    })),
+    config.timezone,
+  ),
+);
 
 let downloaded = 0;
 let skipped = 0;

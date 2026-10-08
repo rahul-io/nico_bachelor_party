@@ -154,9 +154,9 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
           className="size-5 shrink-0 accent-primary"
         />
         <span>
-          <span className="block font-medium">Show my BAC on my posts</span>
+          <span className="block font-medium">Show my BAC on my posts and comments</span>
           <span className="block text-xs text-muted">
-            Stamps your estimate at the moment you post a photo.
+            Stamps your estimate at the moment you post or comment.
           </span>
         </span>
       </label>

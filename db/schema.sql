@@ -69,3 +69,31 @@ create table if not exists posts (
 );
 
 create index if not exists posts_created_idx on posts (created_at desc);
+
+create table if not exists post_reactions (
+  post_id text not null references posts (id) on delete cascade,
+  profile_id text not null references profiles (id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz not null default now(),
+  primary key (post_id, profile_id, emoji)
+);
+
+create table if not exists post_comments (
+  id text primary key default gen_random_uuid()::text,
+  post_id text not null references posts (id) on delete cascade,
+  profile_id text not null references profiles (id) on delete cascade,
+  body text not null,
+  -- Snapshot taken when the comment was created; never recomputed.
+  bac_at_comment double precision,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists post_comments_post_idx on post_comments (post_id, created_at);
+
+-- Photo map (M8). Added with ALTER so databases created before it pick the columns up.
+alter table events add column if not exists lat double precision;
+alter table events add column if not exists lng double precision;
+alter table posts add column if not exists lat double precision;
+alter table posts add column if not exists lng double precision;
+alter table posts add column if not exists location_source text;
+alter table posts add column if not exists event_id text references events (id) on delete set null;

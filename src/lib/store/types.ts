@@ -43,6 +43,9 @@ export interface ScheduleEvent {
   /** Search string for Google Maps; falls back to `location`. */
   mapsQuery: string | null;
   notes: string | null;
+  /** Coordinates, so photos tagged with this event can go on the map. */
+  lat: number | null;
+  lng: number | null;
 }
 
 export type EventInput = Omit<ScheduleEvent, "id">;
@@ -80,6 +83,9 @@ export interface LeaderboardEntry extends PublicProfile {
 
 export type MediaType = "image" | "video";
 
+/** Where a post's coordinates came from: the photo's own GPS tag, a tagged event, or the phone at upload time. */
+export type LocationSource = "exif" | "event" | "device";
+
 export interface Post {
   id: string;
   profileId: string;
@@ -88,14 +94,62 @@ export interface Post {
   caption: string | null;
   /** The poster's estimated BAC when they posted, if they had that setting on. Never recomputed. */
   bacAtPost: number | null;
+  /** Where it was taken, for the photo map. Null when unknown. */
+  lat: number | null;
+  lng: number | null;
+  locationSource: LocationSource | null;
+  /** The schedule event the poster tagged, if any. */
+  eventId: string | null;
   createdAt: string;
 }
 
 export type PostInput = Omit<Post, "id" | "createdAt">;
 
+/** One emoji's tally on one post, from a given viewer's point of view. */
+export interface ReactionCount {
+  postId: string;
+  emoji: string;
+  count: number;
+  /** Whether the viewer is one of the people who reacted with it. */
+  mine: boolean;
+}
+
+export interface Reaction {
+  postId: string;
+  profileId: string;
+  emoji: string;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  profileId: string;
+  body: string;
+  /** The commenter's estimated BAC when they commented, if they had that setting on. Never recomputed. */
+  bacAtComment: number | null;
+  createdAt: string;
+}
+
+export type CommentInput = Omit<Comment, "id" | "createdAt">;
+
+export interface FeedComment extends Comment {
+  authorName: string;
+  authorAvatarUrl: string | null;
+}
+
 export interface FeedPost extends Post {
   posterName: string;
   posterAvatarUrl: string | null;
+  /** Only emojis someone has used, in the fixed display order. */
+  reactions: Array<Pick<ReactionCount, "emoji" | "count" | "mine">>;
+  commentCount: number;
+}
+
+/** Everything shown when a photo is opened. */
+export interface PostDetail {
+  post: FeedPost;
+  reactors: Array<{ emoji: string; names: string[] }>;
+  comments: FeedComment[];
 }
 
 export interface Feed {
@@ -129,7 +183,7 @@ export interface Store {
   getProfileByToken(id: string, token: string): Promise<Profile | null>;
   updateProfile(id: string, input: ProfileInput): Promise<Profile>;
   listProfiles(): Promise<Profile[]>;
-  /** Also removes the profile's drinks, point events and posts (but not the posts' files). */
+  /** Also removes the profile's drinks, point events, posts, reactions and comments (but not the posts' files). */
   deleteProfile(id: string): Promise<boolean>;
   /** The avatar image as a data URL, kept apart from the profile so lists stay small. */
   setAvatarData(id: string, dataUrl: string | null): Promise<void>;
@@ -162,4 +216,18 @@ export interface Store {
   getPost(id: string): Promise<Post | null>;
   createPost(input: PostInput): Promise<Post>;
   deletePost(id: string): Promise<boolean>;
+
+  /** Per-post, per-emoji counts for the whole feed in one query. */
+  reactionCounts(viewerId: string | null): Promise<ReactionCount[]>;
+  listPostReactions(postId: string): Promise<Reaction[]>;
+  /** Adding twice or removing something absent is a no-op. */
+  setReaction(reaction: Reaction, on: boolean): Promise<void>;
+
+  commentCounts(): Promise<Array<{ postId: string; count: number }>>;
+  /** Oldest first. */
+  listComments(postId: string): Promise<Comment[]>;
+  listAllComments(): Promise<Comment[]>;
+  getComment(id: string): Promise<Comment | null>;
+  addComment(input: CommentInput): Promise<Comment>;
+  deleteComment(id: string): Promise<boolean>;
 }

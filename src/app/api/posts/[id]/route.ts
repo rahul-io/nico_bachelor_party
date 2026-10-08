@@ -1,10 +1,19 @@
 import { isAdmin } from "@/lib/auth";
-import { deletePostFiles } from "@/lib/feed";
+import { buildPostDetail, deletePostFiles } from "@/lib/feed";
 import { getRequestProfile, jsonError } from "@/lib/http";
 import { getStore } from "@/lib/store";
 
+type Context = { params: Promise<{ id: string }> };
+
+/** The opened-photo view: the post, who reacted, and the comment thread. */
+export async function GET(req: Request, { params }: Context) {
+  const detail = await buildPostDetail(getStore(), (await params).id, req.headers.get("x-profile-id"));
+  if (!detail) return jsonError("Post not found", 404);
+  return Response.json(detail);
+}
+
 /** Posters can delete their own posts; admins can delete any. */
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: Context) {
   const store = getStore();
   const post = await store.getPost((await params).id);
   if (!post) return jsonError("Post not found", 404);
