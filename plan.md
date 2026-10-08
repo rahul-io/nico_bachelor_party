@@ -1,6 +1,6 @@
 # Plan
 
-Status: **M1–M8 live. M10 (reskin, day and night modes) built. M9 (invite gate + accounts) approved and in progress.**
+Status: **M1–M8 live. M10 (reskin, day and night modes) and M9 (invite gate + accounts) are built and tested locally, not yet pushed. Deploying M9 needs the steps in its section, in order.**
 
 Party: Thu Oct 8 – Sun Oct 11, 2026, San Diego (America/Los_Angeles).
 
@@ -230,20 +230,21 @@ The old per-device `token` column stays only so existing profiles can be claimed
 - Admin > People: "Reset password" shows a temporary password once, for the admin to pass on.
 
 Checklist:
-- [ ] `INVITE_CODE` in `env.ts` and `.env.example`; dev default when unset; production with it unset rejects every code
-- [ ] `SESSION_SECRET` becomes required in production (today it has a fallback)
-- [ ] Signed-cookie helpers shared by gate, session and admin
-- [ ] `src/proxy.ts` gate with the allow-list above; `/gate` page; `POST /api/gate` with rate limiting
-- [ ] Schema, both stores, contract tests (password fields, name uniqueness, attempts)
-- [ ] `POST /api/auth/signup`, `/login`, `/logout`, `/password`, `/claim`; `GET /api/auth/me`
-- [ ] Every route that used the identity headers switches to the session cookie, including the Blob upload-token route
-- [ ] Client: `useIdentity`/localStorage identity replaced by the session; welcome, signup, login, claim and change-password screens; "Log out"
-- [ ] Admin > People: "Reset password" (temporary password, `must_change_password`, bump `session_version`)
-- [ ] Unit tests: cookie signing and expiry, invite-code change invalidates the gate cookie, hashing, rate limiter
-- [ ] End-to-end script against `npm run dev:mock` with two separate cookie jars: API calls without the gate cookie return 401; wrong code and wrong password are rejected, then rate-limited; login in a second jar restores the same profile; logout in one jar leaves the other signed in; admin reset signs out both and forces a new password
-- [ ] `CLAUDE.md` Identity section rewritten; deploy steps written for Rahul
+- [x] `INVITE_CODE` in `env.ts` and `.env.example`; dev default `ahoy` when unset; production with it unset rejects every code
+- [x] `SESSION_SECRET` required in production
+- [x] Signed-cookie helpers (`signed.ts`) shared by gate and session
+- [x] `src/proxy.ts` gate with the allow-list; `/gate` page; `POST /api/gate` with rate limiting
+- [x] Schema, both stores, contract tests (password fields, name uniqueness, attempts)
+- [x] `/api/auth/signup`, `/login`, `/logout`, `/password`, `/claim`, `/me`
+- [x] Every route reads identity from the session cookie, including the Blob upload-token route; the old header-token path and `POST /api/profiles` are gone
+- [x] Client: session-based identity; welcome (Create profile / Log in), claim, change-password screens; "Log out of this device"
+- [x] Admin > People: "Reset password" (temporary password shown once, forced change, signed out everywhere)
+- [x] Unit tests: signing and expiry, invite-code and secret rotation, proxy allow/deny, hashing, rate limiter, claim route
+- [x] End-to-end script (`npm run test:e2e`) with separate cookie jars: all 56 checks pass against `dev:mock`
+- [ ] Apply the schema to the live database and deploy (needs Peter's go-ahead; steps below)
+- [ ] Check on a real iPhone that the home-screen app keeps its login
 
-Deploy order (matters, because the gate fails closed): add `INVITE_CODE` and confirm `SESSION_SECRET` in Vercel → run `npm run db:setup` → push. The moment it deploys, every guest is sent to the invite screen, and existing guests then set a password.
+Not covered by a test: the claim screen in a real browser with a real pre-accounts profile (the route and store behind it are tested).
 
 Decisions (Peter, 2026-10-08): go ahead now, the weekend has not started; the invite code ignores case and surrounding spaces; lock a name after 10 wrong passwords, for 5 minutes; gate cookie lasts 90 days. The code itself is set in Vercel and in `.env.local`, never in the repo.
 

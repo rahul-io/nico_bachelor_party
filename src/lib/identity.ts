@@ -1,4 +1,9 @@
-/** Which profile this device is "logged in" as. Lives in localStorage. */
+/**
+ * LEGACY. Before accounts existed, a device remembered its profile as an id +
+ * token in localStorage. This is now read only by the welcome screen, to let
+ * that device claim its old profile by setting a password, and is then cleared.
+ * Sign-in state lives in an httpOnly session cookie (see src/lib/session.ts).
+ */
 export interface Identity {
   id: string;
   token: string;

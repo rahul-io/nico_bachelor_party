@@ -13,6 +13,9 @@ const profile = (id: string): Profile => ({
   weightKg: 80,
   sex: "male",
   showBacOnPosts: true,
+  hasPassword: true,
+  mustChangePassword: false,
+  sessionVersion: 1,
   createdAt: ago(600),
 });
 const drink = (profileId: string, minutes: number): DrinkLog => ({

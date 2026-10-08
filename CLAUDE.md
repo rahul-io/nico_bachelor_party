@@ -12,7 +12,7 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 - Never push without Peter asking. Never commit `.env*` files other than `.env.example`.
 - Commits use conventional prefixes (`chore:`, `feat:`, `fix:`).
 - **Use `npm run dev:mock` for anything that creates test data** (profiles, posts, comments, events). It ignores `.env.local` and runs on in-memory data; local admin password is `admin`. Plain `npm run dev` talks to the live site's database.
-- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
+- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run test:e2e` (gate and accounts, against `dev:mock`), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
 - With `.env.local` filled in, local dev reads and writes the **live** Neon database and Blob store. Delete any test profiles/posts you create (deleting a profile in Admin removes its drinks, points, posts and files), or blank those variables to use mock data. Shell is PowerShell (no `&&`).
 
 ## Stack
@@ -32,7 +32,8 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 1. **Runs without credentials.** If `DATABASE_URL` / `BLOB_READ_WRITE_TOKEN` are missing, the app falls back to in-memory mock data and every tab must still be clickable. Never import a DB or Blob client at module top level in a way that throws when env vars are absent.
 2. **One data seam.** UI only talks to `/api/*` (through SWR hooks in `src/hooks`). Route handlers only talk to `getStore()` from `src/lib/store`. Both the mock and Postgres stores implement the same `Store` interface; add a method to the interface, both implementations, `db/schema.sql` and the contract suite in `src/lib/store/store.test.ts` together. That suite runs every case against the mock and against a real in-process Postgres (PGlite), which is how SQL gets tested without credentials.
 3. **Theme tokens live in one place**: `src/app/globals.css` (Tailwind v4 `@theme`, with night-mode overrides under `[data-theme="night"]`). There is no `tailwind.config.*`. Components use token utilities, never hex values, arbitrary colour values or Tailwind's default palette. The unavoidable copies are `config.brand.chrome` (manifest and status-bar colour) and the navy in `scripts/make-icons.mjs` / `make-logo.mjs`; change them together and re-run both scripts.
-4. **Admin password stays server-side.** Checked in a route handler against `ADMIN_PASSWORD` with a timing-safe compare; session is a signed httpOnly cookie. No `NEXT_PUBLIC_` admin anything. Every `/api/admin/*` handler and every admin-only action verifies the cookie itself. In production with `ADMIN_PASSWORD` unset, admin login is disabled (fail closed); in dev it falls back to a documented dev password.
+4. **Secrets stay server-side.** The invite code, admin password and session secret are read only through `src/lib/env.ts` and compared in route handlers with timing-safe checks. No `NEXT_PUBLIC_` versions of any of them.
+4a. **Admin password stays server-side.** Checked in a route handler against `ADMIN_PASSWORD` with a timing-safe compare; session is a signed httpOnly cookie. No `NEXT_PUBLIC_` admin anything. Every `/api/admin/*` handler and every admin-only action verifies the cookie itself. In production with `ADMIN_PASSWORD` unset, admin login is disabled (fail closed); in dev it falls back to a documented dev password.
 5. **BAC is shown plainly, and never as a verdict.** Peter asked on 2026-10-08 for the hedging removed: no "rough estimate", "just for fun" or similar disclaimers anywhere. What still holds: never render copy, colours or icons implying someone is fine to drive, "under the limit" or "sober"; no green or teal on a BAC number; no references to legal limits. The one line that remains is the in-voice standing order on the Rum Log gauge (`BacCard`); remove it only if Peter asks.
 6. **No Google Photos API.** The Photos tab only links out to the shared album via `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL`.
 7. **Body metrics are private.** Height, weight and sex are never returned from the API for anyone but the requesting profile. Leaderboard and trend-chart BAC is computed server-side.
@@ -41,13 +42,20 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 8. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number. Comments follow the same rule (`bac_at_comment`); both go through `bacSnapshot()` in `src/lib/feed.ts`.
 9. **Mobile first, day and night.** Design for a ~380px-wide phone. Every screen must work in both modes (toggle in the header; default follows the phone). Tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
 
-## Planned, not built
+## Access and identity
 
-- **M9, invite gate + accounts** (plan.md). Until it is built, the Identity section below is how things work. When building it: the gate is enforced in `src/proxy.ts` and fails closed; sessions are signed httpOnly cookies checked against `profiles.session_version`; passwords are hashed with `bcryptjs` and never logged or returned; failed attempts are counted in the database, not in memory; nothing guest-facing may trust a profile id sent by the client.
+Two layers, both httpOnly signed cookies. Nothing guest-facing may trust a profile id sent by the client.
 
-## Identity
+1. **Invite gate.** `src/proxy.ts` (Next 16's middleware) runs before every page and API request. Without a valid `nbp_gate` cookie, pages redirect to `/gate` and `/api/*` returns 401 `{ code: "gate" }`. Only the gate itself and a short allow-list of public files (manifest, icons, logo, link-preview image, `/brand`) pass. It fails closed: no `INVITE_CODE` or no `SESSION_SECRET` in production means nobody gets in. The cookie's signing key includes the invite code, so changing the code invalidates every gate cookie. A new route is gated automatically; never add to the allow-list casually.
+2. **Accounts.** Display name (unique among accounts, case-insensitive) + password, hashed with `bcryptjs`. Never log, store or return a plaintext password or a hash. The session cookie `nbp_session` holds the profile id, the profile's `session_version` and an issue time; it lasts 30 days and is renewed by `GET /api/auth/me`. "Log out" clears that device's cookie; bumping `session_version` (password change, admin reset) signs every device out.
+3. **In a route handler:** `const profile = await getRequestProfile(req)` from `src/lib/http.ts`, then 401 if null. It returns null for someone whose password was just reset (`mustChangePassword`) until they choose a new one; only `/api/auth/password` opts out of that.
+4. **Rate limits** (`src/lib/rate-limit.ts`) are counted in the database (`auth_attempts`), never in memory. A name locks for 5 minutes after 10 wrong passwords; per-IP limits are loose because a whole house shares one address.
+5. **Admin** is a separate password and cookie (`ADMIN_PASSWORD`, `src/lib/auth.ts`) on top of the gate. Admin > People can reset a password: it issues a temporary one (shown once), signs the person out everywhere and forces a change at next login.
+6. **Legacy profiles.** Profiles made before accounts have no password and a per-device token in localStorage (`src/lib/identity.ts`). The welcome screen lets that device claim its profile by setting a password (`/api/auth/claim`); the token is then cleared. That file has no other purpose now.
+7. **On the client** use `useSession()` / `useProfile()` / `useIdentity()` from `src/hooks/useProfile.ts`. `apiFetch` sends no identity; cookies carry it.
+8. **Testing:** `npm run test:e2e` against a fresh `npm run dev:mock` (invite code `ahoy`, admin password `admin`) drives the whole flow with separate cookie jars. It trips the rate limits on purpose, so restart the mock server before re-running, and it refuses to run against anything but localhost.
 
-No accounts. First visit creates a profile (display name, photo, height, weight, sex). The server returns a public `id` and a private `token`; both are kept in localStorage and the token is sent as a header on writes. Losing localStorage means making a new profile; Admin can delete stale ones. Height is entered in feet/inches and weight in pounds, stored metric. Sex is male/female only and the form defaults to male.
+Height is entered in feet/inches and weight in pounds, stored metric. Sex is male/female only and the form defaults to male.
 
 ## BAC math (`src/lib/bac.ts`, pure and unit-tested)
 
@@ -61,13 +69,15 @@ No accounts. First visit creates a profile (display name, photo, height, weight,
 
 ```
 src/
+  proxy.ts                         the invite gate, in front of everything
   app/
     layout.tsx, globals.css        root layout, theme tokens
     manifest.ts, icon.png, apple-icon.png   home-screen install (PNGs are generated, don't hand-edit)
     (tabs)/                        layout with bottom nav
       schedule/ tracker/ leaderboard/ photos/
     admin/                         password-gated, not in the nav
-    profile/                       create / edit profile
+    gate/, welcome/, password/     invite code; create profile or log in; change password
+    profile/                       edit profile, change password, log out
     api/                           route handlers (thin: validate → getStore())
       posts/, blob/upload/         feed, post create/delete, upload tokens
       admin/…                      cookie-gated
@@ -82,6 +92,9 @@ src/
     api.ts, identity.ts            client fetch + localStorage identity
     http.ts, validate.ts           route handler helpers
     auth.ts, env.ts                admin cookie session, env access
+    gate.ts, session.ts, signed.ts invite-gate and login cookies (HMAC-signed)
+    password.ts, rate-limit.ts     bcrypt hashing and temp passwords; attempt counting
+    limits.ts                      limits shared by browser and server
     leaderboard.ts, trends.ts      server-side totals, points history, chart series
     avatar.ts, chart.ts            avatar storage rules; tick/label layout helpers
     media.ts, feed.ts, upload.ts   upload rules; feed + blob cleanup (server); browser upload helpers

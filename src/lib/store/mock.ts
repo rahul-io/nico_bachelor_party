@@ -13,7 +13,8 @@ import type {
 } from "./types";
 
 interface MockData {
-  profiles: Map<string, { profile: Profile; token: string }>;
+  profiles: Map<string, { profile: Profile; token: string | null; passwordHash: string | null }>;
+  attempts: Array<{ key: string; at: number }>;
   avatars: Map<string, string>;
   drinks: DrinkLog[];
   events: ScheduleEvent[];
@@ -34,6 +35,7 @@ function seed(): MockData {
   const iso = (ms: number) => new Date(ms).toISOString();
   const data: MockData = {
     profiles: new Map(),
+    attempts: [],
     avatars: new Map(),
     drinks: [],
     events: seedEvents.map((event) => ({ id: crypto.randomUUID(), ...event })),
@@ -54,6 +56,7 @@ function seed(): MockData {
     const id = crypto.randomUUID();
     data.profiles.set(id, {
       token: crypto.randomUUID(),
+      passwordHash: null,
       profile: {
         id,
         name: person.name,
@@ -62,6 +65,9 @@ function seed(): MockData {
         weightKg: person.weightKg,
         sex: "male",
         showBacOnPosts: true,
+        hasPassword: false,
+        mustChangePassword: false,
+        sessionVersion: 1,
         createdAt: iso(now),
       },
     });
@@ -104,20 +110,70 @@ function removeWhere<T>(items: T[], match: (item: T) => boolean): boolean {
 }
 
 export const mockStore: Store = {
-  async createProfile(input) {
+  async createProfile(input, passwordHash = null) {
     const profile: Profile = {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
+      hasPassword: passwordHash !== null,
+      mustChangePassword: false,
+      sessionVersion: 1,
       ...input,
     };
     const token = crypto.randomUUID();
-    data().profiles.set(profile.id, { profile, token });
+    data().profiles.set(profile.id, { profile, token, passwordHash });
     return { profile, token };
+  },
+
+  async getProfile(id) {
+    return data().profiles.get(id)?.profile ?? null;
   },
 
   async getProfileByToken(id, token) {
     const entry = data().profiles.get(id);
-    return entry && entry.token === token ? entry.profile : null;
+    return entry && entry.token !== null && entry.token === token ? entry.profile : null;
+  },
+
+  async findAccountByName(name) {
+    const wanted = name.trim().toLowerCase();
+    for (const entry of data().profiles.values()) {
+      if (entry.passwordHash && entry.profile.name.toLowerCase() === wanted) {
+        return { profile: entry.profile, passwordHash: entry.passwordHash };
+      }
+    }
+    return null;
+  },
+
+  async isNameTaken(name, exceptId) {
+    const wanted = name.trim().toLowerCase();
+    return [...data().profiles.values()].some(
+      (entry) => entry.passwordHash && entry.profile.id !== exceptId && entry.profile.name.toLowerCase() === wanted,
+    );
+  },
+
+  async setPassword(id, passwordHash, options) {
+    const entry = data().profiles.get(id);
+    if (!entry) return null;
+    entry.passwordHash = passwordHash;
+    entry.token = null;
+    entry.profile = {
+      ...entry.profile,
+      hasPassword: true,
+      mustChangePassword: options.mustChange,
+      sessionVersion: entry.profile.sessionVersion + (options.signOutEverywhere ? 1 : 0),
+    };
+    return entry.profile;
+  },
+
+  async recordAttempt(key) {
+    data().attempts.push({ key, at: Date.now() });
+  },
+
+  async countAttempts(key, sinceMs) {
+    return data().attempts.filter((attempt) => attempt.key === key && attempt.at >= sinceMs).length;
+  },
+
+  async clearAttempts(key) {
+    removeWhere(data().attempts, (attempt) => attempt.key === key);
   },
 
   async updateProfile(id, input) {

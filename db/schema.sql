@@ -100,3 +100,19 @@ alter table posts add column if not exists event_id text references events (id) 
 
 -- Existing posts keep their stored image; new uploads retain an original plus a preview.
 alter table posts add column if not exists preview_url text;
+
+-- Accounts (M9): name + password logins, sessions, rate limiting.
+alter table profiles add column if not exists password_hash text;
+alter table profiles add column if not exists must_change_password boolean not null default false;
+alter table profiles add column if not exists session_version integer not null default 1;
+-- The per-device token only survives until a pre-accounts profile sets a password.
+alter table profiles alter column token drop not null;
+-- Names are unique among accounts, ignoring case. Unclaimed legacy profiles are exempt.
+create unique index if not exists profiles_account_name_idx on profiles (lower(name)) where password_hash is not null;
+
+create table if not exists auth_attempts (
+  key text not null,
+  attempted_at timestamptz not null default now()
+);
+
+create index if not exists auth_attempts_key_idx on auth_attempts (key, attempted_at);

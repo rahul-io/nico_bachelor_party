@@ -9,6 +9,12 @@ export interface Profile {
   sex: Sex;
   /** Whether new photo posts get a BAC snapshot attached. */
   showBacOnPosts: boolean;
+  /** False for profiles made before accounts existed that haven't set a password yet. */
+  hasPassword: boolean;
+  /** Set when an admin resets the password; cleared when the person picks a new one. */
+  mustChangePassword: boolean;
+  /** Bumped to sign every device out. A session cookie is only valid for the current value. */
+  sessionVersion: number;
   createdAt: string;
 }
 
@@ -181,9 +187,27 @@ export interface PointHistoryEntry extends PointEvent {
  * and Postgres stores both implement it.
  */
 export interface Store {
-  createProfile(input: ProfileInput): Promise<{ profile: Profile; token: string }>;
-  /** Returns the profile only if the token matches. */
+  /** With a password hash this is an account; without one, a legacy device-only profile. */
+  createProfile(input: ProfileInput, passwordHash?: string | null): Promise<{ profile: Profile; token: string }>;
+  getProfile(id: string): Promise<Profile | null>;
+  /** Legacy device token, used only to claim a pre-accounts profile. */
   getProfileByToken(id: string, token: string): Promise<Profile | null>;
+  /** Case-insensitive, accounts (profiles with a password) only. */
+  findAccountByName(name: string): Promise<{ profile: Profile; passwordHash: string } | null>;
+  /** Whether another account already uses this name, ignoring case. */
+  isNameTaken(name: string, exceptId?: string): Promise<boolean>;
+  /** Stores a new hash and clears the legacy token. `signOutEverywhere` invalidates all sessions. */
+  setPassword(
+    id: string,
+    passwordHash: string,
+    options: { mustChange: boolean; signOutEverywhere: boolean },
+  ): Promise<Profile | null>;
+
+  /** Failed sign-in or invite-code attempts, for rate limiting. */
+  recordAttempt(key: string): Promise<void>;
+  countAttempts(key: string, sinceMs: number): Promise<number>;
+  clearAttempts(key: string): Promise<void>;
+
   updateProfile(id: string, input: ProfileInput): Promise<Profile>;
   listProfiles(): Promise<Profile[]>;
   /** Also removes the profile's drinks, point events, posts, reactions and comments (but not the posts' files). */

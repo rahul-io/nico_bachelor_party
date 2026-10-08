@@ -6,10 +6,10 @@ import { useSWRConfig } from "swr";
 import { AvatarPicker } from "@/components/profile/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
-import { PROFILE_KEY } from "@/hooks/useProfile";
+import { SESSION_KEY, type SessionResponse } from "@/hooks/useProfile";
 import { ApiError, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { setIdentity } from "@/lib/identity";
+import { MIN_PASSWORD_LENGTH } from "@/lib/limits";
 import type { Profile, ProfileInput, Sex } from "@/lib/store/types";
 import { cmToFeetInches, feetInchesToCm, kgToLb, lbToKg } from "@/lib/units";
 
@@ -18,13 +18,14 @@ const sexes: Array<{ value: Sex; label: string }> = [
   { value: "female", label: "Female" },
 ];
 
-/** Creates a profile when `initial` is absent, otherwise edits it. */
+/** Creates an account (with a password) when `initial` is absent, otherwise edits the profile. */
 export function ProfileForm({ initial }: { initial?: Profile }) {
   const router = useRouter();
   const { mutate } = useSWRConfig();
   const initialHeight = initial ? cmToFeetInches(initial.heightCm) : null;
 
   const [name, setName] = useState(initial?.name ?? "");
+  const [password, setPassword] = useState("");
   const [avatarUrl, setAvatarUrl] = useState(initial?.avatarUrl ?? null);
   const [feet, setFeet] = useState(initialHeight ? String(initialHeight.feet) : "");
   const [inches, setInches] = useState(initialHeight ? String(initialHeight.inches) : "");
@@ -40,6 +41,10 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
       setStatus({ text: "Fill in your name, height and weight.", error: true });
       return;
     }
+    if (!initial && password.length < MIN_PASSWORD_LENGTH) {
+      setStatus({ text: `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.`, error: true });
+      return;
+    }
     const body: ProfileInput = {
       name: name.trim(),
       avatarUrl,
@@ -53,16 +58,15 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
     setStatus(null);
     try {
       if (initial) {
-        const profile = await apiFetch<Profile>(PROFILE_KEY, { method: "PATCH", body });
-        await mutate(PROFILE_KEY, profile, { revalidate: false });
+        const saved = await apiFetch<SessionResponse>("/api/profiles/me", { method: "PATCH", body });
+        await mutate(SESSION_KEY, saved, { revalidate: false });
         setStatus({ text: "Saved" });
       } else {
-        const created = await apiFetch<{ profile: Profile; token: string }>("/api/profiles", {
+        const created = await apiFetch<SessionResponse>("/api/auth/signup", {
           method: "POST",
-          body,
+          body: { ...body, password },
         });
-        setIdentity({ id: created.profile.id, token: created.token });
-        await mutate(PROFILE_KEY, created.profile, { revalidate: false });
+        await mutate(SESSION_KEY, created, { revalidate: false });
         router.replace("/schedule");
       }
     } catch (error) {
@@ -87,6 +91,16 @@ export function ProfileForm({ initial }: { initial?: Profile }) {
         autoComplete="nickname"
         placeholder="What the crew calls you"
       />
+
+      {!initial && (
+        <Field
+          label={`Password (at least ${MIN_PASSWORD_LENGTH} characters)`}
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          autoComplete="new-password"
+        />
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <Field

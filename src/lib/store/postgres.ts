@@ -16,6 +16,9 @@ const toProfile = (row: Row): Profile => ({
   weightKg: row.weight_kg as number,
   sex: row.sex as Profile["sex"],
   showBacOnPosts: row.show_bac_on_posts as boolean,
+  hasPassword: row.has_password as boolean,
+  mustChangePassword: row.must_change_password as boolean,
+  sessionVersion: row.session_version as number,
   createdAt: iso(row.created_at),
 });
 
@@ -86,19 +89,70 @@ const toComment = (row: Row): Comment => ({
 // Profile queries list their columns explicitly so avatar_data is never pulled by accident.
 export function createPostgresStore(sql: Sql): Store {
   return {
-    async createProfile(input) {
+    async createProfile(input, passwordHash = null) {
       const [row] = await sql`
-        insert into profiles (name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts)
-        values (${input.name}, ${input.avatarUrl}, ${input.heightCm}, ${input.weightKg}, ${input.sex}, ${input.showBacOnPosts})
-        returning id, token, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at`;
+        insert into profiles (name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, password_hash)
+        values (${input.name}, ${input.avatarUrl}, ${input.heightCm}, ${input.weightKg}, ${input.sex}, ${input.showBacOnPosts}, ${passwordHash})
+        returning id, token, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at, password_hash is not null as has_password, must_change_password, session_version`;
       return { profile: toProfile(row), token: row.token as string };
     },
 
     async getProfileByToken(id, token) {
       const rows = await sql`
-        select id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at
-        from profiles where id = ${id} and token = ${token}`;
+        select id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at, password_hash is not null as has_password, must_change_password, session_version
+        from profiles where id = ${id} and token is not null and token = ${token}`;
       return rows[0] ? toProfile(rows[0]) : null;
+    },
+
+    async getProfile(id) {
+      const rows = await sql`
+        select id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at, password_hash is not null as has_password, must_change_password, session_version
+        from profiles where id = ${id}`;
+      return rows[0] ? toProfile(rows[0]) : null;
+    },
+
+    async findAccountByName(name) {
+      const rows = await sql`
+        select id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at, password_hash is not null as has_password, must_change_password, session_version, password_hash
+        from profiles where lower(name) = lower(${name.trim()}) and password_hash is not null`;
+      return rows[0] ? { profile: toProfile(rows[0]), passwordHash: rows[0].password_hash as string } : null;
+    },
+
+    async isNameTaken(name, exceptId) {
+      const rows = await sql`
+        select 1 from profiles
+        where lower(name) = lower(${name.trim()}) and password_hash is not null and id <> ${exceptId ?? ""}
+        limit 1`;
+      return rows.length > 0;
+    },
+
+    async setPassword(id, passwordHash, options) {
+      const rows = await sql`
+        update profiles set
+          password_hash = ${passwordHash},
+          must_change_password = ${options.mustChange},
+          session_version = session_version + ${options.signOutEverywhere ? 1 : 0},
+          token = null
+        where id = ${id}
+        returning id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at, password_hash is not null as has_password, must_change_password, session_version`;
+      return rows[0] ? toProfile(rows[0]) : null;
+    },
+
+    async recordAttempt(key) {
+      await sql`insert into auth_attempts (key) values (${key})`;
+      // Old rows are only ever read within a five-minute window; keep the table from growing.
+      await sql`delete from auth_attempts where attempted_at < now() - interval '1 day'`;
+    },
+
+    async countAttempts(key, sinceMs) {
+      const [row] = await sql`
+        select count(*)::int as count from auth_attempts
+        where key = ${key} and attempted_at >= ${new Date(sinceMs).toISOString()}`;
+      return row.count as number;
+    },
+
+    async clearAttempts(key) {
+      await sql`delete from auth_attempts where key = ${key}`;
     },
 
     async updateProfile(id, input) {
@@ -111,14 +165,14 @@ export function createPostgresStore(sql: Sql): Store {
           sex = ${input.sex},
           show_bac_on_posts = ${input.showBacOnPosts}
         where id = ${id}
-        returning id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at`;
+        returning id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at, password_hash is not null as has_password, must_change_password, session_version`;
       if (!rows[0]) throw new Error(`Profile ${id} not found`);
       return toProfile(rows[0]);
     },
 
     async listProfiles() {
       const rows = await sql`
-        select id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at
+        select id, name, avatar_url, height_cm, weight_kg, sex, show_bac_on_posts, created_at, password_hash is not null as has_password, must_change_password, session_version
         from profiles order by created_at`;
       return rows.map(toProfile);
     },

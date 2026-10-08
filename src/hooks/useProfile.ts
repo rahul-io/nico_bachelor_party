@@ -1,29 +1,34 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useMemo } from "react";
 import useSWR from "swr";
-import { ApiError, apiFetch } from "@/lib/api";
-import { getIdentity, setIdentity, subscribeIdentity, type Identity } from "@/lib/identity";
+import { apiFetch } from "@/lib/api";
 import type { Profile } from "@/lib/store/types";
 
-export const PROFILE_KEY = "/api/profiles/me";
+/** Who this device is signed in as. The session itself is an httpOnly cookie the page can't read. */
+export const SESSION_KEY = "/api/auth/me";
 
-/** `undefined` while hydrating, `null` when this device has no profile yet. */
-export function useIdentity(): Identity | null | undefined {
-  return useSyncExternalStore(subscribeIdentity, getIdentity, () => undefined);
+export interface SessionResponse {
+  profile: Profile | null;
+}
+
+export function useSession() {
+  const { data, error, mutate } = useSWR<SessionResponse>(SESSION_KEY, (path: string) =>
+    apiFetch<SessionResponse>(path),
+  );
+  return { session: data, error, mutate };
+}
+
+/** `undefined` while loading, `null` when signed out, otherwise the signed-in profile's id. */
+export function useIdentity(): { id: string } | null | undefined {
+  const { session } = useSession();
+  const loading = session === undefined;
+  const id = session?.profile?.id;
+  return useMemo(() => (loading ? undefined : id ? { id } : null), [loading, id]);
 }
 
 export function useProfile() {
+  const { session, mutate } = useSession();
   const identity = useIdentity();
-  const { data, error, mutate } = useSWR<Profile>(identity ? PROFILE_KEY : null, (path: string) =>
-    apiFetch<Profile>(path),
-  );
-
-  // The server no longer knows this profile (deleted, or mock data was reset).
-  const unknown = error instanceof ApiError && error.status === 401;
-  useEffect(() => {
-    if (unknown) setIdentity(null);
-  }, [unknown]);
-
-  return { identity, profile: data, mutate };
+  return { identity, profile: session?.profile ?? undefined, mutate };
 }

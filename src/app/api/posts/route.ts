@@ -10,8 +10,8 @@ import type { MediaType } from "@/lib/store/types";
 
 export async function GET(req: Request) {
   await connection();
-  // Unverified on purpose: the id only marks which reactions are the viewer's own.
-  return Response.json(await buildFeed(getStore(), req.headers.get("x-profile-id")));
+  const viewer = await getRequestProfile(req);
+  return Response.json(await buildFeed(getStore(), viewer?.id ?? null));
 }
 
 /** Checks an uploaded file really is an allowed photo or video of ours, and says which. */

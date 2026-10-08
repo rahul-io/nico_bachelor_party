@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 
 const env = { ...process.env };
 // Next only fills in variables that aren't already set, so empty values win over .env.local.
-for (const key of ["DATABASE_URL", "POSTGRES_URL", "BLOB_READ_WRITE_TOKEN", "ADMIN_PASSWORD", "SESSION_SECRET"]) {
+for (const key of ["DATABASE_URL", "POSTGRES_URL", "BLOB_READ_WRITE_TOKEN", "ADMIN_PASSWORD", "SESSION_SECRET", "INVITE_CODE"]) {
   env[key] = "";
 }
 

@@ -1,5 +1,4 @@
 import { upload } from "@vercel/blob/client";
-import type { Identity } from "./identity";
 import { parseCoordinates, type Coordinates } from "./location";
 import type { MediaType } from "./store/types";
 
@@ -61,14 +60,15 @@ export async function inlinePhoto(file: File): Promise<string> {
 export async function uploadMedia(
   file: File,
   kind: MediaType,
-  identity: Identity,
+  identity: { id: string },
   onProgress: (percentage: number) => void,
 ): Promise<string> {
   const safeName = file.name.replace(/[^A-Za-z0-9._-]+/g, "-").slice(-60) || "upload";
   const blob = await upload(`posts/${identity.id}/${safeName}`, file, {
     access: "public",
     handleUploadUrl: "/api/blob/upload",
-    clientPayload: JSON.stringify({ ...identity, kind }),
+    // Who is uploading comes from the session cookie; the server only needs the kind.
+    clientPayload: JSON.stringify({ kind }),
     contentType: file.type || undefined,
     multipart: file.size > MULTIPART_ABOVE_BYTES,
     onUploadProgress: ({ percentage }) => onProgress(percentage),
@@ -80,7 +80,7 @@ export async function uploadMedia(
 export async function uploadPostMedia(
   file: File,
   kind: MediaType,
-  identity: Identity,
+  identity: { id: string },
   onProgress: (percentage: number) => void,
 ): Promise<{ url: string; previewUrl: string | null }> {
   const preview = kind === "image" ? await createPhotoPreview(file) : null;

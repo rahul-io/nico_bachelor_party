@@ -7,7 +7,8 @@ type Context = { params: Promise<{ id: string }> };
 
 /** The opened-photo view: the post, who reacted, and the comment thread. */
 export async function GET(req: Request, { params }: Context) {
-  const detail = await buildPostDetail(getStore(), (await params).id, req.headers.get("x-profile-id"));
+  const viewer = await getRequestProfile(req);
+  const detail = await buildPostDetail(getStore(), (await params).id, viewer?.id ?? null);
   if (!detail) return jsonError("Post not found", 404);
   return Response.json(detail);
 }

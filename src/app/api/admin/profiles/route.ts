@@ -8,7 +8,7 @@ export async function GET() {
   const profiles = await getStore().listProfiles();
   return Response.json(
     profiles
-      .map(({ id, name, avatarUrl, createdAt }) => ({ id, name, avatarUrl, createdAt }))
+      .map(({ id, name, avatarUrl, createdAt, hasPassword }) => ({ id, name, avatarUrl, createdAt, hasPassword }))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
   );
 }

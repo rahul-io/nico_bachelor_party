@@ -61,6 +61,64 @@ describe.each<[string, () => Promise<Store>]>([
     await expect(store.updateProfile("missing", person)).rejects.toThrow();
   });
 
+  it("turns profiles into accounts with unique names, passwords and session versions", async () => {
+    const store = await makeStore();
+    const unique = `Skipper ${crypto.randomUUID().slice(0, 8)}`;
+
+    // A legacy profile: no password, claimable with its device token.
+    const legacy = await store.createProfile({ ...person, name: unique });
+    expect(legacy.profile).toMatchObject({ hasPassword: false, mustChangePassword: false, sessionVersion: 1 });
+    expect(await store.getProfile(legacy.profile.id)).toEqual(legacy.profile);
+    expect(await store.getProfile("missing")).toBeNull();
+    expect(await store.findAccountByName(unique)).toBeNull();
+    expect(await store.isNameTaken(unique)).toBe(false);
+
+    // Setting a password makes it an account and retires the token.
+    const claimed = await store.setPassword(legacy.profile.id, "hash-1", { mustChange: false, signOutEverywhere: false });
+    expect(claimed).toMatchObject({ hasPassword: true, mustChangePassword: false, sessionVersion: 1 });
+    expect(await store.getProfileByToken(legacy.profile.id, legacy.token)).toBeNull();
+
+    const found = await store.findAccountByName(`  ${unique.toUpperCase()} `);
+    expect(found?.profile.id).toBe(legacy.profile.id);
+    expect(found?.passwordHash).toBe("hash-1");
+    expect(JSON.stringify(await store.listProfiles())).not.toContain("hash-1");
+
+    expect(await store.isNameTaken(unique.toLowerCase())).toBe(true);
+    expect(await store.isNameTaken(unique, legacy.profile.id)).toBe(false);
+
+    // An admin reset: new hash, must change, every session invalid.
+    const reset = await store.setPassword(legacy.profile.id, "hash-2", { mustChange: true, signOutEverywhere: true });
+    expect(reset).toMatchObject({ mustChangePassword: true, sessionVersion: 2 });
+    expect((await store.findAccountByName(unique))?.passwordHash).toBe("hash-2");
+    expect(await store.setPassword("missing", "x", { mustChange: false, signOutEverywhere: false })).toBeNull();
+
+    // New accounts are created with their hash.
+    const other = `Bosun ${crypto.randomUUID().slice(0, 8)}`;
+    const account = await store.createProfile({ ...person, name: other }, "hash-3");
+    expect(account.profile.hasPassword).toBe(true);
+    expect((await store.findAccountByName(other))?.passwordHash).toBe("hash-3");
+
+    await store.deleteProfile(legacy.profile.id);
+    await store.deleteProfile(account.profile.id);
+    expect(await store.findAccountByName(unique)).toBeNull();
+  });
+
+  it("counts failed attempts per key within a window", async () => {
+    const store = await makeStore();
+    const key = `login:name:${crypto.randomUUID()}`;
+    const before = Date.now() - 1000;
+    expect(await store.countAttempts(key, before)).toBe(0);
+    await store.recordAttempt(key);
+    await store.recordAttempt(key);
+    await store.recordAttempt(`${key}-other`);
+    expect(await store.countAttempts(key, before)).toBe(2);
+    expect(await store.countAttempts(key, Date.now() + 60_000)).toBe(0);
+    await store.clearAttempts(key);
+    expect(await store.countAttempts(key, before)).toBe(0);
+    expect(await store.countAttempts(`${key}-other`, before)).toBe(1);
+    await store.clearAttempts(`${key}-other`);
+  });
+
   it("stores avatar data separately from the profile", async () => {
     const store = await makeStore();
     const { profile } = await store.createProfile(person);

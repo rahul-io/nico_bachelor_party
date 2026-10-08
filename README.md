@@ -7,7 +7,7 @@ npm install
 npm run dev
 ```
 
-Runs on mock data with no setup. Copy `.env.example` to `.env.local` to connect real services.
+Runs on mock data with no setup. Use `npm run dev:mock` to stay on mock data even when `.env.local` has live credentials; the invite code there is `ahoy` and the admin password is `admin`. Copy `.env.example` to `.env.local` to connect real services.
 
 Photo uploads preserve the original file (up to 50 MB) and store a smaller JPEG preview for the feed when the browser can decode it. GIFs and unsupported formats use the original in the feed. Admin ZIP downloads and `npm run export-photos` fetch originals. Demo mode stores smaller inline images only. Previously compressed uploads cannot regain their original quality.
 
