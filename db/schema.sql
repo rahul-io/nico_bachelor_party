@@ -145,3 +145,16 @@ create table if not exists app_settings (
   value jsonb not null,
   updated_at timestamptz not null default now()
 );
+
+-- Games (M12): notices, feed lines, curses, wagers, side bets, snitch reports and the like.
+-- One table of small JSON records; `kind` says which, the typed shapes live in src/lib/games.
+create table if not exists game_records (
+  id text primary key default gen_random_uuid()::text,
+  kind text not null,
+  profile_id text references profiles (id) on delete cascade,
+  status text not null default 'open',
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists game_records_kind_idx on game_records (kind, created_at desc);

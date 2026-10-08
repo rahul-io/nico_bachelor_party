@@ -1,4 +1,5 @@
 import { isAdmin } from "@/lib/auth";
+import { displayStore } from "@/lib/games/curses";
 import { buildPostDetail, deletePostFiles } from "@/lib/feed";
 import { getRequestProfile, jsonError } from "@/lib/http";
 import { getStore } from "@/lib/store";
@@ -8,7 +9,7 @@ type Context = { params: Promise<{ id: string }> };
 /** The opened-photo view: the post, who reacted, and the comment thread. */
 export async function GET(req: Request, { params }: Context) {
   const viewer = await getRequestProfile(req);
-  const detail = await buildPostDetail(getStore(), (await params).id, viewer?.id ?? null);
+  const detail = await buildPostDetail(displayStore(getStore()), (await params).id, viewer?.id ?? null);
   if (!detail) return jsonError("Post not found", 404);
   return Response.json(detail);
 }

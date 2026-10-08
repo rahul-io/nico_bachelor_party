@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Logo } from "@/components/shell/Logo";
+import { NoticeBell } from "@/components/shell/NoticeBell";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { Wordmark } from "@/components/shell/Wordmark";
 import { Avatar } from "@/components/ui/Avatar";
@@ -28,6 +29,7 @@ export function Header() {
           <Logo size={52} priority />
         </Link>
         <div className="flex items-center justify-self-end">
+          <NoticeBell />
           <ThemeToggle />
           <Link href="/profile" aria-label="Your profile" className="flex min-h-tap items-center pl-1">
             <Avatar name={profile?.name ?? ""} src={profile?.avatarUrl} size="sm" />

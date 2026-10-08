@@ -12,7 +12,8 @@
     "export-photos": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning scripts/export-photos.mts",
     "dev:mock": "node scripts/dev-mock.mjs",
     "test:e2e": "node scripts/auth-e2e.mjs",
-    "test:e2e:points": "node scripts/points-e2e.mjs"
+    "test:e2e:points": "node scripts/points-e2e.mjs",
+    "test:e2e:games": "node scripts/games-e2e.mjs"
   },
   "dependencies": {
     "@fullcalendar/react": "^7.1.1",

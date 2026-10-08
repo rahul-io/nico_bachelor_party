@@ -4,6 +4,7 @@ import type {
   Challenge,
   Comment,
   DrinkLog,
+  GameRecord,
   PointEvent,
   Post,
   Profile,
@@ -19,6 +20,7 @@ interface MockData {
   avatars: Map<string, string>;
   drinks: DrinkLog[];
   waters: WaterLog[];
+  records: GameRecord[];
   settings: Map<string, unknown>;
   events: ScheduleEvent[];
   challenges: Challenge[];
@@ -42,6 +44,7 @@ function seed(): MockData {
     avatars: new Map(),
     drinks: [],
     waters: [],
+    records: [],
     settings: new Map(),
     events: seedEvents.map((event) => ({ id: crypto.randomUUID(), ...event })),
     challenges: seedChallenges.map((challenge, index) => ({
@@ -205,6 +208,7 @@ export const mockStore: Store = {
     store.avatars.delete(id);
     removeWhere(store.drinks, (drink) => drink.profileId === id);
     removeWhere(store.waters, (water) => water.profileId === id);
+    removeWhere(store.records, (record) => record.profileId === id);
     removeWhere(store.pointEvents, (event) => event.profileId === id);
     const ownPosts = new Set(store.posts.filter((post) => post.profileId === id).map((post) => post.id));
     removeWhere(store.posts, (post) => post.profileId === id);
@@ -368,6 +372,38 @@ export const mockStore: Store = {
     );
     for (const event of hit) event.voidedAt = voidedAt;
     return hit.map((event) => ({ ...event }));
+  },
+
+  async listRecords(kind, status) {
+    return data()
+      .records.filter((record) => record.kind === kind && (status === undefined || record.status === status))
+      .reverse()
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((record) => ({ ...record, data: structuredClone(record.data) }));
+  },
+
+  async getRecord(id) {
+    const record = data().records.find((item) => item.id === id);
+    return record ? { ...record, data: structuredClone(record.data) } : null;
+  },
+
+  async addRecord(input) {
+    const record: GameRecord = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+      data: JSON.parse(JSON.stringify(input.data)),
+    };
+    data().records.push(record);
+    return { ...record, data: structuredClone(record.data) };
+  },
+
+  async updateRecord(id, patch, expectStatus) {
+    const record = data().records.find((item) => item.id === id);
+    if (!record || (expectStatus !== undefined && record.status !== expectStatus)) return null;
+    if (patch.status !== undefined) record.status = patch.status;
+    if (patch.data !== undefined) record.data = JSON.parse(JSON.stringify(patch.data));
+    return { ...record, data: structuredClone(record.data) };
   },
 
   async getSetting(key) {

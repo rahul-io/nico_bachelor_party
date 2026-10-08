@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSWRConfig } from "swr";
+import { GamesPanel } from "@/components/admin/GamesPanel";
 import { MultipliersPanel } from "@/components/admin/MultipliersPanel";
 import { PointsSettingsPanel } from "@/components/admin/PointsSettingsPanel";
 import { PointsHistory } from "@/components/leaderboard/PointsHistory";
@@ -19,6 +20,7 @@ import type { Challenge, LeaderboardEntry } from "@/lib/store/types";
 const views = [
   { value: "award", label: "Award" },
   { value: "live", label: "Multipliers" },
+  { value: "games", label: "Games" },
   { value: "settings", label: "Settings" },
 ] as const;
 
@@ -32,6 +34,7 @@ export function PointsPanel() {
       <Segmented options={views} value={view} onChange={setView} label="Points section" size="sm" />
       {view === "award" && <AwardPanel />}
       {view === "live" && <MultipliersPanel />}
+      {view === "games" && <GamesPanel />}
       {view === "settings" && <PointsSettingsPanel />}
     </div>
   );

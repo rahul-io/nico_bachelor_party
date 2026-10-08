@@ -2,6 +2,7 @@ import type {
   Challenge,
   Comment,
   DrinkLog,
+  GameRecord,
   PointEvent,
   Post,
   Profile,
@@ -79,6 +80,15 @@ const toPointEvent = (row: Row): PointEvent => ({
   groupId: row.group_id as string | null,
   awardKey: row.award_key as string | null,
   voidedAt: isoOrNull(row.voided_at),
+  createdAt: iso(row.created_at),
+});
+
+const toRecord = (row: Row): GameRecord => ({
+  id: row.id as string,
+  kind: row.kind as string,
+  profileId: row.profile_id as string | null,
+  status: row.status as string,
+  data: (json(row.data) ?? {}) as Record<string, unknown>,
   createdAt: iso(row.created_at),
 });
 
@@ -358,6 +368,38 @@ export function createPostgresStore(sql: Sql): Store {
               update point_events set voided_at = now()
               where group_id = ${match.groupId} and voided_at is null returning *`;
       return rows.map(toPointEvent);
+    },
+
+    async listRecords(kind, status) {
+      const rows =
+        status === undefined
+          ? await sql`select * from game_records where kind = ${kind} order by created_at desc`
+          : await sql`
+              select * from game_records where kind = ${kind} and status = ${status} order by created_at desc`;
+      return rows.map(toRecord);
+    },
+
+    async getRecord(id) {
+      const rows = await sql`select * from game_records where id = ${id}`;
+      return rows[0] ? toRecord(rows[0]) : null;
+    },
+
+    async addRecord(input) {
+      const [row] = await sql`
+        insert into game_records (kind, profile_id, status, data)
+        values (${input.kind}, ${input.profileId}, ${input.status}, ${JSON.stringify(input.data)}::jsonb)
+        returning *`;
+      return toRecord(row);
+    },
+
+    async updateRecord(id, patch, expectStatus) {
+      const rows = await sql`
+        update game_records set
+          status = coalesce(${patch.status ?? null}, status),
+          data = coalesce(${patch.data === undefined ? null : JSON.stringify(patch.data)}::jsonb, data)
+        where id = ${id} and (${expectStatus ?? null}::text is null or status = ${expectStatus ?? null})
+        returning *`;
+      return rows[0] ? toRecord(rows[0]) : null;
     },
 
     async getSetting(key) {

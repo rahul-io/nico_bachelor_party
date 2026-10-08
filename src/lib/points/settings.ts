@@ -33,6 +33,51 @@ export const settingDefs = [
   { key: "hydroHomiePoints", group: "Daily awards", label: "Landlubber (Hydro Homie)", value: 5, min: 0, max: 200, step: 1 },
   { key: "lastManStandingPoints", group: "Daily awards", label: "Last Man Standing", value: 10, min: 0, max: 200, step: 1 },
   { key: "lastManAfterHour", group: "Daily awards", label: "Last Man Standing counts photos after, hour", value: 1, min: 0, max: 3, step: 1 },
+
+  { key: "slotOdds1x", group: "Slot machine (odds must total 100)", label: "1×, %", value: 55, min: 0, max: 100, step: 1 },
+  { key: "slotOdds2x", group: "Slot machine (odds must total 100)", label: "2×, %", value: 15, min: 0, max: 100, step: 1 },
+  { key: "slotOdds3x", group: "Slot machine (odds must total 100)", label: "3×, %", value: 5, min: 0, max: 100, step: 1 },
+  { key: "slotOddsBust", group: "Slot machine (odds must total 100)", label: "Bust, %", value: 12, min: 0, max: 100, step: 1 },
+  { key: "slotOddsJackpot", group: "Slot machine (odds must total 100)", label: "Jackpot, %", value: 2, min: 0, max: 100, step: 1 },
+  { key: "slotOddsRob", group: "Slot machine (odds must total 100)", label: "Rob the Leader, %", value: 6, min: 0, max: 100, step: 1 },
+  { key: "slotOddsForward", group: "Slot machine (odds must total 100)", label: "Pay It Forward, %", value: 5, min: 0, max: 100, step: 1 },
+  { key: "slotBustMultiplier", group: "Slot machine (odds must total 100)", label: "Bust, ×", value: 0.5, min: 0, max: 1, step: 0.1 },
+  { key: "slotJackpotPoints", group: "Slot machine (odds must total 100)", label: "Jackpot points", value: 15, min: 0, max: 200, step: 1 },
+  { key: "slotRobPoints", group: "Slot machine (odds must total 100)", label: "Rob the Leader takes", value: 5, min: 0, max: 100, step: 1 },
+  { key: "slotReuseMinutes", group: "Slot machine (odds must total 100)", label: "Minutes a deleted drink's spin is reused", value: 10, min: 0, max: 120, step: 1 },
+
+  { key: "activeHours", group: "Bartender's Choice", label: "Hours since last log to count as playing", value: 3, min: 1, max: 24, step: 1 },
+  { key: "bartenderMultiplier", group: "Bartender's Choice", label: "Assigned drink, ×", value: 3, min: 1, max: 10, step: 0.5 },
+  { key: "bartenderMinutes", group: "Bartender's Choice", label: "Minutes to log it", value: 60, min: 5, max: 480, step: 5 },
+
+  { key: "groomWindowMinutes", group: "Groom Tax", label: "Minutes between the two drinks", value: 2, min: 1, max: 30, step: 1 },
+  { key: "groomPhotoMinutes", group: "Groom Tax", label: "Minutes to post the photo", value: 10, min: 1, max: 120, step: 1 },
+  { key: "groomMultiplier", group: "Groom Tax", label: "Player's drink, ×", value: 2, min: 1, max: 10, step: 0.5 },
+  { key: "groomPoints", group: "Groom Tax", label: "Points for the groom", value: 1, min: 0, max: 50, step: 0.5 },
+
+  { key: "curseNameCost", group: "Curses", label: "Name Hijack cost", value: 10, min: 0, max: 200, step: 1 },
+  { key: "curseNameMinutes", group: "Curses", label: "Name Hijack lasts, minutes", value: 120, min: 5, max: 1440, step: 5 },
+  { key: "curseDeadWeightCost", group: "Curses", label: "Dead Weight cost", value: 8, min: 0, max: 200, step: 1 },
+  { key: "curseAvatarCost", group: "Curses", label: "Avatar Swap cost", value: 6, min: 0, max: 200, step: 1 },
+  { key: "curseShieldCost", group: "Curses", label: "Shield cost", value: 5, min: 0, max: 200, step: 1 },
+
+  { key: "wagerMaxStake", group: "Wagers", label: "Largest stake", value: 50, min: 1, max: 1000, step: 1 },
+  { key: "wagerExpiryMinutes", group: "Wagers", label: "Minutes to answer a challenge", value: 60, min: 5, max: 1440, step: 5 },
+
+  { key: "snitchVotes", group: "Snitch Line", label: "Upvotes needed", value: 2, min: 1, max: 20, step: 1 },
+  { key: "snitchMinutes", group: "Snitch Line", label: "Minutes to get them", value: 30, min: 5, max: 480, step: 5 },
+  { key: "snitchPenalty", group: "Snitch Line", label: "Points the accused loses", value: 5, min: 0, max: 100, step: 1 },
+  { key: "snitchReward", group: "Snitch Line", label: "Points the reporter gains", value: 3, min: 0, max: 100, step: 1 },
+] as const;
+
+export const SLOT_ODDS_KEYS = [
+  "slotOdds1x",
+  "slotOdds2x",
+  "slotOdds3x",
+  "slotOddsBust",
+  "slotOddsJackpot",
+  "slotOddsRob",
+  "slotOddsForward",
 ] as const;
 
 export type SettingKey = (typeof settingDefs)[number]["key"];
@@ -70,6 +115,10 @@ export function parseSettings(
     if (value !== def.value) overrides[def.key] = value;
   }
   const merged = { ...defaultSettings, ...overrides };
+  const odds = SLOT_ODDS_KEYS.reduce((sum, key) => sum + merged[key], 0);
+  if (Math.abs(odds - 100) > 0.001) {
+    return { ok: false, error: `The slot machine odds must total 100% (they total ${odds}%)` };
+  }
   if (merged.bandLow >= merged.bandHigh) {
     return { ok: false, error: "The Smooth Sailing band must start below where it ends" };
   }

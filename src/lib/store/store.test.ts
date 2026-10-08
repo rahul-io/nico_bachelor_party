@@ -483,4 +483,28 @@ describe.each<[string, () => Promise<Store>]>([
     await store.setSetting(key, {});
     expect(await store.getSetting(key)).toEqual({});
   });
+
+  it("keeps game records with a guarded status change", async () => {
+    const store = await makeStore();
+    const { profile } = await store.createProfile(person);
+    const kind = `test-${crypto.randomUUID()}`;
+    const first = await store.addRecord({ kind, profileId: profile.id, status: "open", data: { stake: 5, sides: ["a", "b"] } });
+    const second = await store.addRecord({ kind, profileId: null, status: "done", data: {} });
+    expect(first).toMatchObject({ kind, profileId: profile.id, status: "open", data: { stake: 5, sides: ["a", "b"] } });
+    expect(first.createdAt).toMatch(isoPattern);
+
+    expect((await store.listRecords(kind)).map((record) => record.id).sort()).toEqual([first.id, second.id].sort());
+    expect((await store.listRecords(kind, "open")).map((record) => record.id)).toEqual([first.id]);
+    expect(await store.getRecord(first.id)).toEqual(first);
+    expect(await store.getRecord("missing")).toBeNull();
+
+    // Only one of two simultaneous accepts wins.
+    expect(await store.updateRecord(first.id, { status: "accepted" }, "open")).toMatchObject({ status: "accepted", data: first.data });
+    expect(await store.updateRecord(first.id, { status: "accepted" }, "open")).toBeNull();
+    expect(await store.updateRecord(first.id, { data: { stake: 9 } })).toMatchObject({ status: "accepted", data: { stake: 9 } });
+    expect(await store.updateRecord("missing", { status: "x" })).toBeNull();
+
+    await store.deleteProfile(profile.id);
+    expect((await store.listRecords(kind)).map((record) => record.id)).toEqual([second.id]);
+  });
 });

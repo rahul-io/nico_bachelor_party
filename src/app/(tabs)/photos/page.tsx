@@ -19,6 +19,7 @@ import { useIdentity } from "@/hooks/useProfile";
 import { apiFetch } from "@/lib/api";
 import { applyReaction, type ReactionEmoji } from "@/lib/reactions";
 import type { Feed, FeedPost } from "@/lib/store/types";
+import { formatDeviceWeekdayTime } from "@/lib/time";
 
 const views = [
   { value: "feed", label: "Feed" },
@@ -58,6 +59,12 @@ export default function PhotosPage() {
     await mutate();
   }
 
+  // Photos and the short system lines ("Jake hit JACKPOT"), newest first.
+  const entries = [
+    ...(feed?.posts ?? []).map((post) => ({ kind: "post" as const, at: post.createdAt, post })),
+    ...(feed?.lines ?? []).map((line) => ({ kind: "line" as const, at: line.createdAt, line })),
+  ].sort((a, b) => b.at.localeCompare(a.at));
+
   return (
     <div className="space-y-4">
       <PageTitle eyebrow="Photo proof" title="Captain's Log" />
@@ -80,22 +87,30 @@ export default function PhotosPage() {
       <Segmented options={views} value={view} onChange={setView} label="Photos view" size="sm" />
 
       {view === "map" && feed && <PhotoMap posts={feed.posts} onOpen={setOpenId} />}
-      {view === "feed" && feed?.posts.length === 0 && (
+      {view === "feed" && feed && entries.length === 0 && (
         <Card className="text-muted">The log is empty. Make the first entry.</Card>
       )}
 
       <ul className={view === "feed" ? "space-y-4" : "hidden"}>
-        {feed?.posts.map((post) => (
-          <li key={post.id}>
-            <PostCard
-              post={post}
-              canDelete={post.profileId === identity?.id || admin?.authed === true}
-              onDelete={remove}
-              onOpen={(opened) => setOpenId(opened.id)}
-              onReact={react}
-            />
-          </li>
-        ))}
+        {entries.map((entry) =>
+          entry.kind === "line" ? (
+            <li key={entry.line.id} className="flex items-baseline gap-2 px-1 text-sm">
+              <span aria-hidden>{entry.line.emoji}</span>
+              <span className="min-w-0 flex-1 font-medium">{entry.line.text}</span>
+              <span className="shrink-0 text-muted">{formatDeviceWeekdayTime(entry.line.createdAt)}</span>
+            </li>
+          ) : (
+            <li key={entry.post.id}>
+              <PostCard
+                post={entry.post}
+                canDelete={entry.post.profileId === identity?.id || admin?.authed === true}
+                onDelete={remove}
+                onOpen={(opened) => setOpenId(opened.id)}
+                onReact={react}
+              />
+            </li>
+          ),
+        )}
       </ul>
 
       {openId && (

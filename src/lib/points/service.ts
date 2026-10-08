@@ -1,4 +1,9 @@
 import { estimateBac, formatBac } from "@/lib/bac";
+import { claimAssignment } from "@/lib/games/bartender";
+import { feedLine, nameOf, notify } from "@/lib/games/common";
+import { spendDeadWeight } from "@/lib/games/curses";
+import { slotEmoji, slotFactor, slotNames, type SlotOutcome } from "@/lib/games/slot";
+import { rememberSpin, spinSlot } from "@/lib/games/spin";
 import type {
   DrinkInput,
   DrinkLog,
@@ -25,8 +30,9 @@ import {
   type Winner,
 } from "./awards";
 import { formatPoints, roundPoints } from "./format";
-import { isHydrated, resolveCheers, scoreDrink, scoreWater, type CheersDrink } from "./score";
-import { mergeSettings, type PointsSettings } from "./settings";
+import { isHydrated, resolveCheers, scoreDrink, scoreWater, type CheersDrink, type ScoreDrinkInput } from "./score";
+import type { PointsSettings } from "./settings";
+import { getSettings, saveSettings } from "./settings-store";
 
 /**
  * The points economy against the store: scoring on log, voiding on delete,
@@ -37,7 +43,6 @@ import { mergeSettings, type PointsSettings } from "./settings";
 const HOUR_MS = 3_600_000;
 const MINUTE_MS = 60_000;
 
-const SETTINGS_KEY = "points.settings";
 const HAPPY_HOUR_KEY = "points.happyHour";
 const DRINK_OF_DAY_KEY = "points.drinkOfDay";
 
@@ -51,14 +56,7 @@ export interface DrinkOfDay {
   value: string;
 }
 
-export async function getSettings(store: Store): Promise<PointsSettings> {
-  return mergeSettings(await store.getSetting(SETTINGS_KEY));
-}
-
-export async function saveSettings(store: Store, overrides: Partial<PointsSettings>): Promise<PointsSettings> {
-  await store.setSetting(SETTINGS_KEY, overrides);
-  return mergeSettings(overrides);
-}
+export { getSettings, saveSettings };
 
 function isHappyHour(value: unknown): value is HappyHour {
   const v = value as HappyHour | null;
@@ -107,12 +105,23 @@ export function matchesDrinkOfDay(drink: Pick<DrinkLog, "name" | "category">, pi
 
 const live = (event: PointEvent) => event.voidedAt === null;
 
-/** Logs a drink and writes its points, plus any Cheers it completes or joins. */
+export interface SlotResult {
+  outcome: SlotOutcome;
+  /** The drink earned nothing (points paused or over the pace cap), so the spin changed nothing. */
+  forShow: boolean;
+}
+
+/**
+ * Logs a drink and writes its points: the M11 rules, then the games (Dead
+ * Weight, Bartender's Choice, the slot machine), then any Cheers it completes
+ * or joins. `random` is only passed by tests.
+ */
 export async function logDrink(
   store: Store,
   profile: Profile,
   input: DrinkInput,
-): Promise<{ drink: DrinkLog; entry: PointEvent | null }> {
+  random: () => number = Math.random,
+): Promise<{ drink: DrinkLog; entry: PointEvent | null; slot: SlotResult | null }> {
   const [settings, priorDrinks, waters, drinksOfDay] = await Promise.all([
     getSettings(store),
     store.listDrinks(profile.id),
@@ -126,19 +135,68 @@ export async function logDrink(
   const lastDrinkAt = prior.length > 0 ? Math.max(...prior.map((item) => item.at)) : null;
   const happyHour = await getHappyHour(store, at);
 
-  const { points, breakdown } = scoreDrink(
-    {
-      alcoholG: drink.alcoholG,
-      at,
-      priorDrinks: prior,
-      // Just before this drink: their earlier drinks only.
-      bacBefore: estimateBac(profile, priorDrinks, at).bac,
-      hydrated: isHydrated(lastDrinkAt, waters.map((water) => Date.parse(water.consumedAt)), at),
-      happyHour: happyHour !== null,
-      drinkOfDay: matchesDrinkOfDay(drink, drinksOfDay[partyDayOf(at, settings.dayCutoffHour)]),
-    },
-    settings,
-  );
+  const deadWeight = await spendDeadWeight(store, profile.id, at);
+  const assigned = await claimAssignment(store, drink);
+  const scoring: ScoreDrinkInput = {
+    alcoholG: drink.alcoholG,
+    at,
+    priorDrinks: prior,
+    // Just before this drink: their earlier drinks only.
+    bacBefore: estimateBac(profile, priorDrinks, at).bac,
+    hydrated: isHydrated(lastDrinkAt, waters.map((water) => Date.parse(water.consumedAt)), at),
+    happyHour: happyHour !== null,
+    drinkOfDay: matchesDrinkOfDay(drink, drinksOfDay[partyDayOf(at, settings.dayCutoffHour)]),
+    extra: assigned ? [{ label: "Bartender's Choice", factor: settings.bartenderMultiplier }] : [],
+  };
+  let { points, breakdown } = scoreDrink(scoring, settings);
+
+  let slot: SlotResult | null = null;
+  // Entries the slot machine adds beside the drink's own. All carry the drink id, so deleting the drink reverses them.
+  const side: PointEventInput[] = [];
+  let announce: string | null = null;
+
+  if (deadWeight) {
+    // A Dead-Weighted drink earns nothing at all: no spin, no Cheers.
+    points = 0;
+    breakdown = { ...breakdown, note: "Dead Weight" };
+  } else {
+    const spin = await spinSlot(store, profile, at, settings, random);
+    slot = { outcome: spin.outcome, forShow: points <= 0 };
+    if (!slot.forShow) {
+      const factor = slotFactor(spin.outcome, settings);
+      const extra = { profileId: profile.id, challengeId: null, source: "slot" as const, drinkId: drink.id, groupId: drink.id };
+      if (factor !== null) {
+        ({ points, breakdown } = scoreDrink(
+          { ...scoring, extra: [...(scoring.extra ?? []), { label: `slot ${slotNames[spin.outcome]}`, factor }] },
+          settings,
+        ));
+      } else if (spin.outcome === "jackpot") {
+        side.push({ ...extra, delta: settings.slotJackpotPoints, reason: "Slot machine · JACKPOT", awardKey: `slot:${drink.id}:jackpot` });
+      } else if (spin.outcome === "rob" && spin.leaderId) {
+        const take = Math.min(settings.slotRobPoints, spin.leaderPoints ?? 0);
+        const names = await store.listProfiles();
+        side.push(
+          { ...extra, delta: take, reason: `Slot machine · robbed ${nameOf(names, spin.leaderId)}`, awardKey: `slot:${drink.id}:rob` },
+          { ...extra, profileId: spin.leaderId, delta: -take, reason: `Slot machine · robbed by ${profile.name}`, awardKey: `slot:${drink.id}:robbed` },
+        );
+        await notify(store, spin.leaderId, `${profile.name} hit Rob the Leader and took ${take} from you.`);
+      } else if (spin.outcome === "forward" && spin.recipientId) {
+        const names = await store.listProfiles();
+        side.push({
+          ...extra,
+          profileId: spin.recipientId,
+          delta: points,
+          reason: `Slot machine · paid forward by ${profile.name}`,
+          awardKey: `slot:${drink.id}:forward`,
+        });
+        await notify(store, spin.recipientId, `${profile.name} hit Pay It Forward: their ${drink.name} paid you ${formatPoints(points)}.`);
+        breakdown = { ...breakdown, note: `paid forward to ${nameOf(names, spin.recipientId)}` };
+        points = 0;
+      }
+      breakdown = { ...breakdown, slot: spin.outcome };
+      if (spin.outcome !== "1x") announce = `${slotEmoji[spin.outcome]}|${profile.name} hit ${slotNames[spin.outcome]}`;
+    }
+  }
 
   const entry = await store.addPointEvent({
     profileId: profile.id,
@@ -151,9 +209,11 @@ export async function logDrink(
     awardKey: `drink:${drink.id}`,
     createdAt: drink.consumedAt,
   });
+  for (const input of side) await store.addPointEvent(input);
+  if (announce) await feedLine(store, announce.split("|")[0], announce.split("|")[1]);
 
-  await payCheers(store, drink, settings);
-  return { drink, entry };
+  if (!deadWeight) await payCheers(store, drink, settings);
+  return { drink, entry, slot };
 }
 
 async function payCheers(store: Store, drink: DrinkLog, settings: PointsSettings): Promise<void> {
@@ -210,6 +270,10 @@ async function payCheers(store: Store, drink: DrinkLog, settings: PointsSettings
 export async function removeDrink(store: Store, profileId: string, drinkId: string): Promise<boolean> {
   if (!(await store.deleteDrink(profileId, drinkId))) return false;
   const voided = await store.voidPointEvents({ drinkId });
+
+  // Remember the spin, so logging the drink again doesn't get a fresh one.
+  const spun = voided.find((event) => event.source === "drink")?.breakdown?.slot;
+  if (spun) await rememberSpin(store, profileId, spun);
 
   const groupId = voided.find((event) => event.source === "cheers")?.groupId;
   if (groupId) {

@@ -19,8 +19,8 @@ export async function POST(req: Request) {
   const input = parseDrinkInput(await readJson(req));
   if (!input.ok) return jsonError(input.error, 400);
   const store = getStore();
-  const { drink } = await logDrink(store, profile, input.value);
+  const { drink, slot } = await logDrink(store, profile, input.value);
   // Read back so a Cheers this drink completed is included.
   const [logged] = withDrinkPoints([drink], await store.listPointEvents(profile.id));
-  return Response.json(logged, { status: 201 });
+  return Response.json({ ...logged, slot }, { status: 201 });
 }

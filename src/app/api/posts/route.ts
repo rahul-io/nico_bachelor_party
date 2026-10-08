@@ -1,6 +1,9 @@
 import { del, head } from "@vercel/blob";
 import { connection } from "next/server";
 import { env } from "@/lib/env";
+import { GameError } from "@/lib/games/common";
+import { displayStore } from "@/lib/games/curses";
+import { claimGroomTax } from "@/lib/games/groom";
 import { bacSnapshot, buildFeed, forGuests, isBlobUrl } from "@/lib/feed";
 import { getRequestProfile, jsonError, readJson } from "@/lib/http";
 import { parseCoordinates, resolveLocation } from "@/lib/location";
@@ -11,7 +14,7 @@ import type { MediaType } from "@/lib/store/types";
 export async function GET(req: Request) {
   await connection();
   const viewer = await getRequestProfile(req);
-  return Response.json(await buildFeed(getStore(), viewer?.id ?? null));
+  return Response.json(await buildFeed(displayStore(getStore()), viewer?.id ?? null));
 }
 
 /** Checks an uploaded file really is an allowed photo or video of ours, and says which. */
@@ -80,5 +83,17 @@ export async function POST(req: Request) {
     locationSource: location?.source ?? null,
     eventId: event?.id ?? null,
   });
-  return Response.json(forGuests(post), { status: 201 });
+
+  // A photo can claim a Groom Tax. The post stands either way; the reply says if the claim didn't.
+  let groomTax: string | null = null;
+  if (typeof body?.groomTaxPlayerId === "string" && body.groomTaxPlayerId) {
+    try {
+      await claimGroomTax(store, profile, body.groomTaxPlayerId, post);
+      groomTax = "Groom Tax paid.";
+    } catch (error) {
+      if (!(error instanceof GameError)) throw error;
+      groomTax = error.message;
+    }
+  }
+  return Response.json({ ...forGuests(post), groomTax }, { status: 201 });
 }

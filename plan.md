@@ -354,7 +354,7 @@ How it turned out, where it matters later:
 
 Still open, moved to M12: whether a drink that earns 0 (paused or over the pace cap) may still win flat slot prizes. Recommendation stays "spin for show only".
 
-### M12 — Points economy B: games (planned, awaiting go-ahead)
+### M12 — Points economy B: games (built 2026-10-08)
 
 Six games on top of M11's ledger. Each writes ordinary ledger entries with its own source, so the history, per-person breakdown and drink-delete reversal work the same way for all of them. All random outcomes are drawn on the server.
 
@@ -401,24 +401,34 @@ Six games on top of M11's ledger. Each writes ordinary ledger entries with its o
 - Report a player with a photo and a short reason. If 2 other players (not the reporter, not the accused) upvote within 30 minutes: accused −5, reporter +3. Otherwise it expires.
 - Open reports are listed with their countdown.
 
-Checklist (in the order I'd build them):
-- [ ] Notices, system lines in the feed, display identity, spending and holds
-- [ ] Slot machine: odds settings, server draw, reel animation, Rob and Pay It Forward transfers, reversal on delete
-- [ ] Bartender's Choice: catalogue "orderable" weights, assignment, countdown, 3×
-- [ ] Groom Tax: groom setting, photo marking, retroactive doubling, admin void
-- [ ] Curses: shop, the four effects, Shield, expiry, admin revert
-- [ ] Wagers: challenge, accept/decline, reporting, dispute queue in Admin, side bets and payout maths
-- [ ] Snitch Line: report, upvotes, expiry, payout
-- [ ] Unit tests for slot odds and rerolls, wager and side-bet payouts, curse rules, snitch thresholds; end-to-end script per game
+Checklist:
+- [x] Notices (bell in the header, toast), system lines in the Captain's Log, display identity, spending
+- [x] Slot machine: odds settings, server draw, reel animation, Rob and Pay It Forward transfers, reversal on delete
+- [x] Bartender's Choice: weighted pick, assignment, countdown, one-tap log, 3×
+- [x] Groom Tax: groom setting, claim on the photo, doubling, admin void
+- [x] Curses: shop, the four effects, Shield, expiry, admin revert
+- [x] Wagers: challenge, accept/decline/withdraw, reporting, admin decides disputes, side bets and payout maths
+- [x] Snitch Line: report, upvotes, expiry, payout
+- [x] Unit tests (`src/lib/games/games.test.ts`) and an end-to-end script (`npm run test:e2e:games`, 58 checks)
 
-Open questions:
-1. **Slot re-rolls by deleting.** Deleting a drink reverses its slot result, so someone can log, see a Bust, delete, and log again for a fresh spin. Recommendation: a drink logged within 10 minutes of deleting one reuses the deleted drink's result.
-2. **"Active player"** for Bartender's Choice and Pay It Forward: anyone who has logged a drink or water in the last 3 hours?
-3. **Groom Tax photo window:** how long after the two drinks may the photo be posted? Suggest 10 minutes.
-4. **Dead Weight and flat bonuses:** does a Dead-Weighted drink still pay a Jackpot or Cheers? Suggest no: that drink earns nothing at all.
-5. **Side bets close** when the first player reports a result. OK?
-6. **Limits to stop spam:** one open snitch report per reporter, and one outgoing unanswered challenge per pair. OK?
-7. **Drinks that earn 0** (points paused, or wholly over the pace cap): do flat slot prizes (Jackpot, Rob the Leader) still pay? Recommendation: the reels spin for show only.
+Decisions (Peter said "go with M12" on 2026-10-08 without answering the open questions, so each went with the recommendation; all are settings or small changes if he wants otherwise):
+1. A drink logged within 10 minutes of deleting one reuses the deleted drink's slot result.
+2. An "active player" has logged a drink or a water in the last 3 hours.
+3. The Groom Tax photo must be posted within 10 minutes of the drinks.
+4. A Dead-Weighted drink earns nothing at all: no spin, no Cheers.
+5. Side bets close when the first player reports a result.
+6. One open Snitch Line report per reporter; one unanswered challenge per pair.
+7. A drink that earns 0 (points paused, or wholly over the pace cap) spins for show only.
+
+How it turned out, where it differs from the plan or matters later:
+- Code: `src/lib/games/` (one file per game, `common.ts` for notices, feed lines and spending, `board.ts` for what the screens read). Game state is one table, `game_records` (kind, owner, status, JSON data), reached through four store methods; a status change can be made conditional on the current status so two phones can't both accept or settle. **`npm run db:setup` must be run against the live database before this is deployed.**
+- **Display identity** is `displayStore(store)`: every guest-facing read wraps the store with it, so a Name Hijack or Avatar Swap shows on the leaderboard, chart, ledger, feed, comments, reactions, wagers and reports. Admin and exports use the plain store and see real names.
+- **Slot multipliers** (2×, 3×, Bust) join the other multipliers and are held to the maximum combined multiplier. Jackpot, Rob and Pay It Forward are separate ledger entries tied to the drink, so deleting the drink reverses them. A result that can't happen (the leader robbing himself, nobody to pay forward to) is spun again.
+- **Groom Tax** adds the drink's points again (× the setting) as its own entry; it is not held to the maximum multiplier. The groom ticks who he is drinking with; anyone else can only claim it for themselves.
+- **Snitch Line and Avatar Swap use a photo already in the Captain's Log** rather than a fresh upload, so Rahul's upload flow is untouched: post the photo first, then attach it.
+- **Wagers:** the Games view is the third tab on the Leaderboard (Standings, Trends, Games, Challenges); the Ledger moved to a link under the title. Stakes are whole numbers up to a setting (50). An admin can decide or call off any running wager, not only disputed ones.
+- **Bartender's Choice** weights by category (cocktails and beer 3, shots 2, wine and seltzer 1) rather than per drink.
+- The Snitch Line penalty can take someone below zero; spending (stakes, curses) cannot.
 
 ### M13 — Achievements and merit badges (planned, awaiting go-ahead; builds after M12)
 
@@ -500,12 +510,14 @@ Decisions from Peter (2026-10-08):
 - **Fruity** (not answered, taken as agreed): I propose the catalogue list at build time; custom and barcode-search drinks can't be fruity.
 - **Nothing is renamed.** The bottom-nav tab stays "Leaders" and the page stays "Leaderboard".
 
-Still open:
-1. **Where the Trophy case goes.** The Leaderboard has four views (Standings, Trends, Challenges, Ledger) and a fifth doesn't fit a phone. Proposal: Standings, Trends, Trophies, Challenges, with the Ledger behind a link beside "How points work".
-2. **Hydro Hero vs Landlubber (Hydro Homie).** Peter's answer reads as: one stays the all-day "most waters" award and the other becomes an hourly one, paid each hour to whoever has the most waters so far that day (like Hour Winner). Which is which, and how many points for the hourly one?
-3. **Build order:** M13 after M12 as planned, or M13 first?
+Added 2026-10-08:
+- **The trophy case lives on profile pages, and people can view each other's profiles.** That means a public profile page per person (name, avatar, points by source, trophy case), reached by tapping a name or avatar anywhere; body metrics stay private (rule 7). The existing person sheet on Standings becomes that page. Nothing is added to the Leaderboard's tabs.
+- **Water awards:** Hydro Hero is the all-day "most waters" achievement. Landlubber (Hydro Homie) changes from the M11 daily award to an hourly one, +1 each hour to whoever has the most waters so far that day (same rule as Hour Winner). Peter agreed to the split; which name is hourly was my pick. This change ships with M13, so there is no gap without a daily water award.
+- **Order:** M12 was built first, so its feed lines, notices and the "Groom Taxes" / "curses received" metrics are all available to M13.
 
-Size and order: M11 is the foundation and is built. M13 builds after M12 unless you say otherwise (see its dependency note).
+Waiting only for Peter's go-ahead to build.
+
+Size and order: M11 is the foundation and is built. M12 is built too. M13 is next, on Peter's go-ahead.
 
 M12 is six separate features; each is usable on its own, so they can go out one at a time in the order above.
 

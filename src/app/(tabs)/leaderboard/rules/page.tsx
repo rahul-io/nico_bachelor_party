@@ -99,10 +99,82 @@ export default function RulesPage() {
         </Rule>
       </Section>
 
+      <Section title="Slot machine">
+        <Rule>Every drink that earns points spins. The result is drawn when you log it; the reels just show it.</Rule>
+        <Rule points={`${s.slotOdds1x}%`}>1×: no change.</Rule>
+        <Rule points={`${s.slotOdds2x}%`}>2×: the drink scores double.</Rule>
+        <Rule points={`${s.slotOdds3x}%`}>3×: the drink scores triple.</Rule>
+        <Rule points={`${s.slotOddsBust}%`}>Bust: the drink scores {s.slotBustMultiplier}×.</Rule>
+        <Rule points={`${s.slotOddsJackpot}%`}>Jackpot: +{s.slotJackpotPoints} on top.</Rule>
+        <Rule points={`${s.slotOddsRob}%`}>
+          Rob the Leader: take {s.slotRobPoints} from first place. If that is you, it spins again.
+        </Rule>
+        <Rule points={`${s.slotOddsForward}%`}>
+          Pay It Forward: the drink&apos;s points go to a random other player who has logged in the last{" "}
+          {s.activeHours} hours.
+        </Rule>
+        <Rule>
+          Slot multipliers count towards the {s.maxMultiplier}× maximum. Delete a drink and log another within{" "}
+          {s.slotReuseMinutes} minutes and you get the same result, not a new spin.
+        </Rule>
+      </Section>
+
+      <Section title="Bartender's Choice">
+        <Rule points={`${s.bartenderMultiplier}×`}>
+          When an admin pours a round, everyone playing gets a drink on the Grog Log. Log exactly that within{" "}
+          {s.bartenderMinutes} minutes.
+        </Rule>
+      </Section>
+
+      <Section title="Groom Tax">
+        <Rule points={`${s.groomMultiplier}×`}>
+          Log a drink within {s.groomWindowMinutes} minutes of the groom logging one, then either of you posts the
+          photo within {s.groomPhotoMinutes} minutes and marks it Groom Tax. Your drink&apos;s points are multiplied.
+        </Rule>
+        <Rule points={`+${s.groomPoints}`}>For the groom, each time.</Rule>
+      </Section>
+
+      <Section title="Wagers">
+        <Rule>
+          Challenge someone on the Games tab for up to {s.wagerMaxStake} points each. They have{" "}
+          {s.wagerExpiryMinutes} minutes to accept. Stakes are held once it is accepted.
+        </Rule>
+        <Rule>Both of you report who won. If you agree, the winner takes both stakes. If not, an admin decides.</Rule>
+        <Rule>
+          Anyone else can back a side until the first result is reported. The side pot is split among those who
+          backed the winner, in proportion to what they staked. If nobody backed the winner, side bets are returned.
+        </Rule>
+      </Section>
+
+      <Section title="Curses">
+        <Rule>Bought with your points. You can&apos;t spend below zero, and the target is told who did it.</Rule>
+        <Rule points={String(s.curseNameCost)}>
+          Name Hijack: they show under a name you choose for {s.curseNameMinutes} minutes.
+        </Rule>
+        <Rule points={String(s.curseDeadWeightCost)}>Dead Weight: their next drink scores nothing at all.</Rule>
+        <Rule points={String(s.curseAvatarCost)}>
+          Avatar Swap: their picture becomes a photo you pick from the Captain&apos;s Log, until midnight.
+        </Rule>
+        <Rule points={String(s.curseShieldCost)}>
+          Shield: blocks the next curse aimed at you. Whoever sent it still pays.
+        </Rule>
+        <Rule>One curse of each kind per person at a time.</Rule>
+      </Section>
+
+      <Section title="Snitch Line">
+        <Rule>
+          Report someone with a photo from the Captain&apos;s Log and a reason. If {s.snitchVotes} other players
+          upvote within {s.snitchMinutes} minutes, it stands.
+        </Rule>
+        <Rule points={`−${s.snitchPenalty}`}>For the accused.</Rule>
+        <Rule points={`+${s.snitchReward}`}>For whoever reported it.</Rule>
+      </Section>
+
       <Section title="Deleting">
         <Rule>
-          Deleting a drink or a water takes back its points. If that leaves a Cheers short of people, the Cheers is
-          taken back for everyone in it. Reversed entries stay in the Ledger, struck through.
+          Deleting a drink or a water takes back its points and anything it set off: a Jackpot, a robbery, points
+          paid forward, a Groom Tax. If it leaves a Cheers short of people, the Cheers is taken back for everyone in
+          it. Reversed entries stay in the Ledger, struck through.
         </Rule>
       </Section>
     </div>

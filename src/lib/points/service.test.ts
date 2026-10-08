@@ -57,7 +57,7 @@ afterEach(() => vi.useRealTimers());
 describe("logging", () => {
   it("scores a drink when it is logged and shows the working", async () => {
     const [a] = await crew(1);
-    const { drink, entry } = await logDrink(store, a, beer);
+    const { drink, entry } = await logDrink(store, a, beer, () => 0);
     expect(entry).toMatchObject({ source: "drink", delta: 3, drinkId: drink.id, reason: "Pacifico", voidedAt: null });
     expect(await total(a.id)).toBe(3);
 
@@ -72,7 +72,7 @@ describe("logging", () => {
 
     expect((await logWater(store, a)).entry?.delta).toBe(1);
     vi.advanceTimersByTime(MIN);
-    const first = await logDrink(store, a, beer);
+    const first = await logDrink(store, a, beer, () => 0);
     expect(first.entry?.delta).toBe(18);
     expect(first.entry?.breakdown?.multipliers.map((item) => item.label)).toEqual([
       "hydration",
@@ -82,37 +82,37 @@ describe("logging", () => {
 
     vi.advanceTimersByTime(MIN);
     // The boost is spent, and a cocktail is not the Drink of the Day.
-    expect((await logDrink(store, a, { ...beer, name: "Mai Tai", category: "cocktail" })).entry?.delta).toBe(6);
+    expect((await logDrink(store, a, { ...beer, name: "Mai Tai", category: "cocktail" }, () => 0)).entry?.delta).toBe(6);
 
     await stopHappyHour(store);
     vi.advanceTimersByTime(MIN);
-    expect((await logDrink(store, a, beer)).entry?.delta).toBe(6);
+    expect((await logDrink(store, a, beer, () => 0)).entry?.delta).toBe(6);
     expect(await total(a.id)).toBe(31);
   });
 
   it("matches a Drink of the Day by name, ignoring case", async () => {
     const [a] = await crew(1);
     await setDrinkOfDay(store, "2026-10-09", { type: "drink", value: "pacifico" });
-    expect((await logDrink(store, a, beer)).entry?.delta).toBe(6);
+    expect((await logDrink(store, a, beer, () => 0)).entry?.delta).toBe(6);
     await setDrinkOfDay(store, "2026-10-09", null);
     vi.advanceTimersByTime(MIN);
-    expect((await logDrink(store, a, beer)).entry?.delta).toBe(3);
+    expect((await logDrink(store, a, beer, () => 0)).entry?.delta).toBe(3);
   });
 
   it("uses the party day, so 2am still gets yesterday's Drink of the Day", async () => {
     const [a] = await crew(1);
     await setDrinkOfDay(store, "2026-10-09", { type: "category", value: "beer" });
     vi.setSystemTime(Date.parse("2026-10-10T09:00:00Z")); // 2am Saturday
-    expect((await logDrink(store, a, beer)).entry?.delta).toBe(6);
+    expect((await logDrink(store, a, beer, () => 0)).entry?.delta).toBe(6);
     vi.setSystemTime(Date.parse("2026-10-10T11:30:00Z")); // 4:30am Saturday
-    expect((await logDrink(store, a, beer)).entry?.delta).toBe(3);
+    expect((await logDrink(store, a, beer, () => 0)).entry?.delta).toBe(3);
   });
 
   it("logs a drink over the BAC ceiling for zero points", async () => {
     const [a] = await crew(1);
-    await logDrink(store, a, { ...beer, name: "Punch bowl", alcoholG: 14 * 9 });
+    await logDrink(store, a, { ...beer, name: "Punch bowl", alcoholG: 14 * 9 }, () => 0);
     vi.advanceTimersByTime(MIN);
-    const { entry } = await logDrink(store, a, beer);
+    const { entry } = await logDrink(store, a, beer, () => 0);
     expect(entry).toMatchObject({ delta: 0 });
     expect(entry?.breakdown?.paused).toBe(true);
     expect((await store.listDrinks(a.id)).length).toBe(2);
@@ -133,14 +133,14 @@ describe("logging", () => {
   it("reads edited settings", async () => {
     const [a] = await crew(1);
     await saveSettings(store, { pointsPerDrink: 5 });
-    expect((await logDrink(store, a, beer)).entry?.delta).toBe(5);
+    expect((await logDrink(store, a, beer, () => 0)).entry?.delta).toBe(5);
   });
 });
 
 describe("deleting", () => {
   it("reverses a drink's points but keeps the entry in the ledger", async () => {
     const [a] = await crew(1);
-    const { drink } = await logDrink(store, a, beer);
+    const { drink } = await logDrink(store, a, beer, () => 0);
     expect(await removeDrink(store, a.id, drink.id)).toBe(true);
     expect(await removeDrink(store, a.id, drink.id)).toBe(false);
     expect(await total(a.id)).toBe(0);
@@ -157,7 +157,7 @@ describe("deleting", () => {
     expect(await total(a.id)).toBe(0);
     // With the water gone the next drink has no boost.
     vi.advanceTimersByTime(MIN);
-    expect((await logDrink(store, a, beer)).entry?.delta).toBe(3);
+    expect((await logDrink(store, a, beer, () => 0)).entry?.delta).toBe(3);
   });
 });
 
@@ -169,7 +169,7 @@ describe("Cheers", () => {
     const people = await crew(6);
     const drinks = [];
     for (const person of people.slice(0, 4)) {
-      drinks.push((await logDrink(store, person, beer)).drink);
+      drinks.push((await logDrink(store, person, beer, () => 0)).drink);
       vi.advanceTimersByTime(MIN);
     }
     for (const person of people.slice(0, 4)) {
@@ -177,16 +177,16 @@ describe("Cheers", () => {
       expect(await total(person.id)).toBe(6);
     }
 
-    await logDrink(store, people[4], beer);
+    await logDrink(store, people[4], beer, () => 0);
     expect(await cheersFor(people[4].id)).toHaveLength(1);
     // A second drink in the same round is not a second Cheers.
     vi.advanceTimersByTime(MIN / 2);
-    await logDrink(store, people[0], beer);
+    await logDrink(store, people[0], beer, () => 0);
     expect(await cheersFor(people[0].id)).toHaveLength(1);
 
     // Too late for the sixth.
     vi.advanceTimersByTime(6 * MIN);
-    await logDrink(store, people[5], beer);
+    await logDrink(store, people[5], beer, () => 0);
     expect(await cheersFor(people[5].id)).toHaveLength(0);
 
     const status = await buildStatus(store, Date.now());
@@ -199,7 +199,7 @@ describe("Cheers", () => {
     const people = await crew(5);
     const drinks = [];
     for (const person of people) {
-      drinks.push((await logDrink(store, person, beer)).drink);
+      drinks.push((await logDrink(store, person, beer, () => 0)).drink);
       vi.advanceTimersByTime(30_000);
     }
     // Five in it: losing one still leaves four.
@@ -218,9 +218,9 @@ describe("Cheers", () => {
 describe("settling awards", () => {
   it("pays an hour once, however many times it is asked", async () => {
     const [a, b] = await crew(2);
-    await logDrink(store, a, { ...beer, alcoholG: 28 });
+    await logDrink(store, a, { ...beer, alcoholG: 28 }, () => 0);
     vi.advanceTimersByTime(10 * MIN);
-    await logDrink(store, b, beer);
+    await logDrink(store, b, beer, () => 0);
 
     expect(await settleDue(store, Date.now(), true)).toBe(0); // the hour is still running
     vi.setSystemTime(T + HOUR + MIN);
@@ -241,17 +241,17 @@ describe("settling awards", () => {
 
   it("skips an hour in which only one person logged", async () => {
     const [a] = await crew(1);
-    await logDrink(store, a, beer);
+    await logDrink(store, a, beer, () => 0);
     vi.setSystemTime(T + HOUR + MIN);
     expect(await settleDue(store, Date.now(), true)).toBe(0);
   });
 
   it("pays the day's awards after the 4am cutoff, not before", async () => {
     const [a, b] = await crew(2);
-    await logDrink(store, a, { ...beer, alcoholG: 14 * 3 });
+    await logDrink(store, a, { ...beer, alcoholG: 14 * 3 }, () => 0);
     await logWater(store, b);
     vi.advanceTimersByTime(2 * HOUR);
-    await logDrink(store, b, beer);
+    await logDrink(store, b, beer, () => 0);
 
     vi.setSystemTime(Date.parse("2026-10-10T10:59:00Z")); // 3:59am
     await settleDue(store, Date.now(), true);

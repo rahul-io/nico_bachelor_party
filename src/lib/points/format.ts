@@ -22,8 +22,9 @@ const trim = (value: number) => String(Math.round(value * 100) / 100);
 
 /** "1.4 std × 3 = 4.2 × 1.5 hydration = 6.3" */
 export function describeBreakdown(breakdown: DrinkBreakdown, delta: number): string {
-  const { std, counted, rate, multipliers, multiplier, paused } = breakdown;
+  const { std, counted, rate, multipliers, multiplier, paused, note } = breakdown;
   if (paused) return `${trim(std)} std · points paused`;
+  if (note) return `${trim(std)} std · ${note}`;
 
   let line = `${trim(std)} std`;
   if (counted < std) line += `, ${trim(counted)} under the pace cap`;
@@ -44,4 +45,9 @@ export const sourceLabels: Record<PointSource, string> = {
   hourly: "Hourly awards",
   award: "Daily awards",
   admin: "Challenges and admin",
+  slot: "Slot machine",
+  groom: "Groom Tax",
+  wager: "Wagers",
+  curse: "Curses",
+  snitch: "Snitch Line",
 };

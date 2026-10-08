@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { useMarkNoticesSeen } from "@/components/shell/NoticeBell";
 import { Toast } from "@/components/ui/Toast";
+import { useGamesMe } from "@/hooks/useGames";
 import { useNow } from "@/hooks/useNow";
 import { usePointsStatus } from "@/hooks/usePointsStatus";
 import { formatDelta } from "@/lib/points/format";
@@ -37,6 +39,10 @@ function subscribeSeen(onChange: () => void) {
  */
 export function PointsBanner() {
   const status = usePointsStatus();
+  const me = useGamesMe();
+  const markNoticesSeen = useMarkNoticesSeen();
+  // Things that happened to this person come before general news.
+  const notices = me?.notices.filter((item) => !item.seen) ?? [];
   const now = useNow(30_000);
   const seen = useSyncExternalStore(subscribeSeen, readSeen, () => null);
 
@@ -62,7 +68,14 @@ export function PointsBanner() {
           Happy Hour · {happyHour.multiplier}× drink points · {minutesLeft} min left
         </p>
       )}
-      {newest && (
+      {notices.length > 0 && (
+        <Toast
+          aboveNav
+          text={`${notices[0].text}${notices.length > 1 ? ` · and ${notices.length - 1} more` : ""}`}
+          onDismiss={() => void markNoticesSeen()}
+        />
+      )}
+      {newest && notices.length === 0 && (
         <Toast
           aboveNav
           text={`${newest.profileName}: ${newest.text} ${formatDelta(newest.delta)}${

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { inputClass } from "@/components/ui/Field";
 import { Status } from "@/components/ui/Status";
 import { useAction } from "@/hooks/useAction";
+import { useGamesBoard, useGamesMe } from "@/hooks/useGames";
 import { useIdentity } from "@/hooks/useProfile";
 import { useSchedule } from "@/hooks/useSchedule";
 import { apiFetch } from "@/lib/api";
@@ -35,12 +36,17 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
   const [eventId, setEventId] = useState("");
   const [progress, setProgress] = useState(0);
   const [locationNote, setLocationNote] = useState<string | null>(null);
+  // Groom Tax: the groom names the player; anyone else can only claim it for themselves.
+  const groomId = useGamesMe()?.groomId ?? null;
+  const people = useGamesBoard()?.people ?? [];
+  const [taxPlayerId, setTaxPlayerId] = useState("");
 
   function clear() {
     if (draft) URL.revokeObjectURL(draft.previewUrl);
     setDraft(null);
     setCaption("");
     setEventId("");
+    setTaxPlayerId("");
     setProgress(0);
   }
 
@@ -82,6 +88,7 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
 
   async function post() {
     if (!draft || !identity) return;
+    let note: string | null = null;
     const ok = await run(async () => {
       let url: string;
       let previewUrl: string | null = null;
@@ -96,11 +103,21 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
       }
       // The server picks between these: photo GPS, then the tagged event, then the device.
       const device = !draft.exif && sharing === "yes" ? await currentPosition() : null;
-      await apiFetch("/api/posts", {
+      const posted = await apiFetch<{ groomTax: string | null }>("/api/posts", {
         method: "POST",
-        body: { url, previewUrl, caption, eventId: eventId || null, exif: draft.exif, device },
+        body: {
+          url,
+          previewUrl,
+          caption,
+          eventId: eventId || null,
+          exif: draft.exif,
+          device,
+          groomTaxPlayerId: taxPlayerId || null,
+        },
       });
-    }, "Posted");
+      note = posted.groomTax;
+    });
+    if (ok) setStatus({ text: note ? `Posted. ${note}` : "Posted" });
     if (ok) {
       clear();
       onPosted();
@@ -167,6 +184,40 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
             ))}
           </select>
         </label>
+      )}
+
+      {groomId && identity && draft.kind === "image" && (
+        identity.id === groomId ? (
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-muted">Groom Tax (optional)</span>
+            <select
+              value={taxPlayerId}
+              onChange={(event) => setTaxPlayerId(event.target.value)}
+              disabled={busy}
+              className={inputClass}
+            >
+              <option value="">Not a Groom Tax</option>
+              {people
+                .filter((person) => person.id !== groomId)
+                .map((person) => (
+                  <option key={person.id} value={person.id}>
+                    Drinking with {person.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+        ) : (
+          <label className="flex min-h-tap cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={taxPlayerId === identity.id}
+              onChange={(event) => setTaxPlayerId(event.target.checked ? identity.id : "")}
+              disabled={busy}
+              className="size-5 shrink-0 accent-accent"
+            />
+            <span className="text-sm font-medium">Groom Tax: this is me drinking with the groom</span>
+          </label>
+        )
       )}
 
       {draft.exif ? (

@@ -22,6 +22,8 @@ export interface ScoreDrinkInput {
   hydrated: boolean;
   happyHour: boolean;
   drinkOfDay: boolean;
+  /** Further multipliers from the games (slot machine, Bartender's Choice). */
+  extra?: Array<{ label: string; factor: number }>;
 }
 
 /** The part of a pour (in standard drinks) that fits under the rolling-hour pace cap. */
@@ -52,6 +54,7 @@ export function scoreDrink(input: ScoreDrinkInput, settings: PointsSettings): { 
   }
   if (input.happyHour) multipliers.push({ label: "Happy Hour", factor: settings.happyHourMultiplier });
   if (input.drinkOfDay) multipliers.push({ label: "Drink of the Day", factor: settings.drinkOfDayMultiplier });
+  multipliers.push(...(input.extra ?? []));
 
   const stacked = multipliers.reduce((product, item) => product * item.factor, 1);
   const multiplier = Math.min(stacked, settings.maxMultiplier);

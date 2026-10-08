@@ -12,7 +12,7 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 - Never push without Peter asking. Never commit `.env*` files other than `.env.example`.
 - Commits use conventional prefixes (`chore:`, `feat:`, `fix:`).
 - **Use `npm run dev:mock` for anything that creates test data** (profiles, posts, comments, events). It ignores `.env.local` and runs on in-memory data; local admin password is `admin`. Plain `npm run dev` talks to the live site's database.
-- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run test:e2e` (gate and accounts, against `dev:mock`), `npm run test:e2e:points` (drink points, water, multipliers, Cheers and reversal, against a fresh `dev:mock`), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
+- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run test:e2e` (gate and accounts, against `dev:mock`), `npm run test:e2e:points` and `npm run test:e2e:games` (drink points and the games; each against a fresh `dev:mock`), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
 - With `.env.local` filled in, local dev reads and writes the **live** Neon database and Blob store. Delete any test profiles/posts you create (deleting a profile in Admin removes its drinks, points, posts and files), or blank those variables to use mock data. Shell is PowerShell (no `&&`).
 
 ## Stack
@@ -44,7 +44,9 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 
 ## Planned, not built
 
-**M12 (games) and M13 (achievements and merit badges)** are specified in plan.md and wait for Peter's go-ahead; M13 builds after M12. Both sit on the M11 points economy below and follow its rules. For M13 in particular:
+**M13 (achievements and merit badges)** is specified in plan.md and waits for Peter's go-ahead. It sits on the points economy and the games below and follows their rules. For M13 in particular:
+- The trophy case goes on a public profile page (people can view each other's profiles); body metrics stay private.
+- "Designated Driver" and "Take the Wheel Cap'n" (both at 0.08%) are built exactly as Peter wrote them: his explicit exception to rule 5 for those two badges only.
 - Badges come from three sources behind one evaluator interface: manual, rule-based (a JSON rule built in Admin; `describeRule()` writes the plain-English preview from the same rule the evaluator runs) and coded (pure functions; read-only in Admin).
 - Merit badges are checked on the event that can earn them and revoked when that drink, water or photo is deleted. Achievement holders are computed on read while the day runs and written at the cutoff by the M11 settlement.
 - Badge points go through the ledger (`badge` source, unique key). Editing a badge's points affects future awards only unless an admin runs "Recalculate all".
@@ -63,7 +65,20 @@ Logging a drink or a water earns points automatically; hourly and daily awards a
 - **A "day" is 4am to 4am party time** (`dayCutoffHour`), via `partyDayOf` / `partyDayBounds`.
 - **Water is not a drink.** It lives in `water_logs` so drink counts and BAC never see it.
 - **The BAC ceiling pauses points without commentary:** "points paused" and nothing more, consistent with rule 5.
+- **The slot machine spins on every drink**, so anything asserting exact drink points must pin it: tests pass `random` to `logDrink`, and the e2e scripts set the odds to 100% 1×.
 - **Polling:** every tab polls `/api/points/status` (Happy Hour, Drink of the Day, the latest dispatches). Keep it small. `/api/points` returns the newest 150 entries; `?profile=<id>` returns one person's entries and their points by source.
+
+## Games (M12)
+
+Slot machine, Bartender's Choice, Groom Tax, curses, wagers with side bets, and the Snitch Line. Rules as built are in plan.md under M12 and on the in-app "How points work" page.
+
+- **Code:** `src/lib/games/`, one file per game. `common.ts` has `notify` (per-person notices: the bell and a toast), `feedLine` (system lines in the Captain's Log), `spend` (nobody goes below zero) and `GameError` (a refusal whose message is shown to the player as is). Player routes go through `playerAction` in `games/http.ts`.
+- **State is `game_records`:** one table of small JSON rows (`kind`, owner, `status`, `data`); each game's file documents its own shape. Use `updateRecord(id, patch, expectStatus)` for any step that must happen once (accept, settle, use up a Shield). Money always moves through the ledger with an `award_key`, so a repeated step can't pay twice.
+- **Display identity:** wrap the store with `displayStore(getStore())` in every guest-facing read that shows names or avatars. It applies Name Hijack and Avatar Swap. Admin routes and exports use the plain store. Login names never change.
+- **Everything a drink sets off carries its `drink_id`** (Jackpot, robbery, points paid forward, Groom Tax), so deleting the drink reverses it. A deleted drink's slot result is remembered and reused, so delete-and-relog is not a re-spin.
+- **Random outcomes are drawn on the server** (`spinSlot`, `assignDrinks`); the reels in the browser only display the result that is already in the ledger.
+- **Photos for Avatar Swap and the Snitch Line are picked from the feed** and stored as the preview URL, never the original (rule 11). Don't add a second upload path.
+- `/api/games/me` is polled on every tab (balance, notices, Bartender's order, own curses); `/api/games` is the shared board. Keep both small.
 
 ## Access and identity
 
@@ -120,6 +135,7 @@ src/
     limits.ts                      limits shared by browser and server
     leaderboard.ts, trends.ts      server-side totals, points history, chart series
     points/                        the points economy: settings, pure rules (score, awards), service, formatting
+    games/                         the M12 games, one file each, plus shared notices, feed lines, spending
     avatar.ts, chart.ts            avatar storage rules; tick/label layout helpers
     media.ts, feed.ts, upload.ts   upload rules; feed + blob cleanup (server); browser upload helpers
     export.ts, feed-assemble.ts    export names + CSV and feed joining, shared with scripts/ (no runtime imports allowed)

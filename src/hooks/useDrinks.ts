@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { config } from "@/config";
 import { apiFetch } from "@/lib/api";
@@ -10,6 +11,7 @@ import { useIdentity } from "./useProfile";
 /** This device's drink log, newest first, with optimistic add/remove. */
 export function useDrinks() {
   const identity = useIdentity();
+  const [spin, setSpin] = useState<LoggedDrink["slot"]>(null);
   const { data, error, isLoading, mutate } = useSWR<LoggedDrink[]>(
     identity ? "/api/drinks" : null,
     (path: string) => apiFetch<LoggedDrink[]>(path),
@@ -30,9 +32,11 @@ export function useDrinks() {
       profileId: identity?.id ?? "",
       consumedAt: new Date().toISOString(),
     };
+    let logged: LoggedDrink | null = null;
     await mutate(
       async (current = []) => {
         const created = await apiFetch<LoggedDrink>("/api/drinks", { method: "POST", body: input });
+        logged = created;
         return [created, ...current];
       },
       {
@@ -41,6 +45,8 @@ export function useDrinks() {
         revalidate: false,
       },
     );
+    // The reply carries the slot machine's result for this drink.
+    setSpin((logged as LoggedDrink | null)?.slot ?? null);
   }
 
   async function removeDrink(id: string) {
@@ -57,5 +63,5 @@ export function useDrinks() {
     );
   }
 
-  return { drinks: data, error, isLoading, addDrink, removeDrink };
+  return { drinks: data, error, isLoading, addDrink, removeDrink, spin, clearSpin: () => setSpin(null) };
 }

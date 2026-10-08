@@ -2,6 +2,7 @@ import { del } from "@vercel/blob";
 import { estimateBac } from "./bac";
 import { env } from "./env";
 import { assembleFeed } from "./feed-assemble";
+import { listFeedLines } from "./games/board";
 import { REACTIONS } from "./reactions";
 import type { Feed, FeedComment, FeedPost, Post, PostDetail, Profile, Store } from "./store/types";
 
@@ -42,8 +43,8 @@ async function feedPosts(store: Store, viewerId: string | null): Promise<{ posts
  * flagged as "mine". Original file URLs are withheld; see `forGuests`.
  */
 export async function buildFeed(store: Store, viewerId: string | null = null): Promise<Feed> {
-  const { posts } = await feedPosts(store, viewerId);
-  return { uploadsEnabled: env.blobToken !== null, posts: posts.map(forGuests) };
+  const [{ posts }, lines] = await Promise.all([feedPosts(store, viewerId), listFeedLines(store)]);
+  return { uploadsEnabled: env.blobToken !== null, posts: posts.map(forGuests), lines };
 }
 
 /** Every post with its original file URL. Server-side use only (the admin export). */

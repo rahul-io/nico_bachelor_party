@@ -49,6 +49,8 @@ const suffix = Math.random().toString(36).slice(2, 8);
 const beer = { name: "Pacifico", volumeOz: 12, abv: 0.045, category: "beer" };
 const std = (12 * 29.5735 * 0.045 * 0.789) / 14;
 const round = (points) => Math.round(points * 10) / 10;
+// The slot machine (M12) spins on every drink; pin it to 1× so the sums here are exact.
+const noSlot = { slotOdds1x: 100, slotOdds2x: 0, slotOdds3x: 0, slotOddsBust: 0, slotOddsJackpot: 0, slotOddsRob: 0, slotOddsForward: 0 };
 
 // ---- Five phones and an admin
 const phones = [];
@@ -81,11 +83,11 @@ const pointsOf = async (phone) =>
 check("guests can read the rules", (await a.call("GET", "/api/points/settings")).data?.paceCap === 10);
 check("guests can't edit them", (await a.call("PUT", "/api/admin/points/settings", { paceCap: 2 })).status === 401);
 check("guests can't start a Happy Hour", (await a.call("POST", "/api/admin/points/happy-hour", {})).status === 401);
-check("out-of-range setting is refused", (await admin.call("PUT", "/api/admin/points/settings", { paceCap: 0 })).status === 400);
-await admin.call("DELETE", "/api/admin/points/settings");
+check("out-of-range setting is refused", (await admin.call("PUT", "/api/admin/points/settings", { ...noSlot, paceCap: 0 })).status === 400);
+await admin.call("PUT", "/api/admin/points/settings", noSlot);
 await admin.call("DELETE", "/api/admin/points/happy-hour");
 // Cheers off for the first half, so each drink's own points can be checked exactly.
-const edited = await admin.call("PUT", "/api/admin/points/settings", { paceCap: 2.5, cheersMinPeople: 30 });
+const edited = await admin.call("PUT", "/api/admin/points/settings", { ...noSlot, paceCap: 2.5, cheersMinPeople: 30 });
 check("admin edits settings", edited.status === 200 && edited.data?.paceCap === 2.5 && edited.data?.pointsPerDrink === 3);
 
 // ---- Base rate, water, hydration, pace cap
@@ -128,7 +130,7 @@ check(
   JSON.stringify(stacked.data),
 );
 
-await admin.call("PUT", "/api/admin/points/settings", { paceCap: 2.5, cheersMinPeople: 30, maxMultiplier: 1.5 });
+await admin.call("PUT", "/api/admin/points/settings", { ...noSlot, paceCap: 2.5, cheersMinPeople: 30, maxMultiplier: 1.5 });
 await b.call("POST", "/api/waters");
 const capped = await b.call("POST", "/api/drinks", beer);
 check("the maximum multiplier holds", capped.data?.points === round(Math.min(std, 2.5 - std) * 3 * 1.5), JSON.stringify(capped.data));
@@ -140,7 +142,7 @@ for (const day of today) await admin.call("PUT", "/api/admin/points/drink-of-day
 
 // ---- Cheers and reversal
 // a and b logged moments ago, so they count towards the round: five people are needed here.
-await admin.call("PUT", "/api/admin/points/settings", { cheersMinPeople: 5 });
+await admin.call("PUT", "/api/admin/points/settings", { ...noSlot, cheersMinPeople: 5 });
 const before = await Promise.all([b, c, d, e].map(pointsOf));
 const round1 = [];
 for (const phone of [b, c, d]) round1.push((await phone.call("POST", "/api/drinks", beer)).data);

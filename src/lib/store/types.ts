@@ -78,7 +78,18 @@ export interface Challenge {
 export type ChallengeInput = Pick<Challenge, "title" | "description" | "points" | "active">;
 
 /** What produced a ledger entry. */
-export type PointSource = "admin" | "drink" | "water" | "cheers" | "hourly" | "award";
+export type PointSource =
+  | "admin"
+  | "drink"
+  | "water"
+  | "cheers"
+  | "hourly"
+  | "award"
+  | "slot"
+  | "groom"
+  | "wager"
+  | "curse"
+  | "snitch";
 
 /** How a drink's points were worked out, kept with the entry so the history can show it. */
 export interface DrinkBreakdown {
@@ -93,6 +104,10 @@ export interface DrinkBreakdown {
   multiplier: number;
   /** True when the estimated BAC was at or over the ceiling, so the drink earned nothing. */
   paused: boolean;
+  /** The slot machine result drawn for this drink. */
+  slot?: string;
+  /** Why the drink earned nothing despite the sums, e.g. "Dead Weight" or "paid forward to Sam". */
+  note?: string;
 }
 
 /**
@@ -207,6 +222,8 @@ export interface Feed {
   /** False in mock mode, where only small images can be posted. */
   uploadsEnabled: boolean;
   posts: FeedPost[];
+  /** Short system lines shown between the photos ("Jake hit JACKPOT"). */
+  lines: Array<{ id: string; emoji: string; text: string; createdAt: string }>;
 }
 
 export type TrendMetric = "points" | "drinks" | "bac";
@@ -220,6 +237,24 @@ export interface Trends {
   players: TrendPlayer[];
 }
 
+/**
+ * A row of game state (M12): a notice, a feed line, a curse, a wager, a side
+ * bet, a snitch report… `kind` says which, `data` holds its fields, and
+ * `status` is its lifecycle ("open", "accepted", "done"…). The typed shapes
+ * live in src/lib/games.
+ */
+export interface GameRecord {
+  id: string;
+  kind: string;
+  /** Who it belongs to, if anyone; deleted with that profile. */
+  profileId: string | null;
+  status: string;
+  data: Record<string, unknown>;
+  createdAt: string;
+}
+
+export type GameRecordInput = Pick<GameRecord, "kind" | "profileId" | "status" | "data">;
+
 export interface PointHistoryEntry extends PointEvent {
   profileName: string;
 }
@@ -229,6 +264,8 @@ export interface LoggedDrink extends DrinkLog {
   points: number | null;
   /** "1.4 std × 3 = 4.2", for the line under the drink. */
   pointsLine: string | null;
+  /** Only on the reply to logging it: what the slot machine landed on. */
+  slot?: { outcome: string; forShow: boolean } | null;
 }
 
 export interface LoggedWater extends WaterLog {
@@ -299,6 +336,20 @@ export interface Store {
   addPointEvent(input: PointEventInput): Promise<PointEvent | null>;
   /** Marks live entries as reversed; returns the ones it voided. */
   voidPointEvents(match: { drinkId: string } | { groupId: string }): Promise<PointEvent[]>;
+
+  /** Newest first. */
+  listRecords(kind: string, status?: string): Promise<GameRecord[]>;
+  getRecord(id: string): Promise<GameRecord | null>;
+  addRecord(input: GameRecordInput): Promise<GameRecord>;
+  /**
+   * Changes a record's status and/or data. With `expectStatus`, only if it
+   * still has that status, so two people acting at once can't both succeed.
+   */
+  updateRecord(
+    id: string,
+    patch: { status?: string; data?: Record<string, unknown> },
+    expectStatus?: string,
+  ): Promise<GameRecord | null>;
 
   /** Small JSON values edited in Admin (points settings, Happy Hour, Drink of the Day). */
   getSetting(key: string): Promise<unknown | null>;

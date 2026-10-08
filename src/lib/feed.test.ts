@@ -36,6 +36,7 @@ const stored = [
 
 const fakeStore = {
   listPosts: async () => stored,
+  listRecords: async () => [],
   listProfiles: async () => [],
   reactionCounts: async () => [],
   commentCounts: async () => [],
