@@ -1,6 +1,6 @@
-# Nico's Bachelor Party
+# The Crider Cup
 
-Mobile-first web app for the weekend: schedule, sobriety tracker, leaderboard, photo feed, admin.
+Mobile-first web app for Nico's bachelor party weekend: schedule, sobriety tracker, leaderboard, photo feed, admin.
 
 ```bash
 npm install

@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: config.partyName,
     short_name: config.shortName,
-    description: `${config.partyName} · ${config.location}`,
+    description: `${config.tagline} · ${config.location}`,
     start_url: "/schedule",
     scope: "/",
     display: "standalone",

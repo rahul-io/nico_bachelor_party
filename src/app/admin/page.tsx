@@ -11,6 +11,7 @@ import { PeoplePanel } from "@/components/admin/PeoplePanel";
 import { PointsPanel } from "@/components/admin/PointsPanel";
 import { SchedulePanel } from "@/components/admin/SchedulePanel";
 import { Segmented } from "@/components/ui/Segmented";
+import { config } from "@/config";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
@@ -62,7 +63,7 @@ export default function AdminPage() {
           </button>
         )}
       </div>
-      <h1 className="mb-4 font-display text-2xl font-bold">Admin</h1>
+      <h1 className="mb-4 font-display text-2xl font-bold">{config.partyName} · Admin</h1>
 
       {!session ? (
         <p className="text-muted">Loading…</p>

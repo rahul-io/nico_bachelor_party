@@ -3,6 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { ProfileForm } from "@/components/profile/ProfileForm";
+import { Logo } from "@/components/shell/Logo";
 import { config } from "@/config";
 import { useProfile } from "@/hooks/useProfile";
 import type { Profile } from "@/lib/store/types";
@@ -30,10 +31,13 @@ function ProfileBody({ editing, profile }: { editing: boolean; profile: Profile 
           <h1 className="mb-5 font-display text-2xl font-bold">Your profile</h1>
         </>
       ) : (
-        <div className="mb-6">
-          <p className="text-sm font-medium uppercase tracking-wide text-accent">{config.location}</p>
-          <h1 className="font-display text-3xl font-bold">{config.partyName}</h1>
-          <p className="mt-2 text-muted">Set up your profile to get in.</p>
+        <div className="mb-6 flex flex-col items-center text-center">
+          <Logo size={144} priority />
+          <h1 className="mt-3 font-display text-3xl font-bold">{config.partyName}</h1>
+          <p className="mt-1 text-sm font-medium uppercase tracking-wide text-accent">
+            {config.tagline} · {config.location}
+          </p>
+          <p className="mt-3 text-muted">Set up your profile to get in.</p>
         </div>
       )}
 

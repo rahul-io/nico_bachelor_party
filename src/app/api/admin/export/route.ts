@@ -37,7 +37,7 @@ export async function GET() {
   return new Response(downloadZip(files()).body, {
     headers: {
       "content-type": "application/zip",
-      "content-disposition": 'attachment; filename="nico-bachelor-party-photos.zip"',
+      "content-disposition": 'attachment; filename="crider-cup-photos.zip"',
       "cache-control": "no-store",
     },
   });

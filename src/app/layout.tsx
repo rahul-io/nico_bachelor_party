@@ -18,10 +18,21 @@ const display = Bricolage_Grotesque({
   subsets: ["latin"],
 });
 
+const description = `${config.tagline} · ${config.location}`;
+
 export const metadata: Metadata = {
   title: config.partyName,
-  description: `${config.partyName} · ${config.location}`,
-  applicationName: config.shortName,
+  description,
+  applicationName: config.partyName,
+  // What shows when the link is texted or pasted into a chat.
+  openGraph: {
+    type: "website",
+    siteName: config.partyName,
+    title: config.partyName,
+    description,
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: config.partyName }],
+  },
+  twitter: { card: "summary_large_image", title: config.partyName, description, images: ["/og.png"] },
   // Lets iOS open the home-screen icon full screen, without Safari's bars.
   appleWebApp: {
     capable: true,

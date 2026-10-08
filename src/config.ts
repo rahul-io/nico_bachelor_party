@@ -2,8 +2,11 @@
 const days: readonly string[] = ["2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11"];
 
 export const config = {
-  partyName: "Nico's Bachelor Party",
-  shortName: "Nico's Bach",
+  /** The app's name everywhere a person sees it. */
+  partyName: "The Crider Cup",
+  /** Under the home-screen icon, where the full name would be cut off. */
+  shortName: "Crider Cup",
+  tagline: "Nico's bachelor party",
   location: "San Diego, CA",
   /** All schedule times are shown in this zone, regardless of the phone's. */
   timezone: "America/Los_Angeles",

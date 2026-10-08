@@ -1,6 +1,8 @@
 @AGENTS.md
 
-# Nico's Bachelor Party App
+# The Crider Cup (Nico's bachelor party app)
+
+The app is called **The Crider Cup** everywhere a person sees it (short name "Crider Cup" under the home-screen icon). The name comes from `config.partyName` / `config.shortName` in `src/config.ts`; never hard-code it. The repo, package name, cookie and localStorage keys (`nbp.*`) and other code identifiers keep their original names on purpose.
 
 Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time), ~10–15 people. Four tabs in the bottom nav: Schedule, Sobriety Tracker, Leaderboard, Photo Feed. Admin lives at `/admin` and is deliberately not linked from the nav. See [plan.md](plan.md) for milestones and current status — update its checkboxes as work lands.
 
@@ -37,6 +39,11 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 11. **Original photo URLs never reach guests.** Photos are uploaded as untouched originals (kept for exports) plus a 1600 px JPEG preview (`uploadPostMedia`). Originals can contain EXIF, including GPS, so every response to a guest goes through `forGuests()` in `src/lib/feed.ts`, which swaps the original URL for the preview. Only the admin export (`buildExportFeed`) and `scripts/export-photos.mts` read originals. Never return a raw `Post` from a guest-facing route. Posts with no preview (videos, GIFs, undecodable formats) expose their only file. A post's map location lives in the database (`lat`, `lng`, `location_source`), chosen by `resolveLocation`: EXIF, then a tagged event, then device location.
 8. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number. Comments follow the same rule (`bac_at_comment`); both go through `bacSnapshot()` in `src/lib/feed.ts`.
 9. **Mobile first.** Design for a ~380px-wide phone at night: dark theme, tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
+
+## Planned, not built
+
+- **M9, invite gate + accounts** (plan.md). Until it is built, the Identity section below is how things work. When building it: the gate is enforced in `src/proxy.ts` and fails closed; sessions are signed httpOnly cookies checked against `profiles.session_version`; passwords are hashed with `bcryptjs` and never logged or returned; failed attempts are counted in the database, not in memory; nothing guest-facing may trust a profile id sent by the client.
+- **M10, reskin** (plan.md) is still a discussion. Do not start restyling from the reference boards without a go-ahead.
 
 ## Identity
 
@@ -91,6 +98,8 @@ scripts/
   dev-mock.mjs                     dev server on mock data, ignoring .env.local
   db-setup.mjs                     runs schema.sql against DATABASE_URL
   make-icons.mjs                   regenerates every icon PNG from one inline SVG
+  make-logo.mjs                    regenerates public/logo.png and the link-preview image public/og.png
+                                   from design/logo-source.webp (the mascot badge Peter supplied)
   export-photos.mts                downloads every post + photos.csv; runs on plain Node type-stripping,
                                    so anything it imports must use relative `.ts` paths and no `@/` alias
 ```
