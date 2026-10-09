@@ -1,3 +1,4 @@
+import { unseenPops, type BadgePop } from "@/lib/badges/service";
 import { getSettings } from "@/lib/points/settings-store";
 import type { Profile, Store } from "@/lib/store/types";
 import { currentAssignment, type Assignment } from "./bartender";
@@ -24,16 +25,19 @@ export interface GamesMe {
   /** Curses on this person, their own Shield included. */
   curses: CurseView[];
   groomId: string | null;
+  /** Badges just earned, to show full-screen once. */
+  pops: BadgePop[];
 }
 
 export async function buildMe(store: Store, profile: Profile, now = Date.now()): Promise<GamesMe> {
-  const [points, unseen, seen, bartender, curses, groomId] = await Promise.all([
+  const [points, unseen, seen, bartender, curses, groomId, pops] = await Promise.all([
     balance(store, profile.id),
     store.listRecords("notice", "unseen"),
     store.listRecords("notice", "seen"),
     currentAssignment(store, profile.id, now),
     listCurses(store, now, true),
     getGroomId(store),
+    unseenPops(store, profile.id),
   ]);
   const notices = [...unseen, ...seen]
     .filter((record) => record.profileId === profile.id)
@@ -51,6 +55,7 @@ export async function buildMe(store: Store, profile: Profile, now = Date.now()):
     bartender,
     curses: curses.filter((curse) => curse.targetId === profile.id),
     groomId,
+    pops,
   };
 }
 

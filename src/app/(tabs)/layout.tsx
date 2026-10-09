@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { BadgePops } from "@/components/badges/BadgePops";
+import { ProfileSheetProvider } from "@/components/people/ProfileSheet";
 import { BottomNav } from "@/components/shell/BottomNav";
 import { DemoBanner } from "@/components/shell/DemoBanner";
 import { Header } from "@/components/shell/Header";
@@ -13,9 +15,12 @@ export default function TabsLayout({ children }: { children: ReactNode }) {
       <Header />
       <PointsBanner />
       <InstallTip />
-      <main className="mx-auto w-full max-w-app flex-1 px-4 pt-4 pb-[calc(var(--spacing-nav)+env(safe-area-inset-bottom)+1.5rem)]">
-        {children}
-      </main>
+      <ProfileSheetProvider>
+        <main className="mx-auto w-full max-w-app flex-1 px-4 pt-4 pb-[calc(var(--spacing-nav)+env(safe-area-inset-bottom)+1.5rem)]">
+          {children}
+        </main>
+      </ProfileSheetProvider>
+      <BadgePops />
       <BottomNav />
     </ProfileGate>
   );

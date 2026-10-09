@@ -4,6 +4,7 @@ import { ArrowLeft, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import useSWR from "swr";
+import { BadgesPanel } from "@/components/admin/BadgesPanel";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { ExportCard } from "@/components/admin/ExportCard";
 import { ChallengesPanel } from "@/components/admin/ChallengesPanel";
@@ -29,6 +30,7 @@ const sections = [
   { value: "schedule", label: "Schedule" },
   { value: "challenges", label: "Challenges" },
   { value: "people", label: "People" },
+  { value: "badges", label: "Badges" },
 ] as const;
 
 type Section = (typeof sections)[number]["value"];
@@ -79,6 +81,7 @@ export default function AdminPage() {
           {section === "schedule" && <SchedulePanel />}
           {section === "challenges" && <ChallengesPanel />}
           {section === "people" && <PeoplePanel />}
+          {section === "badges" && <BadgesPanel />}
           <div className="mx-auto max-w-app">
             <ExportCard />
           </div>

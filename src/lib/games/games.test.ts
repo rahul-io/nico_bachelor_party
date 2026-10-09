@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { listBadges, saveBadge } from "@/lib/badges/service";
 import { buildLeaderboard } from "@/lib/leaderboard";
 import { defaultSettings } from "@/lib/points/settings";
 import { saveSettings } from "@/lib/points/settings-store";
@@ -61,6 +62,8 @@ beforeEach(async () => {
   vi.setSystemTime(T);
   (globalThis as { __mockData?: unknown }).__mockData = undefined;
   for (const profile of await store.listProfiles()) await store.deleteProfile(profile.id);
+  // Badges have their own tests; here they would only add points to every sum.
+  for (const badge of await listBadges(store)) await saveBadge(store, badge.id, { ...badge, active: false });
   // Most tests want a spin on every drink.
   await saveSettings(store, { slotEveryDrinks: 1 });
 });

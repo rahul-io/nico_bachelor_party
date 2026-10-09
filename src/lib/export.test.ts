@@ -78,7 +78,7 @@ describe("exportCsv", () => {
       tz,
     );
     const csv = exportCsv(entries, tz);
-    expect(csv.startsWith("﻿file,poster,caption,timestamp,timestamp_utc,bac,type,reactions,comments,lat,lng,location_source,url\r\n")).toBe(true);
+    expect(csv.startsWith("﻿file,poster,caption,timestamp,timestamp_utc,bac,type,reactions,comments,lat,lng,location_source,tagged,asleep,url\r\n")).toBe(true);
     expect(csv).toContain('"He said ""cheers"",\nthen fell over"');
     expect(csv).toContain("2026-10-09 21:14:03,2026-10-10T04:14:03.000Z,0.050,image,0,0,32.7157,-117.1611,exif,");
     expect(csv).toContain(",'=HYPERLINK(1),");

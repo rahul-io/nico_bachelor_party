@@ -21,7 +21,9 @@ export function Segmented<T extends string>({ options, value, onChange, label, s
             aria-selected={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex-1 rounded-[calc(var(--radius-control)-0.25rem)] px-2 font-medium transition",
+              "flex-1 rounded-[calc(var(--radius-control)-0.25rem)] font-medium transition",
+              // Five options only fit a phone with less padding.
+              options.length > 4 ? "px-1" : "px-2",
               size === "md" ? "min-h-tap text-base" : "min-h-9 text-sm",
               active ? "bg-select text-on-select" : "text-muted",
             )}

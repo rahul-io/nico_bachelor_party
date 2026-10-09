@@ -110,6 +110,9 @@ const toPost = (row: Row): Post => ({
   lng: row.lng as number | null,
   locationSource: row.location_source as Post["locationSource"],
   eventId: row.event_id as string | null,
+  taggedIds: (json(row.tagged_ids) ?? []) as string[],
+  asleep: (row.asleep as boolean | null | undefined) ?? false,
+  pinnedUntil: isoOrNull(row.pinned_until),
   createdAt: iso(row.created_at),
 });
 
@@ -424,11 +427,23 @@ export function createPostgresStore(sql: Sql): Store {
 
     async createPost(input) {
       const [row] = await sql`
-        insert into posts (profile_id, url, preview_url, media_type, caption, bac_at_post, lat, lng, location_source, event_id)
+        insert into posts (profile_id, url, preview_url, media_type, caption, bac_at_post, lat, lng, location_source, event_id, tagged_ids, asleep)
         values (${input.profileId}, ${input.url}, ${input.previewUrl ?? null}, ${input.mediaType}, ${input.caption}, ${input.bacAtPost},
-                ${input.lat}, ${input.lng}, ${input.locationSource}, ${input.eventId})
+                ${input.lat}, ${input.lng}, ${input.locationSource}, ${input.eventId},
+                ${JSON.stringify(input.taggedIds ?? [])}::jsonb, ${input.asleep ?? false})
         returning *`;
       return toPost(row);
+    },
+
+    async updatePost(id, patch) {
+      if (patch.taggedIds !== undefined) {
+        await sql`update posts set tagged_ids = ${JSON.stringify(patch.taggedIds)}::jsonb where id = ${id}`;
+      }
+      if (patch.pinnedUntil !== undefined) {
+        await sql`update posts set pinned_until = ${patch.pinnedUntil}::timestamptz where id = ${id}`;
+      }
+      const rows = await sql`select * from posts where id = ${id}`;
+      return rows[0] ? toPost(rows[0]) : null;
     },
 
     async deletePost(id) {

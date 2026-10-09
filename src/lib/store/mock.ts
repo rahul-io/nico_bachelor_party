@@ -424,9 +424,25 @@ export const mockStore: Store = {
   },
 
   async createPost(input) {
-    const post: Post = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...input, previewUrl: input.previewUrl ?? null };
+    const post: Post = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+      previewUrl: input.previewUrl ?? null,
+      taggedIds: [...(input.taggedIds ?? [])],
+      asleep: input.asleep ?? false,
+      pinnedUntil: null,
+    };
     data().posts.push(post);
     return post;
+  },
+
+  async updatePost(id, patch) {
+    const post = data().posts.find((item) => item.id === id);
+    if (!post) return null;
+    if (patch.taggedIds !== undefined) post.taggedIds = [...patch.taggedIds];
+    if (patch.pinnedUntil !== undefined) post.pinnedUntil = patch.pinnedUntil;
+    return { ...post };
   },
 
   async deletePost(id) {

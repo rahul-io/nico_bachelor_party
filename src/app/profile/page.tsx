@@ -4,6 +4,8 @@ import { ArrowLeft, KeyRound, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { TrophyCase } from "@/components/badges/TrophyCase";
+import { usePerson } from "@/components/people/ProfileSheet";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { Button } from "@/components/ui/Button";
@@ -17,6 +19,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { session, mutate } = useSession();
   const profile = session?.profile;
+  const { data: page } = usePerson(profile?.id);
 
   useEffect(() => {
     if (session && !session.profile) router.replace("/welcome");
@@ -42,6 +45,13 @@ export default function ProfilePage() {
       <PageTitle eyebrow="Crew member" title="Your papers" />
 
       <Card>{profile ? <ProfileForm key={profile.id} initial={profile} /> : <p className="text-muted">Loading…</p>}</Card>
+
+      {page && (
+        <section className="space-y-3">
+          <h2 className="font-display text-xl font-bold">Trophy case</h2>
+          <TrophyCase trophies={page.trophies} />
+        </section>
+      )}
 
       {profile && (
         <Card className="space-y-2">

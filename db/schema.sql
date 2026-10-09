@@ -158,3 +158,9 @@ create table if not exists game_records (
 );
 
 create index if not exists game_records_kind_idx on game_records (kind, created_at desc);
+
+-- Badges (M13): photo tags, the "asleep" mark and the Sleeping Beauty pin.
+-- Badge definitions and awards live in game_records (kinds "badge", "badgeaward", "badgeimage").
+alter table posts add column if not exists tagged_ids jsonb not null default '[]'::jsonb;
+alter table posts add column if not exists asleep boolean not null default false;
+alter table posts add column if not exists pinned_until timestamptz;

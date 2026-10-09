@@ -8,12 +8,14 @@ import { Composer } from "@/components/photos/Composer";
 import { PostCard } from "@/components/photos/PostCard";
 import { PhotoMap } from "@/components/photos/PhotoMap";
 import { PostDetailSheet } from "@/components/photos/PostDetailSheet";
+import { TagSheet } from "@/components/photos/TagSheet";
 import { Card } from "@/components/ui/Card";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { Segmented } from "@/components/ui/Segmented";
 import { Status } from "@/components/ui/Status";
 import { config } from "@/config";
 import { useAction } from "@/hooks/useAction";
+import { useNow } from "@/hooks/useNow";
 import { usePolled } from "@/hooks/usePolled";
 import { useIdentity } from "@/hooks/useProfile";
 import { apiFetch } from "@/lib/api";
@@ -37,11 +39,18 @@ export default function PhotosPage() {
   );
   const { status, run } = useAction();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [tagging, setTagging] = useState<FeedPost | null>(null);
   const [view, setView] = useState<View>("feed");
+  const now = useNow(60_000);
 
   async function remove(post: FeedPost) {
     if (!window.confirm(`Delete this ${post.mediaType === "video" ? "video" : "photo"}? This can't be undone.`)) return;
     await run(() => apiFetch(`/api/posts/${post.id}`, { method: "DELETE" }));
+    await mutate();
+  }
+
+  async function setTags(post: FeedPost, taggedIds: string[]) {
+    await run(() => apiFetch(`/api/posts/${post.id}/tags`, { method: "PUT", body: { taggedIds } }));
     await mutate();
   }
 
@@ -59,11 +68,17 @@ export default function PhotosPage() {
     await mutate();
   }
 
-  // Photos and the short system lines ("Jake hit JACKPOT"), newest first.
+  // Photos and the short system lines ("Jake hit JACKPOT"), newest first. The server
+  // sends pinned photos (a confirmed Sleeping Beauty) first; they stay on top here.
+  const posts = feed?.posts ?? [];
+  const pinnedCount = now === null ? 0 : posts.filter((post) => post.pinnedUntil && Date.parse(post.pinnedUntil) > now).length;
   const entries = [
-    ...(feed?.posts ?? []).map((post) => ({ kind: "post" as const, at: post.createdAt, post })),
-    ...(feed?.lines ?? []).map((line) => ({ kind: "line" as const, at: line.createdAt, line })),
-  ].sort((a, b) => b.at.localeCompare(a.at));
+    ...posts.slice(0, pinnedCount).map((post) => ({ kind: "post" as const, at: post.createdAt, post })),
+    ...[
+      ...posts.slice(pinnedCount).map((post) => ({ kind: "post" as const, at: post.createdAt, post })),
+      ...(feed?.lines ?? []).map((line) => ({ kind: "line" as const, at: line.createdAt, line })),
+    ].sort((a, b) => b.at.localeCompare(a.at)),
+  ];
 
   return (
     <div className="space-y-4">
@@ -104,7 +119,12 @@ export default function PhotosPage() {
               <PostCard
                 post={entry.post}
                 canDelete={entry.post.profileId === identity?.id || admin?.authed === true}
+                viewerId={identity?.id}
                 onDelete={remove}
+                onEditTags={setTagging}
+                onUntag={(post) =>
+                  setTags(post, (post.tagged ?? []).map((person) => person.id).filter((id) => id !== identity?.id))
+                }
                 onOpen={(opened) => setOpenId(opened.id)}
                 onReact={react}
               />
@@ -112,6 +132,17 @@ export default function PhotosPage() {
           ),
         )}
       </ul>
+
+      {tagging && (
+        <TagSheet
+          initial={(tagging.tagged ?? []).map((person) => person.id)}
+          onClose={() => setTagging(null)}
+          onSave={async (ids) => {
+            await setTags(tagging, ids);
+            setTagging(null);
+          }}
+        />
+      )}
 
       {openId && (
         <PostDetailSheet

@@ -81,6 +81,9 @@ export default function RulesPage() {
         <Rule points={`+${s.hourTopBacPoints}`}>
           Top BAC of the hour, counted up to {formatBac(s.bacCeiling)}.
         </Rule>
+        <Rule points={`+${s.hydroHomiePoints}`}>
+          Landlubber (Hydro Homie): the most waters so far that day, if they logged one that hour.
+        </Rule>
         <Rule>Paid only for hours in which at least {s.hourMinActive} people logged something.</Rule>
       </Section>
 
@@ -97,7 +100,6 @@ export default function RulesPage() {
         <Rule points={`+${s.fastestClimbPoints}`}>
           Fastest Climb: the shortest time from 0.000% to {formatBac(s.bacCeiling)}.
         </Rule>
-        <Rule points={`+${s.hydroHomiePoints}`}>Landlubber (Hydro Homie): the most waters.</Rule>
         <Rule points={`+${s.lastManStandingPoints}`}>
           Last Man Standing: the last photo posted between {hour(s.lastManAfterHour)} and {cutoff}, confirmed by an
           admin.
@@ -179,6 +181,15 @@ export default function RulesPage() {
         </Rule>
         <Rule points={`−${s.snitchPenalty}`}>For the accused.</Rule>
         <Rule points={`+${s.snitchReward}`}>For whoever reported it.</Rule>
+      </Section>
+
+      <Section title="Badges">
+        <Rule>
+          Merit badges go to anyone who meets the condition, as it happens. Achievements have one holder a day and are
+          awarded when the day ends at {cutoff}; until then the leader is shown as holding it for now.
+        </Rule>
+        <Rule>Tap anyone&apos;s name or picture to see their trophy case and what each badge takes.</Rule>
+        <Rule>Deleting the drink or water a merit badge rests on takes the badge back.</Rule>
       </Section>
 
       <Section title="Deleting">

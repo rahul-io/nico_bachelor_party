@@ -23,6 +23,7 @@ export const settingDefs = [
   { key: "hourWinnerPoints", group: "Hourly awards", label: "Hour Winner", value: 1, min: 0, max: 50, step: 0.5 },
   { key: "hourWinnerMinDrinks", group: "Hourly awards", label: "Drinks the Hour Winner must log that hour", value: 2, min: 0, max: 20, step: 1 },
   { key: "hourTopBacPoints", group: "Hourly awards", label: "Top BAC of the hour", value: 1, min: 0, max: 50, step: 0.5 },
+  { key: "hydroHomiePoints", group: "Hourly awards", label: "Landlubber (Hydro Homie)", value: 1, min: 0, max: 50, step: 0.5 },
   { key: "hourMinActive", group: "Hourly awards", label: "People who must log in the hour", value: 2, min: 1, max: 30, step: 1 },
 
   { key: "dayCutoffHour", group: "Daily awards", label: "Day ends at, hour (party time)", value: 4, min: 0, max: 11, step: 1 },
@@ -31,7 +32,6 @@ export const settingDefs = [
   { key: "bandHigh", group: "Daily awards", label: "Smooth Sailing band to, %", value: 0.1, min: 0.01, max: 0.5, step: 0.01 },
   { key: "drunkestSailorPoints", group: "Daily awards", label: "Drunkest Sailor", value: 10, min: 0, max: 200, step: 1 },
   { key: "fastestClimbPoints", group: "Daily awards", label: "Fastest Climb", value: 8, min: 0, max: 200, step: 1 },
-  { key: "hydroHomiePoints", group: "Daily awards", label: "Landlubber (Hydro Homie)", value: 5, min: 0, max: 200, step: 1 },
   { key: "lastManStandingPoints", group: "Daily awards", label: "Last Man Standing", value: 10, min: 0, max: 200, step: 1 },
   { key: "lastManAfterHour", group: "Daily awards", label: "Last Man Standing counts photos after, hour", value: 1, min: 0, max: 3, step: 1 },
 

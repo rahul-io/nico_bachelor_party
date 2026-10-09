@@ -74,3 +74,13 @@ for (const name of ["1x", "2x", "3x", "bust", "jackpot", "rob", "forward"]) {
     .toFile(file);
   console.log(`${file}  ${info.width}x${info.height}  ${Math.round(info.size / 1024)} KB`);
 }
+
+/** Badge crests (design/brand/badges), used by the seeded badges in src/lib/badges/seed.ts. */
+import { readdirSync } from "node:fs";
+
+mkdirSync("public/brand/badges", { recursive: true });
+for (const source of readdirSync("design/brand/badges")) {
+  const file = `public/brand/badges/${source}`;
+  const info = await sharp(`design/brand/badges/${source}`).resize({ width: 400 }).webp({ quality: 82 }).toFile(file);
+  console.log(`${file}  ${info.width}x${info.height}  ${Math.round(info.size / 1024)} KB`);
+}

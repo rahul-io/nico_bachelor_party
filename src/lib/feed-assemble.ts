@@ -20,6 +20,10 @@ export function assembleFeed(
     ...post,
     posterName: posters.get(post.profileId)?.name ?? "Someone",
     posterAvatarUrl: posters.get(post.profileId)?.avatarUrl ?? null,
+    tagged: (post.taggedIds ?? []).flatMap((id) => {
+      const person = posters.get(id);
+      return person ? [{ id, name: person.name }] : [];
+    }),
     reactions: (reactions.get(post.id) ?? [])
       .filter((entry) => emojiOrder.includes(entry.emoji))
       .sort((a, b) => emojiOrder.indexOf(a.emoji) - emojiOrder.indexOf(b.emoji))

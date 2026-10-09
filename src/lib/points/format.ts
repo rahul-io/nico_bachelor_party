@@ -50,4 +50,5 @@ export const sourceLabels: Record<PointSource, string> = {
   wager: "Wagers",
   curse: "Curses",
   snitch: "Snitch Line",
+  badge: "Badges",
 };

@@ -89,7 +89,8 @@ export type PointSource =
   | "groom"
   | "wager"
   | "curse"
-  | "snitch";
+  | "snitch"
+  | "badge";
 
 /** How a drink's points were worked out, kept with the entry so the history can show it. */
 export interface DrinkBreakdown {
@@ -166,10 +167,16 @@ export interface Post {
   locationSource: LocationSource | null;
   /** The schedule event the poster tagged, if any. */
   eventId: string | null;
+  /** People tagged in the photo (profile ids). Absent means none. */
+  taggedIds?: string[];
+  /** Marked as a photo of someone asleep. */
+  asleep?: boolean;
+  /** Kept at the top of the feed until this instant (a confirmed Sleeping Beauty). */
+  pinnedUntil?: string | null;
   createdAt: string;
 }
 
-export type PostInput = Omit<Post, "id" | "createdAt">;
+export type PostInput = Omit<Post, "id" | "createdAt" | "pinnedUntil">;
 
 /** One emoji's tally on one post, from a given viewer's point of view. */
 export interface ReactionCount {
@@ -206,6 +213,8 @@ export interface FeedComment extends Comment {
 export interface FeedPost extends Post {
   posterName: string;
   posterAvatarUrl: string | null;
+  /** The people tagged, under the names others currently see. */
+  tagged?: Array<{ id: string; name: string }>;
   /** Only emojis someone has used, in the fixed display order. */
   reactions: Array<Pick<ReactionCount, "emoji" | "count" | "mine">>;
   commentCount: number;
@@ -359,6 +368,8 @@ export interface Store {
   listPosts(): Promise<Post[]>;
   getPost(id: string): Promise<Post | null>;
   createPost(input: PostInput): Promise<Post>;
+  /** Changes who is tagged and/or the pin. Fields left out are untouched. */
+  updatePost(id: string, patch: { taggedIds?: string[]; pinnedUntil?: string | null }): Promise<Post | null>;
   deletePost(id: string): Promise<boolean>;
 
   /** Per-post, per-emoji counts for the whole feed in one query. */

@@ -76,6 +76,11 @@ const admin = jar();
 await admin.call("POST", "/api/gate", { code: "ahoy" });
 check("admin login", (await admin.call("POST", "/api/admin/login", { password: "admin" })).status === 200);
 
+// Badges (M13) add points of their own; switched off so the sums here stay exact.
+for (const badge of (await admin.call("GET", "/api/admin/badges")).data?.badges ?? []) {
+  await admin.call("POST", "/api/admin/badges", { action: "save", id: badge.id, badge: { ...badge, active: false } });
+}
+
 const pointsOf = async (phone) =>
   (await phone.call("GET", "/api/leaderboard")).data.find((entry) => entry.id === phone.id)?.points;
 

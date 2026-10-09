@@ -20,6 +20,8 @@ const CSV_HEADER = [
   "lat",
   "lng",
   "location_source",
+  "tagged",
+  "asleep",
   "url",
 ];
 const COMMENTS_HEADER = ["file", "commenter", "comment", "timestamp", "timestamp_utc", "bac"];
@@ -103,6 +105,8 @@ export function exportCsv(entries: ExportEntry[], timeZone: string): string {
       post.lat === null ? "" : String(post.lat),
       post.lng === null ? "" : String(post.lng),
       post.locationSource ?? "",
+      (post.tagged ?? []).map((person) => person.name).join("; "),
+      post.asleep ? "yes" : "",
       post.url.startsWith("data:") ? "" : post.url,
     ];
   });

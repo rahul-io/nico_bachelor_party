@@ -71,7 +71,15 @@ export async function POST(req: Request) {
     device: parseCoordinates(body?.device),
   });
 
+  // People tagged in the photo: real profiles only, no duplicates.
+  const known = new Set((await store.listProfiles()).map((item) => item.id));
+  const taggedIds = [
+    ...new Set(Array.isArray(body?.taggedIds) ? body.taggedIds.filter((id): id is string => typeof id === "string") : []),
+  ].filter((id) => known.has(id));
+
   const post = await store.createPost({
+    taggedIds,
+    asleep: body?.asleep === true,
     profileId: profile.id,
     url,
     previewUrl,

@@ -444,7 +444,7 @@ How it turned out, where it differs from the plan or matters later:
 - **Bartender's Choice** weights by category (cocktails and beer 3, shots 2, wine and seltzer 1) rather than per drink.
 - The Snitch Line penalty can take someone below zero; spending (stakes, curses) cannot.
 
-### M13 — Achievements and merit badges (planned, awaiting go-ahead; builds after M12)
+### M13 — Achievements and merit badges (built 2026-10-09)
 
 Two kinds of badge on top of the M11 ledger and the M12 notices and feed lines.
 
@@ -501,14 +501,14 @@ Paparazzi is in your "coded" list, but your builder's "most tagged photos" metri
 Unit tests for every rule type and every coded condition, including: the 4am cutoff on both sides, first/most ties (earliest wins), rolling-hour counts across the hour boundary, repeat counts, revocation on delete, and `describeRule` output for each rule type. Contract tests for the new store methods on both stores. An end-to-end script for tag → asleep → confirm → pin, and for a manual award and revoke.
 
 Checklist (in build order):
-- [ ] Photo tagging and the "asleep" mark: schema, composer, display, export columns
-- [ ] Badge tables and store methods; ledger `badge` source; award, revoke, seen
-- [ ] Rule types as pure functions with `describeRule`; coded conditions; unit tests
-- [ ] Merit checks on log/post, revocation on delete; achievement holders live and at settlement
-- [ ] Seed the initial set; `tags` on catalogue drinks
-- [ ] Admin > Badges: list, editor, rule builder, image upload, manual award/revoke, Recalculate all, Sleeping Beauty queue
-- [ ] Trophy case, badges on profile and person sheet, full-screen pop, feed line
-- [ ] End-to-end script
+- [x] Photo tagging and the "asleep" mark: schema, composer, display, export columns
+- [x] Badge tables and store methods; ledger `badge` source; award, revoke, seen
+- [x] Rule types as pure functions with `describeRule`; coded conditions; unit tests
+- [x] Merit checks on log/post, revocation on delete; achievement holders live and at settlement
+- [x] Seed the initial set; `tags` on catalogue drinks
+- [x] Admin > Badges: list, editor, rule builder, image upload, manual award/revoke, Recalculate all, Sleeping Beauty queue
+- [x] Trophy case, badges on profile and person sheet, full-screen pop, feed line
+- [x] End-to-end script
 
 Depends on M12 for: system lines in the Captain's Log, the per-person notices, and the "Groom Taxes" and "curses received" metrics. If you would rather have badges before the games, the first two are small and can be built here instead; the two metrics would simply be unavailable in the builder until M12.
 
@@ -531,9 +531,21 @@ Added 2026-10-08:
 
 - **Badge artwork (2026-10-09):** Peter supplied crests for 13 of the 14 initial badges, saved in `design/brand/badges/` (1254 px square, transparent, the badge's name lettered on a banner): every one except Second Wind, which uses its emoji until he sends one. They are the seeded badges' default images; resize to 256 px (and a larger one for the full-screen pop) in `scripts/make-brand.mjs`. Because the name is part of the picture, renaming one of these badges in Admin needs a new image too.
 
-Waiting only for Peter's go-ahead to build.
+How it turned out, where it differs from the plan above or matters later:
+- **No new tables for badges.** Definitions and awards are `game_records` (kinds `badge`, `badgeaward`, `badgeclaim`, `badgeimage`). The only schema change is three columns on `posts`: `tagged_ids`, `asleep`, `pinned_until`. **`npm run db:setup` must be run against the live database before this is deployed.**
+- **Code:** `src/lib/badges/` — `rules.ts` (the rule shapes, `describeRule`, the merit and achievement evaluators and the four coded conditions, all pure), `seed.ts` (the initial 14), `service.ts` (awards, revocation, settlement, trophy case, Admin view).
+- **The ledger entry is what makes an award happen once.** Every award writes a `badge`-source entry under a unique key first (even at 0 points); the award record is only written if that succeeds. Revoking voids the entry.
+- **The profile "page" is a full-screen sheet**, opened by tapping a name or avatar row anywhere in the tabs (Standings, photo posters, photo tags), rather than a separate URL. It shows the trophy case, points by source and the latest entries. Your own trophy case is also on your profile screen.
+- **Uploaded badge images are stored in the database, not Blob:** cropped square and shrunk to 256 px in the browser, saved as a record and served from `/api/badges/image/<id>` with permanent caching, the same way avatars work. This avoids a second Blob upload path that would need its own permissions.
+- **A "first to…" achievement is announced when it is claimed** (a line in the Captain's Log and a notice to the claimer) and awarded, with the full-screen pop, at the 4am cutoff with the "most…" ones.
+- **Fruity** is a `tags` list on 14 catalogue drinks (Mai Tai, Margarita, Spicy Margarita, Cosmopolitan, Daiquiri, Aperol Spritz, Mimosa, Sangria, Mojito, Vodka Cranberry, Paloma, Screwdriver, Tequila Sunrise, Piña Colada). It is looked up by the logged drink's name, so nothing new is stored per drink.
+- **Landlubber (Hydro Homie) is now hourly:** +1 each hour to whoever has the most waters so far that day, if they logged one in that hour. Hydro Hero is the all-day badge.
+- **Achievement periods are a party day.** A weekend-long achievement can only be a manual badge, awarded by hand.
+- **Not built:** awarding a badge from a player's row in Admin > People (it is done from the badge instead), and a per-drink "fruity" tick for custom drinks.
+- `npm run test:e2e:badges` (49 checks) against a fresh `npm run dev:mock`; the 4am lock-in is covered by the unit tests.
 
-Size and order: M11 is the foundation and is built. M12 is built too. M13 is next, on Peter's go-ahead.
+
+Size and order: M11 is the foundation and is built. M12 and M13 are built too: every planned milestone is done.
 
 M12 is six separate features; each is usable on its own, so they can go out one at a time in the order above.
 

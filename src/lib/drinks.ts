@@ -11,6 +11,14 @@ export interface CatalogDrink {
   volumeOz: number;
   /** Fraction, e.g. 0.05 for 5%. */
   abv: number;
+  /** Loose labels badges can match on, e.g. "fruity". */
+  tags?: string[];
+}
+
+/** The tags of a logged drink, found by its catalogue name. Custom drinks have none. */
+export function drinkTags(name: string): string[] {
+  const wanted = name.trim().toLowerCase();
+  return drinkCatalog.find((drink) => drink.name.toLowerCase() === wanted)?.tags ?? [];
 }
 
 export const drinkCatalog = catalog as CatalogDrink[];

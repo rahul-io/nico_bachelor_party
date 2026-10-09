@@ -507,4 +507,22 @@ describe.each<[string, () => Promise<Store>]>([
     await store.deleteProfile(profile.id);
     expect((await store.listRecords(kind)).map((record) => record.id)).toEqual([second.id]);
   });
+
+  it("stores photo tags, the asleep mark and the pin", async () => {
+    const store = await makeStore();
+    const { profile } = await store.createProfile(person);
+    const base = { profileId: profile.id, url: "https://example.test/a.jpg", mediaType: "image" as const, caption: null, bacAtPost: null, lat: null, lng: null, locationSource: null, eventId: null };
+    const plain = await store.createPost(base);
+    expect(plain).toMatchObject({ taggedIds: [], asleep: false, pinnedUntil: null });
+
+    const tagged = await store.createPost({ ...base, taggedIds: ["a", "b"], asleep: true });
+    expect(tagged).toMatchObject({ taggedIds: ["a", "b"], asleep: true, pinnedUntil: null });
+
+    expect(await store.updatePost(tagged.id, { taggedIds: ["b"] })).toMatchObject({ taggedIds: ["b"], asleep: true, pinnedUntil: null });
+    const pinned = await store.updatePost(tagged.id, { pinnedUntil: "2026-10-10T11:00:00.000Z" });
+    expect(pinned).toMatchObject({ taggedIds: ["b"], pinnedUntil: "2026-10-10T11:00:00.000Z" });
+    expect(await store.getPost(tagged.id)).toEqual(pinned);
+    expect((await store.updatePost(tagged.id, { pinnedUntil: null }))?.pinnedUntil).toBeNull();
+    expect(await store.updatePost("missing", { taggedIds: [] })).toBeNull();
+  });
 });

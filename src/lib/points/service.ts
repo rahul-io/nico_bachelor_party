@@ -1,4 +1,5 @@
 import { estimateBac, formatBac } from "@/lib/bac";
+import { checkBadges, revokeForSource, settleAchievements } from "@/lib/badges/service";
 import { claimAssignment } from "@/lib/games/bartender";
 import { feedLine, nameOf, notify } from "@/lib/games/common";
 import { spendDeadWeight } from "@/lib/games/curses";
@@ -214,6 +215,7 @@ export async function logDrink(
   if (announce) await feedLine(store, announce.split("|")[0], announce.split("|")[1]);
 
   if (!deadWeight) await payCheers(store, drink, settings);
+  await checkBadges(store, profile, { kind: "drink", id: drink.id, at });
   return { drink, entry, slot };
 }
 
@@ -275,6 +277,7 @@ export async function removeDrink(store: Store, profileId: string, drinkId: stri
   // Remember the spin, so logging the drink again doesn't get a fresh one.
   const spun = voided.find((event) => event.source === "drink")?.breakdown?.slot;
   if (spun) await rememberSpin(store, profileId, spun);
+  await revokeForSource(store, drinkId);
 
   const groupId = voided.find((event) => event.source === "cheers")?.groupId;
   if (groupId) {
@@ -304,12 +307,14 @@ export async function logWater(store: Store, profile: Profile): Promise<{ water:
     awardKey: `water:${water.id}`,
     createdAt: water.consumedAt,
   });
+  await checkBadges(store, profile, { kind: "water", id: water.id, at: Date.parse(water.consumedAt) });
   return { water, entry };
 }
 
 export async function removeWater(store: Store, profileId: string, waterId: string): Promise<boolean> {
   if (!(await store.deleteWater(profileId, waterId))) return false;
   await store.voidPointEvents({ drinkId: waterId });
+  await revokeForSource(store, waterId);
   return true;
 }
 
@@ -371,9 +376,16 @@ export function hourAwards(data: AwardData, hourStart: number, settings: PointsS
   const leaderDrinks = data.drinks.filter(
     (drink) => drink.profileId === leader?.profileId && drink.at >= hourStart && drink.at < hourEnd,
   ).length;
+  // Hydro Homie: the most waters so far that day, for anyone who logged one this hour.
+  const wettest = hydroHomie(data, day.start, hourEnd);
+  const wateredThisHour = data.waters.some(
+    (water) => water.profileId === wettest?.profileId && water.at >= hourStart && water.at < hourEnd,
+  );
   return [
     ...award(leaderDrinks >= settings.hourWinnerMinDrinks ? leader : null, settings.hourWinnerPoints, `hour:${key}:winner`, "hourly",
       (w) => `Hour Winner · ${hour} · ${formatPoints(w.value)} drink pts today`, hourEnd),
+    ...award(wettest && wateredThisHour ? wettest : null, settings.hydroHomiePoints, `hour:${key}:water`, "hourly",
+      (w) => `Landlubber (Hydro Homie) · ${hour} · ${w.value} ${w.value === 1 ? "water" : "waters"} today`, hourEnd),
     ...award(hourTopBac(data, hourStart, hourEnd, settings), settings.hourTopBacPoints, `hour:${key}:bac`, "hourly",
       (w) => `Top BAC of the hour · ${hour} · ${formatBac(w.value)}`, hourEnd),
   ];
@@ -389,8 +401,6 @@ export function dayAwards(data: AwardData, day: string, settings: PointsSettings
       (w) => `Drunkest Sailor · ${formatBac(w.value)}`, end),
     ...award(fastestClimb(data, start, end, settings), settings.fastestClimbPoints, `day:${day}:climb`, "award",
       (w) => `Fastest Climb · ${duration(w.value)}`, end),
-    ...award(hydroHomie(data, start, end), settings.hydroHomiePoints, `day:${day}:water`, "award",
-      (w) => `Landlubber (Hydro Homie) · ${w.value} ${w.value === 1 ? "water" : "waters"}`, end),
   ];
 }
 
@@ -424,6 +434,8 @@ export async function settleDue(store: Store, now = Date.now(), force = false): 
   for (const input of due) {
     if (await store.addPointEvent(input)) paid += 1;
   }
+  // Badge achievements lock in at the same cutoff as the daily awards.
+  paid += await settleAchievements(store, now);
   globalForSettle.__settledHour = currentHour;
   return paid;
 }

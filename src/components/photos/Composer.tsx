@@ -2,6 +2,7 @@
 
 import { ImagePlus, MapPin, X } from "lucide-react";
 import { useState, useSyncExternalStore, type ChangeEvent } from "react";
+import { PeoplePicker } from "@/components/photos/TagSheet";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { inputClass } from "@/components/ui/Field";
@@ -40,6 +41,8 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
   const groomId = useGamesMe()?.groomId ?? null;
   const people = useGamesBoard()?.people ?? [];
   const [taxPlayerId, setTaxPlayerId] = useState("");
+  const [taggedIds, setTaggedIds] = useState<string[]>([]);
+  const [asleep, setAsleep] = useState(false);
 
   function clear() {
     if (draft) URL.revokeObjectURL(draft.previewUrl);
@@ -47,6 +50,8 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
     setCaption("");
     setEventId("");
     setTaxPlayerId("");
+    setTaggedIds([]);
+    setAsleep(false);
     setProgress(0);
   }
 
@@ -113,6 +118,8 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
           exif: draft.exif,
           device,
           groomTaxPlayerId: taxPlayerId || null,
+          taggedIds,
+          asleep,
         },
       });
       note = posted.groomTax;
@@ -185,6 +192,21 @@ export function Composer({ uploadsEnabled, onPosted }: { uploadsEnabled: boolean
           </select>
         </label>
       )}
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-muted">Who&apos;s in it? (optional)</p>
+        <PeoplePicker value={taggedIds} onChange={setTaggedIds} disabled={busy} />
+        <label className="flex min-h-tap cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            checked={asleep}
+            onChange={(event) => setAsleep(event.target.checked)}
+            disabled={busy}
+            className="size-5 shrink-0 accent-accent"
+          />
+          <span className="text-sm font-medium">Someone here is asleep</span>
+        </label>
+      </div>
 
       {groomId && identity && draft.kind === "image" && (
         identity.id === groomId ? (

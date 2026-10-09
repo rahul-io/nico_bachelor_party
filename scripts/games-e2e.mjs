@@ -75,6 +75,11 @@ check("five accounts created", phones.every((phone) => phone.id));
 const admin = jar();
 await admin.call("POST", "/api/gate", { code: "ahoy" });
 await admin.call("POST", "/api/admin/login", { password: "admin" });
+
+// Badges (M13) add points of their own; switched off so the sums here stay exact.
+for (const badge of (await admin.call("GET", "/api/admin/badges")).data?.badges ?? []) {
+  await admin.call("POST", "/api/admin/badges", { action: "save", id: badge.id, badge: { ...badge, active: false } });
+}
 // The mock store's demo guests have points and recent drinks, which would make them the leader and active players.
 for (const profile of (await admin.call("GET", "/api/admin/profiles")).data ?? []) {
   if (profile.name.endsWith("(demo)")) await admin.call("DELETE", `/api/admin/profiles/${profile.id}`);

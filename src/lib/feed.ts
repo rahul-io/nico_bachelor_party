@@ -44,7 +44,11 @@ async function feedPosts(store: Store, viewerId: string | null): Promise<{ posts
  */
 export async function buildFeed(store: Store, viewerId: string | null = null): Promise<Feed> {
   const [{ posts }, lines] = await Promise.all([feedPosts(store, viewerId), listFeedLines(store)]);
-  return { uploadsEnabled: env.blobToken !== null, posts: posts.map(forGuests), lines };
+  // A pinned photo (a confirmed Sleeping Beauty) stays on top until its pin runs out.
+  const now = Date.now();
+  const pinned = (post: FeedPost) => (post.pinnedUntil && Date.parse(post.pinnedUntil) > now ? 1 : 0);
+  const ordered = [...posts].sort((a, b) => pinned(b) - pinned(a));
+  return { uploadsEnabled: env.blobToken !== null, posts: ordered.map(forGuests), lines };
 }
 
 /** Every post with its original file URL. Server-side use only (the admin export). */

@@ -2,7 +2,7 @@
 
 import { Crown } from "lucide-react";
 import { useState } from "react";
-import { PersonPoints } from "@/components/leaderboard/PersonPoints";
+import { useOpenProfile } from "@/components/people/ProfileSheet";
 import { Avatar } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
 import { Segmented } from "@/components/ui/Segmented";
@@ -25,14 +25,13 @@ export function Standings() {
   const identity = useIdentity();
   const { data, error } = usePolled<LeaderboardEntry[]>("/api/leaderboard");
   const [sort, setSort] = useState<Sort>("points");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const openProfile = useOpenProfile();
 
   if (!data) {
     return <Card className="text-muted">{error ? "Couldn't load the leaderboard. Retrying…" : "Loading…"}</Card>;
   }
 
   const ranked = [...data].sort((a, b) => b[sort] - a[sort] || a.name.localeCompare(b.name));
-  const open = data.find((entry) => entry.id === openId);
   const stat = (entry: LeaderboardEntry, key: Sort) =>
     key === "bac" ? formatBac(entry.bac) : key === "points" ? formatPoints(entry.points) : String(entry.drinks);
   const unit = (entry: LeaderboardEntry, key: Sort) =>
@@ -45,10 +44,10 @@ export function Standings() {
       <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {ranked.map((entry, index) => (
           <li key={entry.id}>
-            {/* Tap a row for that person's points by source. */}
+            {/* Tap a row for that person's profile: trophy case and points by source. */}
             <button
               type="button"
-              onClick={() => setOpenId(entry.id)}
+              onClick={() => openProfile(entry.id)}
               className={cn(
                 "flex w-full items-center gap-3 px-3 py-3 text-left",
                 // Gold for whoever leads; a quiet tint so you can find yourself.
@@ -79,7 +78,6 @@ export function Standings() {
           </li>
         ))}
       </ol>
-      {open && <PersonPoints person={open} onClose={() => setOpenId(null)} />}
     </div>
   );
 }

@@ -12,7 +12,7 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 - Never push without Peter asking. Never commit `.env*` files other than `.env.example`.
 - Commits use conventional prefixes (`chore:`, `feat:`, `fix:`).
 - **Use `npm run dev:mock` for anything that creates test data** (profiles, posts, comments, events). It ignores `.env.local` and runs on in-memory data; local admin password is `admin`. Plain `npm run dev` talks to the live site's database.
-- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run test:e2e` (gate and accounts, against `dev:mock`), `npm run test:e2e:points` and `npm run test:e2e:games` (drink points and the games; each against a fresh `dev:mock`), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
+- Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test` (vitest), `npm run test:e2e` (gate and accounts, against `dev:mock`), `npm run test:e2e:points`, `npm run test:e2e:games` and `npm run test:e2e:badges` (drink points, the games, badges and tags; each against a fresh `dev:mock`), `npm run db:setup` (applies `db/schema.sql` to `DATABASE_URL`; idempotent), `npm run export-photos` (downloads the whole feed locally).
 - With `.env.local` filled in, local dev reads and writes the **live** Neon database and Blob store. Delete any test profiles/posts you create (deleting a profile in Admin removes its drinks, points, posts and files), or blank those variables to use mock data. Shell is PowerShell (no `&&`).
 
 ## Stack
@@ -42,15 +42,19 @@ Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time)
 8. **Post BAC is a snapshot.** When a photo/video post is created and the poster's `showBacOnPosts` setting is on (default on, editable in their profile), the server computes their BAC once and stores it on the post (`bac_at_post`). It is never recomputed or backfilled; if the setting was off, it stays null and the feed shows no number. Comments follow the same rule (`bac_at_comment`); both go through `bacSnapshot()` in `src/lib/feed.ts`.
 9. **Mobile first, day and night.** Design for a ~380px-wide phone. Every screen must work in both modes (toggle in the header; default follows the phone). Tap targets ≥ 44px, content clear of the bottom nav and the iOS safe area.
 
-## Planned, not built
+## Badges (M13)
 
-**M13 (achievements and merit badges)** is specified in plan.md and waits for Peter's go-ahead. It sits on the points economy and the games below and follows their rules. For M13 in particular:
-- The trophy case goes on a public profile page (people can view each other's profiles); body metrics stay private.
-- "Designated Driver" and "Take the Wheel Cap'n" (both at 0.08%) are built exactly as Peter wrote them: his explicit exception to rule 5 for those two badges only.
-- Badges come from three sources behind one evaluator interface: manual, rule-based (a JSON rule built in Admin; `describeRule()` writes the plain-English preview from the same rule the evaluator runs) and coded (pure functions; read-only in Admin).
-- Merit badges are checked on the event that can earn them and revoked when that drink, water or photo is deleted. Achievement holders are computed on read while the day runs and written at the cutoff by the M11 settlement.
-- Badge points go through the ledger (`badge` source, unique key). Editing a badge's points affects future awards only unless an admin runs "Recalculate all".
-- Photo tags travel with the post body; don't change Rahul's upload flow for them.
+Achievements (one holder per party day, locked in at the 4am cutoff) and merit badges (anyone who qualifies, as it happens), plus photo tags and profiles. What Peter decided is in plan.md under M13.
+
+- **Code:** `src/lib/badges/`. `rules.ts` is pure: the `Rule` shapes Admin's builder produces, `describeRule()` (the plain-English preview, written from the same object the evaluators run), the merit and achievement evaluators, and the four coded conditions. `service.ts` joins them to the store. `seed.ts` is the initial set, created in the database the first time badges are read; after that Admin owns them.
+- **Three sources, one path:** manual (awarded by hand), rule-based (a JSON rule; add a rule type in `rules.ts`, `checkRule` in the service, and the builder in `BadgesPanel.tsx` together) and coded (functions in `rules.ts`; read-only in Admin).
+- **State is `game_records`** (kinds `badge`, `badgeaward`, `badgeclaim`, `badgeimage`). An award writes its ledger entry first (source `badge`, unique `award_key`, even at 0 points) and only records the award if that succeeds, so nothing is given twice. Revoking voids the entry.
+- **Merit badges** are checked in `checkBadges()` after every logged drink and water, and revoked by `revokeForSource()` when the log they rest on is deleted. **Achievements** are computed from the data on read ("holding today") and awarded by `settleAchievements()`, which the M11 settlement calls.
+- **"Designated Driver" and "Take the Wheel Cap'n"** (both at 0.08%) are built exactly as Peter wrote them: his explicit exception to rule 5 for those two badges only. Don't soften or re-flag them, and don't extend the exception.
+- **Photo tags** (`taggedIds`, `asleep`) travel in the post body; Rahul's upload flow is untouched. The poster can change tags; a tagged person can only remove themselves. A confirmed Sleeping Beauty photo is pinned (`pinnedUntil`) to the top of the feed until the day ends.
+- **Profiles:** `useOpenProfile()(id)` opens anyone's profile sheet (trophy case, points by source, latest entries) from inside the tabs; `/api/people/[id]` serves it through `displayStore` and never returns body metrics (rule 7).
+- **Badge images:** the seeded crests are static files (`design/brand/badges` → `public/brand/badges`), with the badge's name lettered on them. Uploaded ones are shrunk to 256 px in the browser, stored as a record and served by `/api/badges/image/[id]`; only the URL ever appears in a polled response (rule 10).
+- **Badges add points to almost any test that logs drinks.** The points and games tests and e2e scripts switch every badge off first; the badge tests switch Cheers and the slot machine off.
 
 ## Points economy (M11)
 
@@ -62,6 +66,7 @@ Logging a drink or a water earns points automatically; hourly and daily awards a
 - **Order for one drink:** standard drinks → pace cap → × points per drink → multipliers, held to the maximum combined multiplier → BAC ceiling. Flat bonuses (Cheers) are separate entries.
 - **Reversal:** deleting a drink or water voids every ledger entry linked to it (`drink_id`), and a Cheers left short is voided for everyone (`group_id`). Voided entries stay in the history, struck through; every total must skip them (`voidedAt`).
 - **Idempotent awards:** every automatic entry has a unique `award_key` (`drink:<id>`, `hour:<iso>:winner`, `day:<day>:smooth`…). `addPointEvent` returns null when the key exists. There is no scheduler: `settleDue()` runs from the polled status endpoint, at most once per clock hour per server instance, and Admin has "Settle now". Last Man Standing is paid only when an admin confirms it.
+- **Hourly awards:** Hour Winner (most drink points so far that day, if they logged enough drinks that hour), Top BAC of the hour, and Landlubber (Hydro Homie) (most waters so far that day, if they logged one that hour).
 - **A "day" is 4am to 4am party time** (`dayCutoffHour`), via `partyDayOf` / `partyDayBounds`.
 - **Water is not a drink.** It lives in `water_logs` so drink counts and BAC never see it.
 - **The BAC ceiling pauses points without commentary:** "points paused" and nothing more, consistent with rule 5.
@@ -136,6 +141,7 @@ src/
     leaderboard.ts, trends.ts      server-side totals, points history, chart series
     points/                        the points economy: settings, pure rules (score, awards), service, formatting
     games/                         the M12 games, one file each, plus shared notices, feed lines, spending
+    badges/                        M13: rule shapes and evaluators (pure), the seeded set, awards and trophy case
     avatar.ts, chart.ts            avatar storage rules; tick/label layout helpers
     media.ts, feed.ts, upload.ts   upload rules; feed + blob cleanup (server); browser upload helpers
     export.ts, feed-assemble.ts    export names + CSV and feed joining, shared with scripts/ (no runtime imports allowed)

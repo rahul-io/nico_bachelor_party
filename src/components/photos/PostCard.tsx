@@ -1,8 +1,9 @@
 "use client";
 
-import { MessageCircle, Trash2 } from "lucide-react";
+import { MessageCircle, Pin, Trash2, UserPlus } from "lucide-react";
 import { useRef, useState } from "react";
 import { ReactionBar } from "@/components/photos/ReactionBar";
+import { PersonLink } from "@/components/people/ProfileSheet";
 import { Avatar } from "@/components/ui/Avatar";
 import { DOUBLE_TAP_REACTION, type ReactionEmoji } from "@/lib/reactions";
 import type { FeedPost } from "@/lib/store/types";
@@ -14,12 +15,21 @@ const DOUBLE_TAP_MS = 260;
 interface PostCardProps {
   post: FeedPost;
   canDelete: boolean;
+  /** The signed-in person, to decide what they may do with the tags. */
+  viewerId?: string;
   onDelete: (post: FeedPost) => void;
+  /** Open the tag picker (poster only). */
+  onEditTags?: (post: FeedPost) => void;
+  /** Take the viewer's own tag off. */
+  onUntag?: (post: FeedPost) => void;
   onOpen: (post: FeedPost) => void;
   onReact: (post: FeedPost, emoji: ReactionEmoji, on: boolean) => void;
 }
 
-export function PostCard({ post, canDelete, onDelete, onOpen, onReact }: PostCardProps) {
+export function PostCard({ post, canDelete, viewerId, onDelete, onEditTags, onUntag, onOpen, onReact }: PostCardProps) {
+  const tagged = post.tagged ?? [];
+  const isPoster = viewerId === post.profileId;
+  const amTagged = !!viewerId && tagged.some((person) => person.id === viewerId);
   const noun = post.mediaType === "video" ? "video" : "photo";
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [burst, setBurst] = useState(0);
@@ -45,7 +55,7 @@ export function PostCard({ post, canDelete, onDelete, onOpen, onReact }: PostCar
         <Avatar name={post.posterName} src={post.posterAvatarUrl} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="leading-snug">
-            <span className="font-semibold">{post.posterName}</span>
+            <PersonLink id={post.profileId} name={post.posterName} />
             {/* The BAC stored with the post when it was made; not a live number. */}
             {post.bacAtPost !== null && (
               <span className="tabular-nums text-accent"> ({post.bacAtPost.toFixed(2)}%)</span>
@@ -96,6 +106,42 @@ export function PostCard({ post, canDelete, onDelete, onOpen, onReact }: PostCar
       </div>
 
       {post.caption && <p className="whitespace-pre-line px-4 pt-3">{post.caption}</p>}
+
+      {(tagged.length > 0 || post.asleep || post.pinnedUntil || isPoster) && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 pt-3 text-sm">
+          {post.pinnedUntil && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-linear-to-b from-gold-hi to-gold px-2 py-0.5 font-semibold text-navy">
+              <Pin className="size-3.5" aria-hidden />
+              Sleeping Beauty
+            </span>
+          )}
+          {post.asleep && !post.pinnedUntil && (
+            <span className="rounded-full border border-line px-2 py-0.5 font-medium text-muted">Asleep</span>
+          )}
+          {tagged.length > 0 && (
+            <span className="text-muted">
+              with{" "}
+              {tagged.map((person, index) => (
+                <span key={person.id}>
+                  {index > 0 && ", "}
+                  <PersonLink id={person.id} name={person.name} className="font-semibold text-link" />
+                </span>
+              ))}
+            </span>
+          )}
+          {isPoster && onEditTags && (
+            <button type="button" onClick={() => onEditTags(post)} className="inline-flex min-h-9 items-center gap-1 text-muted underline">
+              <UserPlus className="size-4" aria-hidden />
+              {tagged.length > 0 ? "Edit tags" : "Tag people"}
+            </button>
+          )}
+          {!isPoster && amTagged && onUntag && (
+            <button type="button" onClick={() => onUntag(post)} className="min-h-9 text-muted underline">
+              Remove my tag
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="space-y-1 p-3">
         <ReactionBar

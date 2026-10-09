@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { listBadges, saveBadge } from "@/lib/badges/service";
 import { buildLeaderboard } from "@/lib/leaderboard";
 import { mockStore as store } from "@/lib/store/mock";
 import type { Profile } from "@/lib/store/types";
@@ -50,6 +51,8 @@ beforeEach(async () => {
   // A fresh mock store without the demo guests.
   (globalThis as { __mockData?: unknown }).__mockData = undefined;
   for (const profile of await store.listProfiles()) await store.deleteProfile(profile.id);
+  // Badges have their own tests; here they would only add points to every sum.
+  for (const badge of await listBadges(store)) await saveBadge(store, badge.id, { ...badge, active: false });
 });
 
 afterEach(() => vi.useRealTimers());
@@ -298,7 +301,10 @@ describe("settling awards", () => {
     const won = (text: string) => awards.find((event) => event.reason?.startsWith(text));
     expect(won("Smooth Sailing")).toMatchObject({ profileId: a.id, delta: 15, awardKey: "day:2026-10-09:smooth" });
     expect(won("Drunkest Sailor")).toMatchObject({ profileId: a.id, delta: 10 });
-    expect(won("Landlubber (Hydro Homie)")).toMatchObject({ profileId: b.id, delta: 5, reason: "Landlubber (Hydro Homie) · 1 water" });
+    // The water award is hourly now.
+    expect(won("Landlubber")).toBeUndefined();
+    const hourly = (await store.listPointEvents()).find((event) => event.reason?.startsWith("Landlubber"));
+    expect(hourly).toMatchObject({ profileId: b.id, delta: 1, source: "hourly", reason: "Landlubber (Hydro Homie) · 8 PM · 1 water today" });
     // Nobody reached the ceiling, so there is no Fastest Climb.
     expect(won("Fastest Climb")).toBeUndefined();
     expect(awards.every((event) => event.createdAt === "2026-10-10T11:00:00.000Z")).toBe(true);
