@@ -23,6 +23,12 @@ export const MOST_METRICS = [
   "categoryDrinks",
   "groomTaxes",
   "cursesReceived",
+  "comments",
+  "distinctDrinks",
+  "pointsStaked",
+  "wagerWinnings",
+  "slotStolen",
+  "snitchReports",
 ] as const;
 export type MostMetric = (typeof MOST_METRICS)[number];
 
@@ -38,7 +44,44 @@ export type Rule =
   /** Achievement: the most of something that day. */
   | { type: "most"; metric: MostMetric; category?: string };
 
-export const CODED = ["lightweight", "sleepingBeauty", "hairOfTheDog", "secondWind"] as const;
+export const CODED = [
+  "lightweight",
+  "sleepingBeauty",
+  "hairOfTheDog",
+  "secondWind",
+  // Achievements (extra.ts)
+  "earlyBird",
+  "nightOwl",
+  "influencer",
+  "woodenSpoon",
+  // Merit badges found by sweeping the whole record (extra.ts)
+  "jackpot",
+  "bustOut",
+  "robbedBlind",
+  "badBeat",
+  "comebackKid",
+  "varietyPack",
+  "bartenderDone",
+  "witch",
+  "identityCrisis",
+  "corporateDrone",
+  "groomShadow",
+  "nice",
+  "blazeIt",
+  "jinx",
+  "groundhogDay",
+  "perfectlyBalanced",
+  "butterfingers",
+  "madScientist",
+  "unoReverse",
+  "selfOwn",
+  "regicide",
+  "lazarus",
+  "midnightSnack",
+  "sameTimeTomorrow",
+  "sundayScaries",
+  "niceTwo",
+] as const;
 export type CodedKey = (typeof CODED)[number];
 
 /** Whether a rule (or coded condition) names one holder per day rather than everyone who qualifies. */
@@ -51,6 +94,20 @@ export interface DrinkEvent {
   alcoholG: number;
   name: string;
   category: string | null;
+  /** Fraction, when the drink was logged by volume and strength. */
+  abv?: number | null;
+  /** What the slot machine landed on, if this drink spun and it counted. */
+  slot?: string | null;
+}
+
+/** A live entry in the points ledger, as much of it as badges look at. */
+export interface LedgerEntry {
+  profileId: string;
+  delta: number;
+  source: string;
+  awardKey: string | null;
+  drinkId: string | null;
+  at: number;
 }
 
 export interface World {
@@ -62,6 +119,25 @@ export interface World {
   cursesReceived: Array<{ profileId: string; at: number }>;
   /** The hour a party day starts and ends (4 = 4am). */
   cutoffHour: number;
+
+  // Everything below feeds the wider set of badges (extra.ts).
+  comments: Array<{ profileId: string; at: number }>;
+  /** Total reactions on each photo, by post id. */
+  reactions: Record<string, number>;
+  ledger: LedgerEntry[];
+  /** Every curse cast, Shields and blocked ones included. */
+  curses: Array<{ id: string; type: string; fromId: string; targetId: string; at: number; blocked: boolean }>;
+  /** Settled wagers. */
+  wagers: Array<{ id: string; stake: number; winnerId: string; loserId: string; at: number }>;
+  /** Snitch Line reports that were upheld. */
+  snitches: Array<{ id: string; reporterId: string; accusedId: string; at: number }>;
+  /** Bartender's Choice orders that were logged in time. */
+  ordersDone: Array<{ id: string; profileId: string; at: number }>;
+  /** When each person deleted a drink. */
+  deletions: Array<{ profileId: string; at: number }>;
+  /** Confirmed Sleeping Beauty photos: who was asleep, and when the photo was posted. */
+  sleepers: Array<{ profileId: string; postId: string; at: number }>;
+  groomId: string | null;
 }
 
 /** The log that might have just earned something. */
@@ -114,6 +190,12 @@ const metricNouns: Record<MostMetric, string> = {
   categoryDrinks: "drinks logged",
   groomTaxes: "Groom Taxes",
   cursesReceived: "curses received",
+  comments: "comments posted",
+  distinctDrinks: "different drinks logged",
+  pointsStaked: "points staked on wagers",
+  wagerWinnings: "points won on wagers, net",
+  slotStolen: "points stolen with the slot machine",
+  snitchReports: "Snitch Line reports upheld",
 };
 
 /** "Log 3 drinks within a rolling hour." */
@@ -149,6 +231,36 @@ export const codedDescriptions: Record<CodedKey, string> = {
   sleepingBeauty: "Be the first caught asleep that day: a photo marked asleep with you tagged, confirmed by an admin.",
   hairOfTheDog: "Log your first drink of the day before noon, after going over 0.080% the day before.",
   secondWind: "Drop back to 0.000%, then climb back over 0.050%, in the same day.",
+  earlyBird: "Log the first drink of the day.",
+  nightOwl: "Log the last drink before the day ends.",
+  influencer: "Post the photo with the most reactions that day. A tie goes to the earlier photo.",
+  woodenSpoon: "Be in last place on points when the day ends, having logged at least one drink that day.",
+  jackpot: "Hit a Jackpot on the slot machine.",
+  bustOut: "Bust on three spins in a row.",
+  robbedBlind: "Be robbed by someone's Rob the Leader spin.",
+  badBeat: "Lose a wager with a stake of 20 points or more.",
+  comebackKid: "Go from last place to the top three within one day (with at least five people playing).",
+  varietyPack: "Log a beer, a wine, a shot, a cocktail and a seltzer in one day.",
+  bartenderDone: "Log your Bartender's Choice order in time.",
+  witch: "Cast all four kinds of curse.",
+  identityCrisis: "Have your name hijacked.",
+  corporateDrone: "Have a Snitch Line report against you upheld.",
+  groomShadow: "Be tagged in 10 photos that also tag the groom.",
+  nice: "Log a drink that takes your estimated BAC to exactly 0.069%. Once a day.",
+  blazeIt: "Have an estimated BAC of exactly 0.042% at 4:20, morning or afternoon, party time.",
+  jinx: "Log the same drink as someone else in the same minute. Both earn it.",
+  groundhogDay: "Log the same drink five times in a row.",
+  perfectlyBalanced: "Finish a day with the same number of drinks and waters, at least five of each.",
+  butterfingers: "Delete three drinks in one day.",
+  madScientist: "Log a drink of your own making that is over 50% alcohol.",
+  unoReverse: "Curse the person who cursed you within five minutes.",
+  selfOwn: "Hit Pay It Forward and have the points go to whoever last cursed you.",
+  regicide: "Land a curse on the groom.",
+  lazarus: "Log a drink within an hour of your confirmed Sleeping Beauty photo.",
+  midnightSnack: "Log a drink at exactly 12:00am.",
+  sameTimeTomorrow: "Log drinks at the same minute of the clock on two days running.",
+  sundayScaries: "Log your first Sunday drink before 9am.",
+  niceTwo: "Have exactly 69 points at any moment.",
 };
 
 function matches(what: What, world: World, trigger: { kind: "drink" | "water"; id: string }): boolean {
@@ -263,7 +375,7 @@ export function codedMeritEarned(key: CodedKey, world: World, profileId: string,
 }
 
 /** Higher value wins unless `lowest`; equal values go to the earlier `at`. */
-function best(candidates: Holder[], lowest = false): Holder | null {
+export function best(candidates: Holder[], lowest = false): Holder | null {
   let winner: Holder | null = null;
   for (const candidate of candidates) {
     const better =
@@ -290,8 +402,40 @@ function reached(world: World, start: number, end: number, bac: number): Array<H
   });
 }
 
-function countsFor(rule: Extract<Rule, { type: "most" }>, world: World): Array<{ profileId: string; at: number }> {
+type Tally = { profileId: string; at: number; amount?: number };
+
+function countsFor(rule: Extract<Rule, { type: "most" }>, world: World, start: number, end: number): Tally[] {
   switch (rule.metric) {
+    case "comments":
+      return world.comments;
+    case "distinctDrinks": {
+      // One per person per drink name: the first time they logged it that day.
+      const seen = new Set<string>();
+      return [...world.drinks]
+        .sort((a, b) => a.at - b.at)
+        .filter((drink) => {
+          if (drink.at < start || drink.at >= end) return false;
+          const key = `${drink.profileId}:${drink.name.trim().toLowerCase()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    }
+    case "pointsStaked":
+      return world.ledger
+        .filter((entry) => entry.source === "wager" && entry.delta < 0)
+        .map((entry) => ({ profileId: entry.profileId, at: entry.at, amount: -entry.delta }));
+    case "wagerWinnings":
+      // Net: stakes out, winnings and refunds in.
+      return world.ledger
+        .filter((entry) => entry.source === "wager")
+        .map((entry) => ({ profileId: entry.profileId, at: entry.at, amount: entry.delta }));
+    case "slotStolen":
+      return world.ledger
+        .filter((entry) => /^slot:.*:rob$/.test(entry.awardKey ?? ""))
+        .map((entry) => ({ profileId: entry.profileId, at: entry.at, amount: entry.delta }));
+    case "snitchReports":
+      return world.ledger.filter((entry) => /^snitch:.*:reporter$/.test(entry.awardKey ?? ""));
     case "photos":
       return world.posts;
     case "taggedPhotos":
@@ -317,16 +461,17 @@ export function achievementHolder(rule: Rule, world: World, start: number, end: 
   }
   if (rule.type === "most") {
     const tally = new Map<string, Holder>();
-    for (const item of countsFor(rule, world)) {
+    for (const item of countsFor(rule, world, start, end)) {
       if (item.at < start || item.at >= end) continue;
       const current = tally.get(item.profileId);
       tally.set(item.profileId, {
         profileId: item.profileId,
-        value: (current?.value ?? 0) + 1,
+        value: Math.round(((current?.value ?? 0) + (item.amount ?? 1)) * 10) / 10,
         at: Math.max(current?.at ?? 0, item.at),
       });
     }
-    return best([...tally.values()]);
+    // Nobody wins "most" with nothing, or with a net loss.
+    return best([...tally.values()].filter((holder) => holder.value > 0));
   }
   return null;
 }

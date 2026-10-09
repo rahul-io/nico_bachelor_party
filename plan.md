@@ -545,6 +545,27 @@ How it turned out, where it differs from the plan above or matters later:
 - `npm run test:e2e:badges` (49 checks) against a fresh `npm run dev:mock`; the 4am lock-in is covered by the unit tests.
 
 
+#### M13 addendum: 46 more badges (built 2026-10-09)
+
+Peter's second and third lists, bringing the seeded set to 60. None has artwork yet; each shows its emoji.
+
+- **Rule-based (9):** Groomsman of the Year, Most Wanted, Whale, The House, Robin Hood, Rat King, Reply Guy, Sommelier (all "most … that day") and Shot Caller (5 shots in a day). The builder's "Most" list gained six metrics to express them: comments, different drinks, points staked on wagers, net wager winnings, points stolen with the slot machine, Snitch Line reports upheld.
+- **Coded achievements (4):** Early Bird, Night Owl, Influencer, Wooden Spoon.
+- **Coded merit badges (26), written as detectors** in `src/lib/badges/extra.ts`: each looks over the whole record and lists every time its condition was met; `sweepBadges()` awards any occurrence not yet given, under its own key. The sweep runs after every drink, water, deletion, game action, tagged post and settlement. A badge only counts occurrences from after it was created (so nothing was back-filled when these shipped), except the two running totals, Witch and Nico's Shadow.
+- **Manual (7):** Flamer (−15), Fireman (+15), Where's the Remote? (+1), Anyone Can Cook (+2), Bucket Brigade (+10), Leave No Trace (+5), and Appletini Dealer (+2). Points may now be negative (−200 to 200). A badge can be awarded from Admin > Badges or from the medal button on a person's row in Admin > People, as often as it happens; the trophy case shows the count.
+- **Hidden until earned (15):** the "obscure" list. They show as "???" to others until someone holds one.
+
+Readings of the spec worth knowing:
+- **Appletini Dealer is manual.** The app doesn't record who a drink was *for*, so it can't see "3 appletinis for Nico".
+- **Nice.** is checked when a drink is logged, because BAC only peaks at that moment. **Blaze It** is checked at both ends of the 4:20 minute, am and pm. Both round BAC to three decimals.
+- **"Nico" is the groom** set in Admin > Points > Games (Nico's Shadow, Regicide). Until a groom is set those two can't be earned.
+- **Comeback Kid** needs at least five people, and "last" means strictly behind someone.
+- **Sunday Scaries** uses the party day, so a 2am Sunday drink is still Saturday night; the first drink after 4am must be before 9am.
+- **Same Time Tomorrow** and **Midnight Snack** go by the clock minute in party time.
+- **Wooden Spoon** is the lowest total at the cutoff among people who logged a drink that day; a tie goes to whoever logged first.
+- **Bad Beat** is for the two players of a wager with a stake of 20 or more, not side bettors.
+- **Points:** achievements +5 and merit badges +2, as for the first set, since none were given.
+
 Size and order: M11 is the foundation and is built. M12 and M13 are built too: every planned milestone is done.
 
 M12 is six separate features; each is usable on its own, so they can go out one at a time in the order above.

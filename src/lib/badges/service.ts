@@ -24,6 +24,7 @@ import {
   type Trigger,
   type World,
 } from "./rules";
+import { CODED_ACHIEVEMENTS, CUMULATIVE, codedHolder, detect } from "./extra";
 import { seedBadges } from "./seed";
 
 /**
@@ -56,6 +57,7 @@ export interface Badge {
   active: boolean;
   /** Shown as "???" in the trophy case until someone earns it. */
   hidden: boolean;
+  createdAt: string;
 }
 
 export interface BadgeInput {
@@ -87,6 +89,7 @@ function toBadge(record: GameRecord): Badge {
     points: num(d.points),
     active: d.active !== false,
     hidden: d.hidden === true,
+    createdAt: record.createdAt,
   };
 }
 
@@ -149,8 +152,8 @@ export async function saveBadge(store: Store, id: string | null, input: BadgeInp
   const name = input.name.trim();
   if (name.length < 1 || name.length > 40) throw new GameError("The badge needs a name (max 40 characters).");
   if (input.description.length > 200) throw new GameError("The description is too long (max 200 characters).");
-  if (!Number.isFinite(input.points) || input.points < 0 || input.points > 200) {
-    throw new GameError("Points must be between 0 and 200.");
+  if (!Number.isFinite(input.points) || input.points < -200 || input.points > 200) {
+    throw new GameError("Points must be between -200 and 200.");
   }
   const fields = {
     name,
@@ -291,16 +294,86 @@ export async function revokeForSource(store: Store, sourceId: string): Promise<v
 }
 
 export async function loadWorld(store: Store): Promise<World> {
-  const [settings, people, drinks, waters, posts, groomTaxes, curses] = await Promise.all([
-    getSettings(store),
-    store.listProfiles(),
-    store.listAllDrinks(),
-    store.listAllWaters(),
-    store.listPosts(),
-    store.listRecords("groomtax", "paid"),
-    store.listRecords("curse"),
-  ]);
+  const [settings, people, drinks, waters, posts, groomTaxes, curses, events, comments, reactionCounts, wagers, snitches, orders, awards, groom] =
+    await Promise.all([
+      getSettings(store),
+      store.listProfiles(),
+      store.listAllDrinks(),
+      store.listAllWaters(),
+      store.listPosts(),
+      store.listRecords("groomtax", "paid"),
+      store.listRecords("curse"),
+      store.listPointEvents(),
+      store.listAllComments(),
+      store.reactionCounts(null),
+      store.listRecords("wager", "settled"),
+      store.listRecords("snitch", "upheld"),
+      store.listRecords("bartender", "done"),
+      store.listRecords("badgeaward", "held"),
+      store.getSetting("games.groom"),
+    ]);
+  const live = events.filter((event) => event.voidedAt === null);
+  const slotOf = new Map(
+    live.filter((event) => event.source === "drink" && event.drinkId).map((event) => [event.drinkId!, event.breakdown?.slot ?? null]),
+  );
+  const reactions: Record<string, number> = {};
+  for (const item of reactionCounts) reactions[item.postId] = (reactions[item.postId] ?? 0) + item.count;
+  const postAt = new Map(posts.map((post) => [post.id, Date.parse(post.createdAt)]));
+  const sleepingIds = new Set(
+    (await store.listRecords("badge")).filter((record) => record.data.coded === "sleepingBeauty").map((record) => record.id),
+  );
+
   return {
+    comments: comments.map((comment) => ({ profileId: comment.profileId, at: Date.parse(comment.createdAt) })),
+    reactions,
+    ledger: live.map((event) => ({
+      profileId: event.profileId,
+      delta: event.delta,
+      source: event.source,
+      awardKey: event.awardKey,
+      drinkId: event.drinkId,
+      at: Date.parse(event.createdAt),
+    })),
+    curses: curses
+      .filter((record) => record.profileId)
+      .map((record) => ({
+        id: record.id,
+        type: str(record.data.type),
+        fromId: str(record.data.fromId),
+        targetId: record.profileId!,
+        at: Date.parse(record.createdAt),
+        blocked: record.status === "blocked",
+      })),
+    wagers: wagers.flatMap((record) => {
+      const winnerId = str(record.data.winnerId);
+      const players = [record.profileId ?? "", str(record.data.opponentId)];
+      const loserId = players.find((id) => id !== winnerId);
+      // Settled when the winner was paid.
+      const paid = live.find((event) => event.awardKey === `wager:${record.id}:win:${winnerId}`);
+      return loserId ? [{ id: record.id, stake: num(record.data.stake), winnerId, loserId, at: Date.parse(paid?.createdAt ?? record.createdAt) }] : [];
+    }),
+    snitches: snitches.map((record) => {
+      const paid = live.find((event) => event.awardKey === `snitch:${record.id}:accused`);
+      return {
+        id: record.id,
+        reporterId: record.profileId ?? "",
+        accusedId: str(record.data.accusedId),
+        at: Date.parse(paid?.createdAt ?? record.createdAt),
+      };
+    }),
+    ordersDone: orders.filter((record) => record.profileId).map((record) => ({ id: record.id, profileId: record.profileId!, at: Date.parse(record.createdAt) })),
+    // A deleted drink leaves its ledger entry behind, voided at the moment of deletion.
+    deletions: events
+      .filter((event) => event.source === "drink" && event.voidedAt !== null)
+      .map((event) => ({ profileId: event.profileId, at: Date.parse(event.voidedAt!) })),
+    sleepers: awards
+      .filter((record) => sleepingIds.has(str(record.data.badgeId)) && record.profileId)
+      .flatMap((record) => {
+        const postId = Array.isArray(record.data.sourceIds) ? String(record.data.sourceIds[0] ?? "") : "";
+        const at = postAt.get(postId);
+        return at === undefined ? [] : [{ profileId: record.profileId!, postId, at }];
+      }),
+    groomId: typeof groom === "string" && groom ? groom : null,
     people,
     drinks: drinks.map((drink) => ({
       id: drink.id,
@@ -309,6 +382,8 @@ export async function loadWorld(store: Store): Promise<World> {
       alcoholG: drink.alcoholG,
       name: drink.name,
       category: drink.category,
+      abv: drink.abv,
+      slot: slotOf.get(drink.id) ?? null,
     })),
     waters: waters.map((water) => ({ id: water.id, profileId: water.profileId, at: Date.parse(water.consumedAt) })),
     posts: posts.map((post) => ({
@@ -331,11 +406,14 @@ export async function loadWorld(store: Store): Promise<World> {
 function holderFor(badge: Badge, world: World, day: string): Holder | null {
   const { start, end } = partyDayBounds(day, world.cutoffHour);
   if (badge.coded === "lightweight") return lightweightHolder(world, start, end);
+  if (badge.coded) return codedHolder(badge.coded, world, start, end);
   return badge.rule ? achievementHolder(badge.rule, world, start, end) : null;
 }
 
 const settles = (badge: Badge) =>
-  badge.active && badge.kind === "achievement" && (badge.coded === "lightweight" || (badge.rule !== null && isAchievementRule(badge.rule)));
+  badge.active &&
+  badge.kind === "achievement" &&
+  ((badge.coded !== null && CODED_ACHIEVEMENTS.includes(badge.coded)) || (badge.rule !== null && isAchievementRule(badge.rule)));
 
 /**
  * Checks the merit badges a just-logged drink or water could earn, and
@@ -364,7 +442,9 @@ export async function checkBadges(store: Store, profile: Profile, trigger: Trigg
         });
       }
     }
-    if (settles(badge) && (badge.rule?.type === "first" || badge.coded === "lightweight") && trigger.kind === "drink") {
+    // "First to" badges can't change hands, so they are announced as soon as they are claimed.
+    const firstTo = badge.rule?.type === "first" || badge.coded === "lightweight" || badge.coded === "earlyBird";
+    if (settles(badge) && firstTo && trigger.kind === "drink") {
       const holder = holderFor(badge, world, day);
       if (holder?.profileId !== profile.id || holder.at !== trigger.at) continue;
       const claims = await store.listRecords("badgeclaim");
@@ -374,6 +454,37 @@ export async function checkBadges(store: Store, profile: Profile, trigger: Trigg
       await notify(store, profile.id, `You've claimed ${badge.name} for today. It is awarded at the day's end if it holds.`);
     }
   }
+  await sweepBadges(store, Math.max(Date.now(), trigger.at));
+}
+
+/**
+ * Awards the detector badges (extra.ts): looks over the whole record for
+ * every time each one's condition has been met and awards any not yet given.
+ * Cheap to repeat, so it runs after anything that could have earned one.
+ */
+export async function sweepBadges(store: Store, now = Date.now()): Promise<number> {
+  const badges = (await listBadges(store)).filter((badge) => badge.active && badge.coded && badge.kind === "merit");
+  if (badges.length === 0) return 0;
+  const [world, profiles] = await Promise.all([loadWorld(store), store.listProfiles()]);
+  let given = 0;
+  for (const badge of badges) {
+    const found = detect(badge.coded!, world, now);
+    if (!found) continue;
+    const since = CUMULATIVE.includes(badge.coded!) ? 0 : Date.parse(badge.createdAt);
+    for (const occurrence of found) {
+      if (occurrence.at < since || occurrence.at > now) continue;
+      const profile = profiles.find((item) => item.id === occurrence.profileId);
+      if (!profile) continue;
+      const awarded = await awardBadge(store, badge, profile, {
+        key: `${badge.id}:${occurrence.profileId}:${occurrence.key}`,
+        period: partyDayOf(occurrence.at, world.cutoffHour),
+        sourceIds: occurrence.sourceIds,
+        at: occurrence.at,
+      });
+      if (awarded) given += 1;
+    }
+  }
+  return given;
 }
 
 const DAYS_BACK = 2;
@@ -395,7 +506,8 @@ export async function settleAchievements(store: Store, now = Date.now()): Promis
       if (await awardBadge(store, badge, profile, { key: `${badge.id}:${day}`, period: day, at: end })) paid += 1;
     }
   }
-  return paid;
+  // Some detector badges are about the clock (4:20, a finished day), not a log.
+  return paid + (await sweepBadges(store, now));
 }
 
 export interface SleepingCandidate {
@@ -457,6 +569,7 @@ export async function confirmSleepingBeauty(store: Store, day: string): Promise<
   }
   // Pinned to the top of the feed until the day ends.
   if (given > 0) await store.updatePost(photo.id, { pinnedUntil: new Date(end).toISOString() });
+  await sweepBadges(store);
   return given;
 }
 

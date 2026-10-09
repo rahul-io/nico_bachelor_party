@@ -1,8 +1,9 @@
 "use client";
 
-import { KeyRound, Trash2 } from "lucide-react";
+import { KeyRound, Medal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useSWRConfig } from "swr";
+import { AwardBadgeSheet } from "@/components/admin/AwardBadgeSheet";
 import { Avatar } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
 import { Status } from "@/components/ui/Status";
@@ -22,6 +23,7 @@ export function PeoplePanel() {
   const { busy, status, run } = useAction();
   // Shown once, right after a reset, for the admin to pass on. It is not stored anywhere readable.
   const [issued, setIssued] = useState<{ name: string; password: string } | null>(null);
+  const [awarding, setAwarding] = useState<AdminProfile | null>(null);
 
   async function remove(person: AdminProfile) {
     const sure = window.confirm(
@@ -49,7 +51,7 @@ export function PeoplePanel() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">
-        Reset a forgotten password, or delete a profile nobody is using.
+        Award a badge by hand, reset a forgotten password, or delete a profile nobody is using.
       </p>
 
       {issued && (
@@ -73,6 +75,14 @@ export function PeoplePanel() {
             </div>
             <button
               type="button"
+              onClick={() => setAwarding(person)}
+              aria-label={`Award a badge to ${person.name}`}
+              className="flex size-tap shrink-0 items-center justify-center text-muted"
+            >
+              <Medal className="size-5" aria-hidden />
+            </button>
+            <button
+              type="button"
               onClick={() => resetPassword(person)}
               disabled={busy}
               aria-label={`Reset password for ${person.name}`}
@@ -94,6 +104,7 @@ export function PeoplePanel() {
         {people?.length === 0 && <li className="px-4 py-3 text-muted">Nobody has joined yet.</li>}
       </ul>
       <Status status={status} />
+      {awarding && <AwardBadgeSheet key={awarding.id} person={awarding} onClose={() => setAwarding(null)} />}
     </div>
   );
 }

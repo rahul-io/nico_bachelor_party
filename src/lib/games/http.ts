@@ -1,3 +1,4 @@
+import { sweepBadges } from "@/lib/badges/service";
 import { getRequestProfile, jsonError, readJson } from "@/lib/http";
 import { getStore } from "@/lib/store";
 import type { Profile, Store } from "@/lib/store/types";
@@ -17,7 +18,11 @@ export async function playerAction(
   if (!profile) return jsonError("Unknown profile", 401);
   const body = ((await readJson(req)) ?? {}) as Body;
   try {
-    return Response.json((await action(getStore(), profile, body)) ?? { ok: true });
+    const store = getStore();
+    const result = (await action(store, profile, body)) ?? { ok: true };
+    // A curse, a settled wager or an upheld report can each earn someone a badge.
+    await sweepBadges(store);
+    return Response.json(result);
   } catch (error) {
     if (error instanceof GameError) return jsonError(error.message, error.status);
     throw error;

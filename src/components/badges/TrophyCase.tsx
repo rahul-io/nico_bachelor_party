@@ -1,6 +1,6 @@
 import type { BadgeView, TrophyCase as Trophies } from "@/lib/badges/service";
 import { cn } from "@/lib/cn";
-import { formatPoints } from "@/lib/points/format";
+import { formatDelta } from "@/lib/points/format";
 
 const sizes = { sm: "size-14 text-3xl", md: "size-20 text-5xl", lg: "size-64 text-9xl" };
 
@@ -39,8 +39,10 @@ function Row({ badge, count, locked = false }: { badge: BadgeView; count?: numbe
         </p>
         <p className="text-sm text-muted">{badge.description}</p>
       </div>
-      {badge.points > 0 && (
-        <span className="shrink-0 font-display font-bold tabular-nums text-accent">+{formatPoints(badge.points)}</span>
+      {badge.points !== 0 && (
+        <span className={cn("shrink-0 font-display font-bold tabular-nums", badge.points < 0 ? "text-danger" : "text-accent")}>
+          {formatDelta(badge.points)}
+        </span>
       )}
     </li>
   );

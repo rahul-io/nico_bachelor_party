@@ -1,3 +1,4 @@
+import { sweepBadges } from "@/lib/badges/service";
 import { getRequestProfile, jsonError, readJson } from "@/lib/http";
 import { getStore } from "@/lib/store";
 
@@ -27,5 +28,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (!onlyRemovedSelf) return jsonError("Only the poster can change the tags; you can remove your own.", 403);
   }
   const updated = await store.updatePost(post.id, { taggedIds: wanted });
+  await sweepBadges(store);
   return Response.json({ taggedIds: updated?.taggedIds ?? [] });
 }

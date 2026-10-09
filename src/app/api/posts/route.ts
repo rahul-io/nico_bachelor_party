@@ -1,6 +1,7 @@
 import { del, head } from "@vercel/blob";
 import { connection } from "next/server";
 import { env } from "@/lib/env";
+import { sweepBadges } from "@/lib/badges/service";
 import { GameError } from "@/lib/games/common";
 import { displayStore } from "@/lib/games/curses";
 import { claimGroomTax } from "@/lib/games/groom";
@@ -103,5 +104,6 @@ export async function POST(req: Request) {
       groomTax = error.message;
     }
   }
+  if (taggedIds.length > 0) await sweepBadges(store);
   return Response.json({ ...forGuests(post), groomTax }, { status: 201 });
 }

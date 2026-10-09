@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { isAdmin } from "@/lib/auth";
+import { sweepBadges } from "@/lib/badges/service";
 import { assignDrinks } from "@/lib/games/bartender";
 import { buildAdminGames } from "@/lib/games/board";
 import { GameError } from "@/lib/games/common";
@@ -31,8 +32,11 @@ export async function POST(req: Request) {
       }
       case "bartender":
         return Response.json({ assigned: await assignDrinks(store) });
-      case "resolveWager":
-        return Response.json({ ok: await resolve(store, id, String(body.winnerId ?? "")) });
+      case "resolveWager": {
+        const ok = await resolve(store, id, String(body.winnerId ?? ""));
+        await sweepBadges(store);
+        return Response.json({ ok });
+      }
       case "voidWager":
         return Response.json({ ok: await voidWager(store, id) });
       case "revertCurse":

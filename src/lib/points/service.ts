@@ -1,5 +1,5 @@
 import { estimateBac, formatBac } from "@/lib/bac";
-import { checkBadges, revokeForSource, settleAchievements } from "@/lib/badges/service";
+import { checkBadges, revokeForSource, settleAchievements, sweepBadges } from "@/lib/badges/service";
 import { claimAssignment } from "@/lib/games/bartender";
 import { feedLine, nameOf, notify } from "@/lib/games/common";
 import { spendDeadWeight } from "@/lib/games/curses";
@@ -278,6 +278,7 @@ export async function removeDrink(store: Store, profileId: string, drinkId: stri
   const spun = voided.find((event) => event.source === "drink")?.breakdown?.slot;
   if (spun) await rememberSpin(store, profileId, spun);
   await revokeForSource(store, drinkId);
+  await sweepBadges(store);
 
   const groupId = voided.find((event) => event.source === "cheers")?.groupId;
   if (groupId) {

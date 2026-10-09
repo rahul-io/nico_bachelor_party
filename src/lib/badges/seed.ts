@@ -17,7 +17,7 @@ interface Seed {
   emoji: string;
   imageUrl: string | null;
   kind: "achievement" | "merit";
-  source: "rule" | "coded";
+  source: "rule" | "coded" | "manual";
   rule: Rule | null;
   coded: CodedKey | null;
   points: number;
@@ -68,6 +68,29 @@ const coded = (
   active: true,
   hidden: false,
 });
+
+/** Awarded by hand in Admin, as many times as it happens. Points can be negative. */
+const manual = (slug: string, name: string, emoji: string, description: string, kind: "achievement" | "merit", points: number): Seed => ({
+  slug,
+  name,
+  description,
+  emoji,
+  imageUrl: null,
+  kind,
+  source: "manual",
+  rule: null,
+  coded: null,
+  points,
+  active: true,
+  hidden: false,
+});
+
+/** The same badge, shown as "???" in the trophy case until someone earns it. */
+const hidden = (seed: Seed): Seed => ({ ...seed, hidden: true });
+
+/** A coded badge with no artwork yet. */
+const plain = (slug: string, name: string, emoji: string, description: string, key: CodedKey, kind: "achievement" | "merit" = "merit"): Seed =>
+  coded(slug, name, emoji, description, key, kind, kind === "achievement" ? 5 : 2, false);
 
 export const seedBadges: Seed[] = [
   // Achievements: one holder a day, locked in at the cutoff.
@@ -141,4 +164,61 @@ export const seedBadges: Seed[] = [
     // No artwork yet: shows its emoji.
     false,
   ),
+
+  // ---- Added 2026-10-09. None of these has artwork yet, so each shows its emoji. ----
+
+  // Achievements: one holder a day.
+  rule("groomsman-of-the-year", "Groomsman of the Year", "🤵", "Most Groom Taxes that day.", { type: "most", metric: "groomTaxes" }, false),
+  plain("early-bird", "Early Bird", "🐦", "First drink of the day.", "earlyBird", "achievement"),
+  plain("night-owl", "Night Owl", "🦉", "Last drink before the day ends.", "nightOwl", "achievement"),
+  rule("whale", "Whale", "🐋", "Most points staked on wagers that day.", { type: "most", metric: "pointsStaked" }, false),
+  rule("the-house", "The House", "🏦", "Most net wager winnings that day.", { type: "most", metric: "wagerWinnings" }, false),
+  rule("robin-hood", "Robin Hood", "🏹", "Most points stolen with the slot machine that day.", { type: "most", metric: "slotStolen" }, false),
+  rule("most-wanted", "Most Wanted", "🎯", "Most curses received that day.", { type: "most", metric: "cursesReceived" }, false),
+  rule("rat-king", "Rat King", "🐀", "Most Snitch Line reports upheld that day.", { type: "most", metric: "snitchReports" }, false),
+  plain("influencer", "Influencer", "🤳", "The photo with the most reactions that day.", "influencer", "achievement"),
+  rule("reply-guy", "Reply Guy", "💬", "Most comments that day.", { type: "most", metric: "comments" }, false),
+  rule("sommelier", "Sommelier", "🍷", "Most different drinks logged that day.", { type: "most", metric: "distinctDrinks" }, false),
+  plain("wooden-spoon", "Wooden Spoon", "🥄", "Last place when the day ends, with at least one drink logged that day.", "woodenSpoon", "achievement"),
+
+  // Merit badges.
+  plain("jackpot", "Jackpot", "🎰", "Hit a Jackpot on the slot machine.", "jackpot"),
+  plain("bust-out", "Bust Out", "💥", "Three slot busts in a row.", "bustOut"),
+  plain("robbed-blind", "Robbed Blind", "🦹", "Robbed by someone's slot.", "robbedBlind"),
+  plain("bad-beat", "Bad Beat", "🃏", "Lost a wager of 20 points or more.", "badBeat"),
+  plain("comeback-kid", "Comeback Kid", "📈", "Last place to the top three within one day.", "comebackKid"),
+  rule("shot-caller", "Shot Caller", "🥃", "5 shots in a day.", { type: "count", what: { kind: "drink", category: "shot" }, n: 5, window: "day" }, false),
+  plain("variety-pack", "Variety Pack", "🧃", "A beer, a wine, a shot, a cocktail and a seltzer in one day.", "varietyPack"),
+  plain("midori-sour-survivor", "Midori Sour Survivor", "🍈", "Completed a Bartender's Choice.", "bartenderDone"),
+  // Who a drink was for isn't recorded, so an admin awards this one.
+  manual("appletini-dealer", "Appletini Dealer", "🍏", "3 appletinis for Nico.", "merit", 2),
+  plain("witch", "Witch", "🧙", "Cast all four kinds of curse.", "witch"),
+  plain("identity-crisis", "Identity Crisis", "🪪", "Got name-hijacked.", "identityCrisis"),
+  plain("corporate-drone", "Corporate Drone", "👔", "A Snitch Line report against you was upheld.", "corporateDrone"),
+  plain("nicos-shadow", "Nico's Shadow", "👥", "Tagged in 10 photos with Nico.", "groomShadow"),
+
+  // Obscure: hidden until someone earns them.
+  hidden(plain("nice", "Nice.", "😏", "A drink took your estimated BAC to exactly 0.069%.", "nice")),
+  hidden(plain("blaze-it", "Blaze It", "🌿", "Estimated BAC of 0.042% at 4:20, am or pm.", "blazeIt")),
+  hidden(plain("jinx", "Jinx", "🤞", "Two players logged the same drink in the same minute.", "jinx")),
+  hidden(plain("groundhog-day", "Groundhog Day", "🦫", "The same drink five times in a row.", "groundhogDay")),
+  hidden(plain("perfectly-balanced", "Perfectly Balanced", "⚖️", "Equal drinks and waters in a day, five or more of each.", "perfectlyBalanced")),
+  hidden(plain("butterfingers", "Butterfingers", "🧈", "Deleted three drinks in a day.", "butterfingers")),
+  hidden(plain("mad-scientist", "Mad Scientist", "🧪", "Logged a custom drink over 50% alcohol.", "madScientist")),
+  hidden(plain("uno-reverse", "Uno Reverse", "🔄", "Cursed your curser back within five minutes.", "unoReverse")),
+  hidden(plain("self-own", "Self-Own", "🤦", "Your Pay It Forward went to whoever last cursed you.", "selfOwn")),
+  hidden(plain("regicide", "Regicide", "🗡️", "Cursed the groom.", "regicide")),
+  hidden(plain("lazarus", "Lazarus", "🧟", "Logged a drink within an hour of your confirmed Sleeping Beauty photo.", "lazarus")),
+  hidden(plain("midnight-snack", "Midnight Snack", "🕛", "Logged a drink at exactly 12:00am.", "midnightSnack")),
+  hidden(plain("same-time-tomorrow", "Same Time Tomorrow", "⏰", "Drinks at the same minute of the clock on two days running.", "sameTimeTomorrow")),
+  hidden(plain("sunday-scaries", "Sunday Scaries", "😵", "First Sunday drink before 9am.", "sundayScaries")),
+  hidden(plain("nice-ii", "Nice II", "💯", "Had exactly 69 points at some moment.", "niceTwo")),
+
+  // Awarded by hand, as many times as it happens.
+  manual("flamer", "Flamer", "🔥", "Started an accidental fire.", "achievement", -15),
+  manual("fireman", "Fireman", "🧯", "Put out a fire.", "achievement", 15),
+  manual("wheres-the-remote", "Where's the Remote?", "📺", "Where's the remote?", "achievement", 1),
+  manual("anyone-can-cook", "Anyone Can Cook", "🧑‍🍳", "Someone in the kitchen.", "achievement", 2),
+  manual("bucket-brigade", "Bucket Brigade", "🪣", "Helped clean up after a fire.", "merit", 10),
+  manual("leave-no-trace", "Leave No Trace", "🧹", "Cleaning.", "merit", 5),
 ];

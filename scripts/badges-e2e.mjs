@@ -76,13 +76,19 @@ const names = (list) => list.map((badge) => badge.name);
 
 // ---- The initial set
 const initial = await adminBadges();
-check("fourteen badges are seeded", initial?.badges?.length === 14, String(initial?.badges?.length));
+check("sixty badges are seeded", initial?.badges?.length === 60, String(initial?.badges?.length));
 check("guests can't open Admin > Badges", (await a.call("GET", "/api/admin/badges")).status === 401);
 check("or change one", (await a.call("POST", "/api/admin/badges", { action: "recalculate", badgeId: initial.badges[0].id })).status === 401);
 const byName = (name) => initial.badges.find((badge) => badge.name === name);
-// These two depend on the time of day the script happens to run, so they are switched off here.
-for (const name of ["Breakfast of Champions", "Hair of the Dog"]) {
-  await adminDo({ action: "save", id: byName(name).id, badge: { ...byName(name), active: false } });
+// Only these are left on: the rest depend on the time of day or on chance (two phones logging in the same minute),
+// and are covered by the unit tests.
+const KEEP = [
+  "Designated Driver", "Hydro Hero", "Perez Hilton", "Paparazzi", "Lightweight", "Sleeping Beauty", "Take the Wheel Cap'n",
+  "Triple Kill", "Quadkill", "Pentakill", "Sophisticated Gentleman", "Second Wind",
+  "Groundhog Day", "Mad Scientist", "Reply Guy", "Flamer", "Fireman",
+];
+for (const badge of initial.badges) {
+  if (!KEEP.includes(badge.name)) await adminDo({ action: "save", id: badge.id, badge: { ...badge, active: false } });
 }
 check("rules come with a plain-English preview", byName("Triple Kill")?.condition === "Log 3 drinks within a rolling hour.", byName("Triple Kill")?.condition);
 check("coded ones say what they need", byName("Lightweight")?.source === "coded" && /fewest drinks/.test(byName("Lightweight")?.condition ?? ""));
@@ -91,7 +97,7 @@ check("crests are served as public files", (await jar().call("GET", "/brand/badg
 // ---- Profile pages
 const fresh = await page(b, a);
 check("anyone can open anyone's profile", fresh?.person?.name === a.name && fresh.total === 0);
-check("with every active badge still to earn", fresh?.trophies?.earned.length === 0 && fresh.trophies.locked.length === 12);
+check("with every active badge still to earn", fresh?.trophies?.earned.length === 0 && fresh.trophies.locked.length === KEEP.length);
 check("and no body metrics", !("heightCm" in (fresh?.person ?? {})) && !("weightKg" in (fresh?.person ?? {})) && !("sex" in (fresh?.person ?? {})));
 check("an unknown person is a 404", (await b.call("GET", "/api/people/nobody")).status === 404);
 
@@ -171,6 +177,25 @@ await adminDo({ action: "revoke", awardId: holder.awardId });
 const revoked = await page(a, b);
 check("revoking takes the badge and its points back", !names(revoked.trophies.earned).includes("Best Dressed") && revoked.total === before - 4, `${revoked.total} vs ${before - 4}`);
 
+// ---- The second batch: detector badges, new achievements, hand-awarded ones with negative points
+const lockedBefore = names((await page(b, c)).trophies.locked);
+check("obscure badges are a mystery until earned", lockedBefore.includes("???") && !lockedBefore.includes("Mad Scientist"), JSON.stringify(lockedBefore));
+const strong = await c.call("POST", "/api/drinks", { name: "Jungle Juice", volumeOz: 2, abv: 0.6 });
+check("a custom drink over 50% makes a Mad Scientist", strong.status === 201 && names((await page(a, c)).trophies.earned).includes("Mad Scientist"));
+check("which stops being a mystery", (await page(a, b)).trophies.locked.some((badge) => badge.name === "Mad Scientist"));
+check("a catalogue drink at any strength doesn't", !names((await page(a, b)).trophies.earned).includes("Mad Scientist"));
+check("five of the same in a row was a Groundhog Day", (await lines()).includes(`${a.name} earned GROUNDHOG DAY`));
+
+const flamer = byName("Flamer");
+const beforeFire = (await page(a, a)).total;
+await adminDo({ action: "award", badgeId: flamer.id, profileId: a.id, reason: "The grill" });
+await adminDo({ action: "award", badgeId: flamer.id, profileId: a.id, reason: "The toaster" });
+await adminDo({ action: "award", badgeId: byName("Fireman").id, profileId: a.id, reason: "" });
+const burned = await page(b, a);
+check("a hand-awarded badge can be given twice and shows a count", burned.trophies.earned.find((badge) => badge.name === "Flamer")?.count === 2, JSON.stringify(burned.trophies.earned.map((badge) => [badge.name, badge.count])));
+check("negative points come off the total", Math.round((burned.total - beforeFire) * 10) / 10 === -15, `${burned.total} vs ${beforeFire}`);
+check("each one is in the points history", burned.entries.filter((entry) => entry.reason?.startsWith("Badge · Flamer") && entry.delta === -15).length === 2);
+
 // ---- Photo tags and Sleeping Beauty
 const posted = await a.call("POST", "/api/posts", { url: pixel, caption: "Out cold", taggedIds: [b.id, c.id, "nobody", b.id], asleep: true });
 const feedPost = async () => (await c.call("GET", "/api/posts")).data.posts.find((post) => post.id === posted.data.id);
@@ -181,6 +206,8 @@ check("but can remove themselves", (await c.call("PUT", `/api/posts/${posted.dat
 check("and the poster can tag them back", (await a.call("PUT", `/api/posts/${posted.data.id}/tags`, { taggedIds: [b.id, c.id] })).status === 200 && (await feedPost()).tagged.length === 2);
 const leading = names((await page(b, a)).trophies.leading);
 check("tagging someone else leads Paparazzi and Perez Hilton", ["Paparazzi", "Perez Hilton"].every((name) => leading.includes(name)), JSON.stringify(leading));
+await b.call("POST", `/api/posts/${posted.data.id}/comments`, { body: "Out like a light" });
+check("the only commenter leads Reply Guy", names((await page(a, b)).trophies.leading).includes("Reply Guy"), JSON.stringify(names((await page(a, b)).trophies.leading)));
 
 const queue = (await adminBadges()).sleeping[0];
 check("Admin sees the asleep photo waiting", queue?.postId === posted.data.id && queue.sleepers.length === 2 && queue.confirmed === false, JSON.stringify(queue));
@@ -189,7 +216,8 @@ check("confirming awards everyone tagged", (await adminDo({ action: "confirmSlee
 check("only once", (await adminDo({ action: "confirmSleeping", day: queue.day })).data?.given === 0);
 const sleepers = await Promise.all([b, c].map(async (phone) => names((await page(a, phone)).trophies.earned)));
 check("both sleepers have the badge", sleepers.every((earned) => earned.includes("Sleeping Beauty")), JSON.stringify(sleepers));
-check("worth 10", (await page(a, c)).bySource.find((item) => item.source === "badge")?.points === 13, JSON.stringify((await page(a, c)).bySource));
+// c: Camel 3, Mad Scientist 2, and the strong drink also made it four in the hour (Quadkill 2) and 0.08% (Take the Wheel Cap'n 2).
+check("worth 10", (await page(a, c)).bySource.find((item) => item.source === "badge")?.points === 19, JSON.stringify((await page(a, c)).bySource));
 await a.call("POST", "/api/posts", { url: pixel, caption: "Later" });
 const feed = (await c.call("GET", "/api/posts")).data.posts;
 check("and the photo is pinned to the top of the feed", feed[0].id === posted.data.id && !!feed[0].pinnedUntil, feed.map((post) => post.caption).join());

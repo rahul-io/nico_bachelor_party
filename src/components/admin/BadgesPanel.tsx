@@ -28,6 +28,12 @@ const metricLabels: Record<MostMetric, string> = {
   categoryDrinks: "Drinks of a category",
   groomTaxes: "Groom Taxes",
   cursesReceived: "Curses received",
+  comments: "Comments",
+  distinctDrinks: "Different drinks",
+  pointsStaked: "Points staked on wagers",
+  wagerWinnings: "Net wager winnings",
+  slotStolen: "Points stolen with the slot machine",
+  snitchReports: "Snitch reports upheld",
 };
 
 const ruleTypes: Array<{ value: Rule["type"]; label: string }> = [
@@ -254,7 +260,7 @@ function BadgeSheet({ editing, people, onClose }: { editing: Editing; people: Ad
         <Field label="Description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={200} />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Emoji fallback" value={emoji} onChange={(event) => setEmoji(event.target.value)} maxLength={8} />
-          <Field label="Points" type="number" inputMode="decimal" min={0} max={200} value={points} onChange={(event) => setPoints(event.target.value)} />
+          <Field label="Points (can be negative)" type="number" min={-200} max={200} value={points} onChange={(event) => setPoints(event.target.value)} />
         </div>
         {badge && <p className="text-sm text-muted">A points change applies to badges awarded from now on.</p>}
 

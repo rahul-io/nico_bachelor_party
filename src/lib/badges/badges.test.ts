@@ -28,6 +28,7 @@ import {
   recalculateBadge,
   revokeAward,
   saveBadge,
+  sweepBadges,
   sleepingCandidates,
   unseenPops,
 } from "./service";
@@ -50,6 +51,16 @@ const world = (over: Partial<World> = {}): World => ({
   groomTaxes: [],
   cursesReceived: [],
   cutoffHour: 4,
+  comments: [],
+  reactions: {},
+  ledger: [],
+  curses: [],
+  wagers: [],
+  snitches: [],
+  ordersDone: [],
+  deletions: [],
+  sleepers: [],
+  groomId: null,
   ...over,
 });
 let seq = 0;
@@ -328,6 +339,17 @@ describe("badges against the store", () => {
     return made;
   }
   const badgeNamed = async (name: string) => (await listBadges(store)).find((badge) => badge.name === name)!;
+  const ORIGINAL = [
+    "Designated Driver", "Hydro Hero", "Perez Hilton", "Paparazzi", "Lightweight", "Sleeping Beauty",
+    "Take the Wheel Cap'n", "Triple Kill", "Quadkill", "Pentakill", "Sophisticated Gentleman",
+    "Breakfast of Champions", "Hair of the Dog", "Second Wind",
+  ];
+  /** Switches every seeded badge off except the ones named. */
+  const only = async (names: string[]) => {
+    for (const badge of await listBadges(store)) {
+      if (badge.active !== names.includes(badge.name)) await saveBadge(store, badge.id, { ...badge, active: names.includes(badge.name) });
+    }
+  };
   const held = async (profile: Profile) => {
     const badges = await listBadges(store);
     return (await listAwards(store))
@@ -358,24 +380,44 @@ describe("badges against the store", () => {
     for (const profile of await store.listProfiles()) await store.deleteProfile(profile.id);
     // Cheers and the slot machine out of the way, so points here are drinks and badges only.
     await saveSettings(store, { cheersMinPeople: 30, slotEveryDrinks: 20 });
+    // These tests are about the first fourteen badges; the later ones have their own (extra.test.ts and below).
+    await only(ORIGINAL);
   });
   afterEach(() => vi.useRealTimers());
 
   it("seeds the initial set once: rule-based where the builder can, coded where it can't", async () => {
     const badges = await listBadges(store);
-    expect(badges.map((badge) => badge.name)).toEqual([
-      "Designated Driver", "Hydro Hero", "Perez Hilton", "Paparazzi", "Lightweight", "Sleeping Beauty",
-      "Take the Wheel Cap'n", "Triple Kill", "Quadkill", "Pentakill", "Sophisticated Gentleman",
-      "Breakfast of Champions", "Hair of the Dog", "Second Wind",
-    ]);
-    expect(badges.filter((badge) => badge.source === "coded").map((badge) => badge.name)).toEqual([
+    expect(badges.slice(0, 14).map((badge) => badge.name)).toEqual(ORIGINAL);
+    expect(badges.slice(0, 14).filter((badge) => badge.source === "coded").map((badge) => badge.name)).toEqual([
       "Lightweight", "Sleeping Beauty", "Hair of the Dog", "Second Wind",
     ]);
-    expect(badges.filter((badge) => badge.kind === "achievement")).toHaveLength(6);
+    expect(badges.slice(0, 14).filter((badge) => badge.kind === "achievement")).toHaveLength(6);
+
+    // The second batch: rule-based where the builder can say it, hidden where obscure, manual where only a person can tell.
+    expect(badges).toHaveLength(60);
+    const named = (name: string) => badges.find((badge) => badge.name === name);
+    expect(badges.filter((badge) => badge.source === "rule").map((badge) => badge.name).slice(10)).toEqual([
+      "Groomsman of the Year", "Whale", "The House", "Robin Hood", "Most Wanted", "Rat King", "Reply Guy", "Sommelier", "Shot Caller",
+    ]);
+    expect(badges.filter((badge) => badge.hidden).map((badge) => badge.name)).toEqual([
+      "Nice.", "Blaze It", "Jinx", "Groundhog Day", "Perfectly Balanced", "Butterfingers", "Mad Scientist", "Uno Reverse",
+      "Self-Own", "Regicide", "Lazarus", "Midnight Snack", "Same Time Tomorrow", "Sunday Scaries", "Nice II",
+    ]);
+    expect(badges.filter((badge) => badge.source === "manual").map((badge) => [badge.name, badge.kind, badge.points])).toEqual([
+      ["Appletini Dealer", "merit", 2],
+      ["Flamer", "achievement", -15],
+      ["Fireman", "achievement", 15],
+      ["Where's the Remote?", "achievement", 1],
+      ["Anyone Can Cook", "achievement", 2],
+      ["Bucket Brigade", "merit", 10],
+      ["Leave No Trace", "merit", 5],
+    ]);
+    expect(named("Wooden Spoon")).toMatchObject({ kind: "achievement", source: "coded", points: 5 });
+    expect(named("Shot Caller")?.rule).toEqual({ type: "count", what: { kind: "drink", category: "shot" }, n: 5, window: "day" });
     expect(await badgeNamed("Sleeping Beauty")).toMatchObject({ points: 10, imageUrl: "/brand/badges/sleeping-beauty.webp" });
     expect(await badgeNamed("Triple Kill")).toMatchObject({ points: 2, kind: "merit" });
     expect((await badgeNamed("Second Wind")).imageUrl).toBeNull();
-    expect((await listBadges(store)).length).toBe(14);
+    expect((await listBadges(store)).length).toBe(60);
   });
 
   it("earns the Kill badges in turn, pays their points, and takes them back with the drink", async () => {
@@ -517,7 +559,7 @@ describe("badges against the store", () => {
   it("validates edits and keeps a coded badge's condition", async () => {
     const base = { name: "X", description: "", emoji: "", imageUrl: null, kind: "merit" as const, points: 1, active: true, hidden: false };
     await expect(saveBadge(store, null, { ...base, name: " " })).rejects.toThrow("needs a name");
-    await expect(saveBadge(store, null, { ...base, points: -1 })).rejects.toThrow("between 0 and 200");
+    await expect(saveBadge(store, null, { ...base, points: -201 })).rejects.toThrow("between -200 and 200");
     await expect(saveBadge(store, null, { ...base, rule: { type: "count", what: { kind: "drink" }, n: 0, window: "hour" } })).rejects.toThrow("incomplete");
     await expect(saveBadge(store, null, { ...base, rule: { type: "time", what: { kind: "drink" }, when: "before", time: "25:00" } })).rejects.toThrow("incomplete");
     expect((await saveBadge(store, null, { ...base, rule: { type: "first", bac: 0.05 } })).kind).toBe("achievement");
@@ -552,5 +594,91 @@ describe("badges against the store", () => {
     expect(await unseenPops(store, b.id)).toHaveLength(1);
     await markPopSeen(store, b.id, pop.awardId);
     expect(await unseenPops(store, b.id)).toEqual([]);
+  });
+
+  it("awards manual badges again and again, negative points included", async () => {
+    const [a] = await crew(1);
+    await only(["Flamer", "Fireman"]);
+    const flamer = await badgeNamed("Flamer");
+    await awardManually(store, flamer.id, a.id, "The grill");
+    await awardManually(store, flamer.id, a.id, "The toaster");
+    await awardManually(store, (await badgeNamed("Fireman")).id, a.id, "");
+    expect(await balance(store, a.id)).toBe(-15);
+    const trophies = await buildTrophyCase(store, a.id);
+    expect(trophies.earned.map((badge) => [badge.name, badge.count, badge.points])).toEqual([["Flamer", 2, -15], ["Fireman", 1, 15]]);
+    expect((await store.listPointEvents(a.id)).map((event) => [event.reason, event.delta])).toContainEqual(["Badge · Flamer · The grill", -15]);
+    expect((await unseenPops(store, a.id)).map((pop) => pop.points).sort()).toEqual([-15, -15, 15]);
+  });
+
+  it("sweeps up detector badges as things happen, each occurrence once", async () => {
+    const [a, b] = await crew(2);
+    await only(["Groundhog Day", "Jinx", "Butterfingers"]);
+    const mine = [];
+    for (let i = 0; i < 5; i++) {
+      mine.push((await logDrink(store, a, { ...beer, name: "Paloma" }, roll)).drink);
+      vi.advanceTimersByTime(2 * MIN);
+    }
+    expect(await held(a)).toEqual(["Groundhog Day"]);
+
+    // b logs the same drink in the same minute as a's sixth.
+    await logDrink(store, a, { ...beer, name: "Paloma" }, roll);
+    vi.advanceTimersByTime(10_000);
+    await logDrink(store, b, { ...beer, name: "paloma" }, roll);
+    expect(await held(a)).toEqual(["Groundhog Day", "Jinx"]);
+    expect(await held(b)).toEqual(["Jinx"]);
+    // Sweeping again gives nothing new.
+    expect(await sweepBadges(store)).toBe(0);
+
+    // Deleting one of the five takes that Groundhog Day back, but the next five in a row (two to six) earn it afresh.
+    await removeDrink(store, a.id, mine[0].id);
+    expect(await held(a)).toEqual(["Groundhog Day", "Jinx"]);
+    // Two more deletions leave only three in a row, and the third deletion of the day earns Butterfingers.
+    await removeDrink(store, a.id, mine[1].id);
+    await removeDrink(store, a.id, mine[2].id);
+    expect(await held(a)).toEqual(["Butterfingers", "Jinx"]);
+    // A hidden badge shows to others while someone holds it, and is a mystery again once nobody does.
+    expect((await buildTrophyCase(store, b.id)).locked.map((badge) => badge.name)).toEqual(["???", "Butterfingers"]);
+  });
+
+  it("only counts what happened after a badge was created, except running totals", async () => {
+    const [a, b] = await crew(2);
+    await only([]);
+    await store.addPointEvent({ profileId: a.id, delta: 60, reason: "Float", challengeId: null });
+    for (const type of ["name", "deadweight", "avatar"] as const) {
+      await castCurse(store, a, { type, targetId: b.id, value: type === "name" ? "Barnacle" : (await photo(a)).id });
+    }
+    // Everything above is "the past": re-create the badges after it.
+    (globalThis as { __mockData?: { records: Array<{ kind: string; createdAt: string }> } }).__mockData!.records
+      .filter((record) => record.kind === "badge")
+      .forEach((record) => (record.createdAt = new Date(Date.now() + 1000).toISOString()));
+    vi.advanceTimersByTime(MIN);
+    await only(["Witch", "Identity Crisis"]);
+
+    expect(await sweepBadges(store)).toBe(0);
+    await castCurse(store, a, { type: "shield", targetId: "" });
+    await sweepBadges(store);
+    // The earlier three curses count towards Witch, but the earlier hijack is not an Identity Crisis now.
+    expect(await held(a)).toEqual(["Witch"]);
+    expect(await held(b)).toEqual([]);
+  });
+
+  it("awards the new achievements at the cutoff and shows who is holding them", async () => {
+    const [a, b] = await crew(2);
+    await only(["Early Bird", "Night Owl", "Sommelier", "Wooden Spoon", "Reply Guy"]);
+    await logDrink(store, a, { ...beer, name: "Pacifico" }, roll);
+    vi.advanceTimersByTime(10 * MIN);
+    await logDrink(store, b, { ...beer, name: "Mai Tai" }, roll);
+    await logDrink(store, b, { ...beer, name: "Mojito" }, roll);
+    const shot = await photo(a);
+    await store.addComment({ postId: shot.id, profileId: b.id, body: "Nice", bacAtComment: null });
+
+    expect((await listFeedLines(store)).map((line) => line.text)).toContain("Sailor 1 has claimed EARLY BIRD for today");
+    expect((await buildTrophyCase(store, a.id)).leading.map((badge) => badge.name)).toEqual(["Early Bird", "Wooden Spoon"]);
+    expect((await buildTrophyCase(store, b.id)).leading.map((badge) => badge.name)).toEqual(["Night Owl", "Reply Guy", "Sommelier"]);
+
+    vi.setSystemTime(end + MIN);
+    await settleDue(store, Date.now(), true);
+    expect(await held(a)).toEqual(["Early Bird", "Wooden Spoon"]);
+    expect(await held(b)).toEqual(["Night Owl", "Reply Guy", "Sommelier"]);
   });
 });

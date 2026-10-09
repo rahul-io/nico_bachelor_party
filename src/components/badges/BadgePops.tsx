@@ -4,7 +4,7 @@ import { useSWRConfig } from "swr";
 import { BadgeIcon } from "@/components/badges/TrophyCase";
 import { GAMES_ME, useGamesMe } from "@/hooks/useGames";
 import { apiFetch } from "@/lib/api";
-import { formatPoints } from "@/lib/points/format";
+import { formatDelta } from "@/lib/points/format";
 
 /**
  * The full-screen card shown once when this person earns a badge. Which ones
@@ -32,7 +32,7 @@ export function BadgePops() {
     <button
       type="button"
       onClick={close}
-      aria-label={`You earned ${pop.name}. Close`}
+      aria-label={`You got ${pop.name}. Close`}
       className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-navy/95 px-6 text-center text-sand"
     >
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-hi">
@@ -41,8 +41,8 @@ export function BadgePops() {
       <BadgeIcon key={pop.awardId} badge={pop} size="lg" className="animate-splash" />
       <p className="font-display text-3xl font-bold text-gold-hi">{pop.name}</p>
       <p className="max-w-xs text-sand/85">{pop.description}</p>
-      {pop.points > 0 && (
-        <p className="font-display text-2xl font-bold tabular-nums text-gold-hi">+{formatPoints(pop.points)}</p>
+      {pop.points !== 0 && (
+        <p className="font-display text-2xl font-bold tabular-nums text-gold-hi">{formatDelta(pop.points)}</p>
       )}
       <p className="mt-2 text-sm text-sand/60">Tap to close</p>
     </button>
