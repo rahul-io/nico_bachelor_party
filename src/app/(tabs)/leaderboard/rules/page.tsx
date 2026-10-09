@@ -100,7 +100,13 @@ export default function RulesPage() {
       </Section>
 
       <Section title="Slot machine">
-        <Rule>Every drink that earns points spins. The result is drawn when you log it; the reels just show it.</Rule>
+        <Rule>
+          {s.slotEveryDrinks === 1
+            ? "Every drink you log spins."
+            : `Every ${s.slotEveryDrinks} drinks you log, the last one spins: drink number ${s.slotEveryDrinks}, ${2 * s.slotEveryDrinks}, ${3 * s.slotEveryDrinks} and so on.`}{" "}
+          The result is drawn when you log it; the reels just show it. If that drink earns no points, the spin
+          doesn&apos;t count.
+        </Rule>
         <Rule points={`${s.slotOdds1x}%`}>1×: no change.</Rule>
         <Rule points={`${s.slotOdds2x}%`}>2×: the drink scores double.</Rule>
         <Rule points={`${s.slotOdds3x}%`}>3×: the drink scores triple.</Rule>

@@ -34,6 +34,7 @@ export const settingDefs = [
   { key: "lastManStandingPoints", group: "Daily awards", label: "Last Man Standing", value: 10, min: 0, max: 200, step: 1 },
   { key: "lastManAfterHour", group: "Daily awards", label: "Last Man Standing counts photos after, hour", value: 1, min: 0, max: 3, step: 1 },
 
+  { key: "slotEveryDrinks", group: "Slot machine (odds must total 100)", label: "Spin on every Nth drink", value: 3, min: 1, max: 20, step: 1 },
   { key: "slotOdds1x", group: "Slot machine (odds must total 100)", label: "1×, %", value: 55, min: 0, max: 100, step: 1 },
   { key: "slotOdds2x", group: "Slot machine (odds must total 100)", label: "2×, %", value: 15, min: 0, max: 100, step: 1 },
   { key: "slotOdds3x", group: "Slot machine (odds must total 100)", label: "3×, %", value: 5, min: 0, max: 100, step: 1 },

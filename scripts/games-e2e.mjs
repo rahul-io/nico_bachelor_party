@@ -53,6 +53,8 @@ const pixel =
 const odds = (winner) => ({
   slotOdds1x: 0, slotOdds2x: 0, slotOdds3x: 0, slotOddsBust: 0, slotOddsJackpot: 0, slotOddsRob: 0, slotOddsForward: 0,
   [winner]: 100,
+  // The default is a spin every third drink; here every drink spins.
+  slotEveryDrinks: 1,
   // Cheers off, so drink sums are exact.
   cheersMinPeople: 30,
 });
@@ -183,7 +185,8 @@ await a.call("POST", "/api/games/wagers", { opponentId: b.id, stake: 10, descrip
 check("one unanswered challenge per pair", (await a.call("POST", "/api/games/wagers", { opponentId: b.id, stake: 1, description: "More" })).status === 400);
 const wager = (await board(c)).wagers.find((item) => item.description === "Beer pong");
 check("the challenge is on the board", wager?.status === "pending" && wager.stake === 10);
-check("only the opponent can accept", (await c.call("POST", `/api/games/wagers/${wager.id}`, { action: "accept" })).status === 403);
+const wrongAccept = await c.call("POST", `/api/games/wagers/${wager.id}`, { action: "accept" });
+check("only the opponent can accept", wrongAccept.status === 403, JSON.stringify(wrongAccept));
 check("no side bets before it is accepted", (await c.call("POST", `/api/games/wagers/${wager.id}`, { action: "bet", side: a.id, stake: 2 })).status === 400);
 await b.call("POST", `/api/games/wagers/${wager.id}`, { action: "accept" });
 check("stakes are held", (await me(a)).balance === round(held[a.id] - 10) && (await me(b)).balance === round(held[b.id] - 10));

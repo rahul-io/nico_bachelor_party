@@ -403,7 +403,7 @@ Six games on top of M11's ledger. Each writes ordinary ledger entries with its o
 
 Checklist:
 - [x] Notices (bell in the header, toast), system lines in the Captain's Log, display identity, spending
-- [x] Slot machine: odds settings, server draw, reel animation, Rob and Pay It Forward transfers, reversal on delete
+- [x] Slot machine (every third drink): odds settings, server draw, reel animation, Rob and Pay It Forward transfers, reversal on delete
 - [x] Bartender's Choice: weighted pick, assignment, countdown, one-tap log, 3×
 - [x] Groom Tax: groom setting, claim on the photo, doubling, admin void
 - [x] Curses: shop, the four effects, Shield, expiry, admin revert
@@ -423,6 +423,7 @@ Decisions (Peter said "go with M12" on 2026-10-08 without answering the open que
 How it turned out, where it differs from the plan or matters later:
 - Code: `src/lib/games/` (one file per game, `common.ts` for notices, feed lines and spending, `board.ts` for what the screens read). Game state is one table, `game_records` (kind, owner, status, JSON data), reached through four store methods; a status change can be made conditional on the current status so two phones can't both accept or settle. **`npm run db:setup` must be run against the live database before this is deployed.**
 - **Display identity** is `displayStore(store)`: every guest-facing read wraps the store with it, so a Name Hijack or Avatar Swap shows on the leaderboard, chart, ledger, feed, comments, reactions, wagers and reports. Admin and exports use the plain store and see real names.
+- **The slot machine spins on every third drink a person logs** (their 3rd, 6th, 9th…; Peter, 2026-10-08), not on every drink. It is the `slotEveryDrinks` setting. Deleting drinks doesn't bring a spin forward: the count is of drinks currently in the log.
 - **Slot multipliers** (2×, 3×, Bust) join the other multipliers and are held to the maximum combined multiplier. Jackpot, Rob and Pay It Forward are separate ledger entries tied to the drink, so deleting the drink reverses them. A result that can't happen (the leader robbing himself, nobody to pay forward to) is spun again.
 - **Groom Tax** adds the drink's points again (× the setting) as its own entry; it is not held to the maximum multiplier. The groom ticks who he is drinking with; anyone else can only claim it for themselves.
 - **Snitch Line and Avatar Swap use a photo already in the Captain's Log** rather than a fresh upload, so Rahul's upload flow is untouched: post the photo first, then attach it.

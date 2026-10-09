@@ -65,7 +65,7 @@ Logging a drink or a water earns points automatically; hourly and daily awards a
 - **A "day" is 4am to 4am party time** (`dayCutoffHour`), via `partyDayOf` / `partyDayBounds`.
 - **Water is not a drink.** It lives in `water_logs` so drink counts and BAC never see it.
 - **The BAC ceiling pauses points without commentary:** "points paused" and nothing more, consistent with rule 5.
-- **The slot machine spins on every drink**, so anything asserting exact drink points must pin it: tests pass `random` to `logDrink`, and the e2e scripts set the odds to 100% 1×.
+- **The slot machine spins on every third drink a person logs** (`slotEveryDrinks`), so anything asserting exact drink points must pin it: tests pass `random` to `logDrink`, and the e2e scripts set the odds to 100% 1×.
 - **Polling:** every tab polls `/api/points/status` (Happy Hour, Drink of the Day, the latest dispatches). Keep it small. `/api/points` returns the newest 150 entries; `?profile=<id>` returns one person's entries and their points by source.
 
 ## Games (M12)

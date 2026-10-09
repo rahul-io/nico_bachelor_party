@@ -156,10 +156,11 @@ export async function logDrink(
   let announce: string | null = null;
 
   if (deadWeight) {
-    // A Dead-Weighted drink earns nothing at all: no spin, no Cheers.
+    // A Dead-Weighted drink earns nothing at all: no spin, no Cheers. It still counts towards the next spin.
     points = 0;
     breakdown = { ...breakdown, note: "Dead Weight" };
-  } else {
+  } else if ((priorDrinks.length + 1) % settings.slotEveryDrinks === 0) {
+    // Only every Nth drink in the person's log spins (their 3rd, 6th, 9th…).
     const spin = await spinSlot(store, profile, at, settings, random);
     slot = { outcome: spin.outcome, forShow: points <= 0 };
     if (!slot.forShow) {

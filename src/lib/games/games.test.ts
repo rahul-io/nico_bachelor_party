@@ -61,6 +61,8 @@ beforeEach(async () => {
   vi.setSystemTime(T);
   (globalThis as { __mockData?: unknown }).__mockData = undefined;
   for (const profile of await store.listProfiles()) await store.deleteProfile(profile.id);
+  // Most tests want a spin on every drink.
+  await saveSettings(store, { slotEveryDrinks: 1 });
 });
 
 afterEach(() => vi.useRealTimers());
@@ -122,7 +124,7 @@ describe("slot machine on a drink", () => {
 
   it("keeps slot multipliers under the maximum combined multiplier", async () => {
     const [a] = await crew(1);
-    await saveSettings(store, { maxMultiplier: 4 });
+    await saveSettings(store, { slotEveryDrinks: 1, maxMultiplier: 4 });
     await logWater(store, a);
     vi.advanceTimersByTime(MIN);
     // 1.5 hydration × 3 slot = 4.5, held to 4.
@@ -165,7 +167,7 @@ describe("slot machine on a drink", () => {
   it("spins for show only when the drink earns nothing", async () => {
     const [a, b] = await crew(2);
     await give(b, 20);
-    await saveSettings(store, { paceCap: 1 });
+    await saveSettings(store, { slotEveryDrinks: 1, paceCap: 1 });
     await logDrink(store, a, beer, always(roll.one));
     vi.advanceTimersByTime(MIN);
     const over = await logDrink(store, a, beer, always(roll.jackpot));
@@ -174,6 +176,32 @@ describe("slot machine on a drink", () => {
     vi.advanceTimersByTime(MIN);
     expect((await logDrink(store, a, beer, always(roll.rob))).slot?.forShow).toBe(true);
     expect(await balance(store, b.id)).toBe(20);
+  });
+
+  it("by default spins only on every third drink, and deleting doesn't earn an early spin", async () => {
+    const [a] = await crew(1);
+    await saveSettings(store, {});
+    const spins: Array<string | null> = [];
+    const log = async () => {
+      vi.advanceTimersByTime(MIN);
+      const result = await logDrink(store, a, beer, always(roll.three));
+      spins.push(result.slot?.outcome ?? null);
+      return result;
+    };
+    await log();
+    const second = await log();
+    expect(spins).toEqual([null, null]);
+    expect(second.entry?.delta).toBe(3);
+
+    // Deleting the second and logging again is still only drink number two.
+    await removeDrink(store, a.id, second.drink.id);
+    await log();
+    const third = await log();
+    await log();
+    await log();
+    await log();
+    expect(spins).toEqual([null, null, null, "3x", null, null, "3x"]);
+    expect(third.entry?.delta).toBe(9);
   });
 
   it("reuses a deleted drink's spin instead of drawing again", async () => {
@@ -332,7 +360,7 @@ describe("curses", () => {
   it("Dead Weight zeroes the next drink only: no spin, no Cheers", async () => {
     const [a, b] = await crew(2);
     await give(a, 8);
-    await saveSettings(store, { cheersMinPeople: 2 });
+    await saveSettings(store, { slotEveryDrinks: 1, cheersMinPeople: 2 });
     await castCurse(store, a, { type: "deadweight", targetId: b.id });
     await logDrink(store, a, beer, always(roll.one));
 
