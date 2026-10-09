@@ -30,6 +30,7 @@ const optionClass =
 export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<void> }) {
   const [query, setQuery] = useState("");
   const [showOther, setShowOther] = useState(false);
+  const [showBeer, setShowBeer] = useState(false);
   const [volume, setVolume] = useState("");
   const [abv, setAbv] = useState("");
   const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
@@ -46,8 +47,18 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
     setQuery(value);
     setOnline(null);
     setSelected(null);
+    setShowBeer(false);
     setVolume("");
     setAbv("");
+  }
+
+  function selectBeer() {
+    changeQuery("");
+    setShowOther(false);
+    setShowBeer(true);
+    setStatus(null);
+    setAbv(String(categoryDefaults.beer.abv * 100));
+    setVolume(String(categoryDefaults.beer.volumeOz));
   }
 
   async function searchOnline() {
@@ -91,7 +102,13 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
       setStatus({ text: "Enter 0.1–128 oz and an ABV between 0.1 and 100%.", error: true });
       return;
     }
-    log({ name: selected?.name || typed || "Custom drink", volumeOz, abv: abvPercent / 100, alcoholG: 0 });
+    log({
+      name: showBeer ? categoryDefaults.beer.label : selected?.name || typed || "Custom drink",
+      volumeOz,
+      abv: abvPercent / 100,
+      alcoholG: 0,
+      ...(showBeer ? { category: "beer" } : {}),
+    });
   }
 
   return (
@@ -101,7 +118,7 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
           <button
             key={label}
             type="button"
-            onClick={() => log(drink())}
+            onClick={() => label === "Beer" ? selectBeer() : log(drink())}
             className={cn(optionClass, "gap-1 py-3 text-sm font-medium")}
           >
             <Icon className="size-6 text-accent" aria-hidden />
@@ -109,6 +126,20 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
           </button>
         ))}
       </div>
+
+      {showBeer && (
+        <form onSubmit={submitCustom} className="space-y-3 rounded-control border border-line p-3">
+          <p className="font-medium">Beer</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="ABV" suffix="%" inputMode="decimal" required value={abv}
+              onChange={(event) => setAbv(event.target.value)} />
+            <Field label="Volume" suffix="oz" inputMode="decimal" required value={volume}
+              onChange={(event) => setVolume(event.target.value)} />
+          </div>
+          <Button type="submit" variant="primary" block>Add beer</Button>
+          <Button type="button" variant="ghost" block onClick={() => changeQuery("")}>Cancel</Button>
+        </form>
+      )}
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted" aria-hidden />
@@ -208,7 +239,7 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
         </div>
       )}
 
-      {!selected && (noMatch || showOther) ? (
+      {!selected && !showBeer && (noMatch || showOther) ? (
         <div className="space-y-3">
           <p className="text-sm text-muted">
             {noMatch ? `No match for “${typed}”. Log it as:` : "Log it as:"}
@@ -255,7 +286,7 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
             </Button>
           </form>
         </div>
-      ) : !selected && (
+      ) : !selected && !showBeer && (
         <Button variant="ghost" block onClick={() => { setSelected(null); setShowOther(true); }}>
           Something else or custom
         </Button>
