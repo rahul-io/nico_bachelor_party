@@ -60,6 +60,12 @@ M1 notes: the seeded schedule is placeholder content until Admin exists (M2). `g
 - [x] Let the user keep the defaults or change either value, then confirm with **Add beer**. Save the entered ABV and volume on the beer log so BAC and drink points use those values.
 - [x] Accept decimal values and apply the existing drink-entry validation before saving: ABV 0.1–100% and volume 0.1–128 oz.
 
+#### Liquor entry update — implemented 2026-10-08
+
+- [x] Add a **Liquor** quick-select button using the same entry flow as Beer: two editable text boxes, **ABV (%)** and **Volume (oz)**, followed by **Add liquor** and **Cancel**.
+- [x] Prefill **40% ABV** and **2 oz** each time Liquor is selected. Selecting Liquor opens the form without logging a drink.
+- [x] Save the entered values under **Liquor**, using the existing `shot` category for spirits. Apply the same decimal input and validation as Beer; BAC and drink points use the entered values.
+
 ### M2 — Profiles, Leaderboard, Admin (mock data)
 - [x] Profile photo (client-side resize) and full edit screen
 - [x] Leaderboard: avatar, name, points, drinks, BAC; sort toggle
