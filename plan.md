@@ -529,6 +529,8 @@ Added 2026-10-08:
 - **Water awards:** Hydro Hero is the all-day "most waters" achievement. Landlubber (Hydro Homie) changes from the M11 daily award to an hourly one, +1 each hour to whoever has the most waters so far that day (same rule as Hour Winner). Peter agreed to the split; which name is hourly was my pick. This change ships with M13, so there is no gap without a daily water award.
 - **Order:** M12 was built first, so its feed lines, notices and the "Groom Taxes" / "curses received" metrics are all available to M13.
 
+- **Badge artwork (2026-10-09):** Peter supplied crests for 13 of the 14 initial badges, saved in `design/brand/badges/` (1254 px square, transparent, the badge's name lettered on a banner): every one except Second Wind, which uses its emoji until he sends one. They are the seeded badges' default images; resize to 256 px (and a larger one for the full-screen pop) in `scripts/make-brand.mjs`. Because the name is part of the picture, renaming one of these badges in Admin needs a new image too.
+
 Waiting only for Peter's go-ahead to build.
 
 Size and order: M11 is the foundation and is built. M12 is built too. M13 is next, on Peter's go-ahead.
