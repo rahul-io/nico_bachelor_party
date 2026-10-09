@@ -218,8 +218,10 @@ describe("Cheers", () => {
 describe("settling awards", () => {
   it("pays an hour once, however many times it is asked", async () => {
     const [a, b] = await crew(2);
-    await logDrink(store, a, { ...beer, alcoholG: 28 }, () => 0);
-    vi.advanceTimersByTime(10 * MIN);
+    await logDrink(store, a, beer, () => 0);
+    vi.advanceTimersByTime(5 * MIN);
+    await logDrink(store, a, beer, () => 0);
+    vi.advanceTimersByTime(5 * MIN);
     await logDrink(store, b, beer, () => 0);
 
     expect(await settleDue(store, Date.now(), true)).toBe(0); // the hour is still running
@@ -231,12 +233,43 @@ describe("settling awards", () => {
     expect(hourly.map((event) => [event.profileId, event.delta]).sort()).toEqual(
       [
         [a.id, 1],
-        [a.id, 2],
+        [a.id, 1],
       ].sort(),
     );
     expect(hourly[0].createdAt).toBe(new Date(T + HOUR).toISOString());
-    expect(hourly.find((event) => event.delta === 2)?.reason).toBe("Hour Winner · 8 PM · 6 drink pts today");
-    expect(await total(a.id)).toBe(9);
+    expect(hourly.map((event) => event.reason).sort()[0]).toBe("Hour Winner · 8 PM · 6 drink pts today");
+    expect(await total(a.id)).toBe(8);
+  });
+
+  it("gives no Hour Winner to a leader who logged a single drink that hour", async () => {
+    const [a, b] = await crew(2);
+    await logDrink(store, a, { ...beer, alcoholG: 28 }, () => 0);
+    vi.advanceTimersByTime(10 * MIN);
+    await logDrink(store, b, beer, () => 0);
+    vi.setSystemTime(T + HOUR + MIN);
+    await settleDue(store, Date.now(), true);
+    const first = (await store.listPointEvents()).filter((event) => event.source === "hourly");
+    // Top BAC of the hour still pays; the lead is not handed to the runner-up.
+    expect(first.map((event) => event.reason?.split(" · ")[0])).toEqual(["Top BAC of the hour"]);
+
+    // Next hour the same leader logs two, and collects.
+    await logDrink(store, a, beer, () => 0);
+    vi.advanceTimersByTime(5 * MIN);
+    await logDrink(store, a, beer, () => 0);
+    await logDrink(store, b, beer, () => 0);
+    vi.setSystemTime(T + 2 * HOUR + MIN);
+    await settleDue(store, Date.now(), true);
+    const winners = (await store.listPointEvents()).filter((event) => event.reason?.startsWith("Hour Winner"));
+    expect(winners).toMatchObject([{ profileId: a.id, delta: 1 }]);
+
+    // The threshold is a setting.
+    await saveSettings(store, { hourWinnerMinDrinks: 3, hourWinnerPoints: 4 });
+    await logDrink(store, a, beer, () => 0);
+    await logDrink(store, a, beer, () => 0);
+    await logDrink(store, b, beer, () => 0);
+    vi.setSystemTime(T + 3 * HOUR + MIN);
+    await settleDue(store, Date.now(), true);
+    expect((await store.listPointEvents()).filter((event) => event.reason?.startsWith("Hour Winner"))).toHaveLength(1);
   });
 
   it("skips an hour in which only one person logged", async () => {

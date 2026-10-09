@@ -366,8 +366,13 @@ export function hourAwards(data: AwardData, hourStart: number, settings: PointsS
   const day = partyDayBounds(partyDayOf(hourStart, settings.dayCutoffHour), settings.dayCutoffHour);
   const key = new Date(hourStart).toISOString();
   const hour = formatHour(hourStart);
+  // The day's leader only collects for an hour they actually drank in; otherwise nobody does.
+  const leader = hourWinner(data, day.start, hourEnd);
+  const leaderDrinks = data.drinks.filter(
+    (drink) => drink.profileId === leader?.profileId && drink.at >= hourStart && drink.at < hourEnd,
+  ).length;
   return [
-    ...award(hourWinner(data, day.start, hourEnd), settings.hourWinnerPoints, `hour:${key}:winner`, "hourly",
+    ...award(leaderDrinks >= settings.hourWinnerMinDrinks ? leader : null, settings.hourWinnerPoints, `hour:${key}:winner`, "hourly",
       (w) => `Hour Winner · ${hour} · ${formatPoints(w.value)} drink pts today`, hourEnd),
     ...award(hourTopBac(data, hourStart, hourEnd, settings), settings.hourTopBacPoints, `hour:${key}:bac`, "hourly",
       (w) => `Top BAC of the hour · ${hour} · ${formatBac(w.value)}`, hourEnd),

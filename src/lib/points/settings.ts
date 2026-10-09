@@ -20,7 +20,8 @@ export const settingDefs = [
   { key: "cheersMinPeople", group: "Cheers", label: "People needed", value: 4, min: 2, max: 30, step: 1 },
   { key: "cheersWindowMinutes", group: "Cheers", label: "Window, minutes", value: 5, min: 1, max: 60, step: 1 },
 
-  { key: "hourWinnerPoints", group: "Hourly awards", label: "Hour Winner", value: 2, min: 0, max: 50, step: 0.5 },
+  { key: "hourWinnerPoints", group: "Hourly awards", label: "Hour Winner", value: 1, min: 0, max: 50, step: 0.5 },
+  { key: "hourWinnerMinDrinks", group: "Hourly awards", label: "Drinks the Hour Winner must log that hour", value: 2, min: 0, max: 20, step: 1 },
   { key: "hourTopBacPoints", group: "Hourly awards", label: "Top BAC of the hour", value: 1, min: 0, max: 50, step: 0.5 },
   { key: "hourMinActive", group: "Hourly awards", label: "People who must log in the hour", value: 2, min: 1, max: 30, step: 1 },
 

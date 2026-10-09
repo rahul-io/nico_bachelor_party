@@ -72,7 +72,12 @@ export default function RulesPage() {
       </Section>
 
       <Section title="Every hour">
-        <Rule points={`+${s.hourWinnerPoints}`}>Hour Winner: the most drink points so far that day when the hour ends.</Rule>
+        <Rule points={`+${s.hourWinnerPoints}`}>
+          Hour Winner: the most drink points so far that day when the hour ends
+          {s.hourWinnerMinDrinks > 0 &&
+            `, if they logged at least ${s.hourWinnerMinDrinks} ${s.hourWinnerMinDrinks === 1 ? "drink" : "drinks"} that hour`}
+          .
+        </Rule>
         <Rule points={`+${s.hourTopBacPoints}`}>
           Top BAC of the hour, counted up to {formatBac(s.bacCeiling)}.
         </Rule>

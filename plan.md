@@ -326,7 +326,7 @@ Order of operations for one drink: standard drinks → pace cap → × 3 → × 
 
 **Hourly awards** (settled when each clock hour ends, only if at least 2 people logged in it)
 
-- Hour Winner, +2: whoever has the most drink points so far that day when the hour ends (so the day's leader can collect it every hour).
+- Hour Winner, +1 (was +2 until 2026-10-08): whoever has the most drink points so far that day when the hour ends, and only if they logged at least 2 drinks in that hour (`hourWinnerMinDrinks`). If the leader didn't, nobody gets it; it is not passed to the runner-up.
 - Top BAC of the hour, +1: highest estimated BAC reached in that hour, counted up to the ceiling.
 
 **Screens**
