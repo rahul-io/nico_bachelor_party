@@ -165,7 +165,7 @@ export const seedBadges: Seed[] = [
     false,
   ),
 
-  // ---- Added 2026-10-09. Most have artwork now (see LATER_ARTWORK); the rest show their emoji. ----
+  // ---- Added 2026-10-09. All have artwork now (see LATER_ARTWORK). ----
 
   // Achievements: one holder a day.
   rule("groomsman-of-the-year", "Groomsman of the Year", "🤵", "Most Groom Taxes that day.", { type: "most", metric: "groomTaxes" }, false),
@@ -230,6 +230,9 @@ const LATER_ARTWORK = [
   // Achievements and the hand-awarded achievements.
   "groomsman-of-the-year", "early-bird", "night-owl", "whale", "the-house", "robin-hood", "most-wanted", "rat-king",
   "influencer", "reply-guy", "sommelier", "wooden-spoon", "flamer", "fireman", "wheres-the-remote", "anyone-can-cook",
+  // Merit badges and the hand-awarded merit badges.
+  "jackpot", "bust-out", "robbed-blind", "bad-beat", "comeback-kid", "shot-caller", "variety-pack", "midori-sour-survivor",
+  "appletini-dealer", "witch", "identity-crisis", "corporate-drone", "nicos-shadow", "bucket-brigade", "leave-no-trace",
 ];
 for (const seed of seedBadges) {
   if (LATER_ARTWORK.includes(seed.slug)) seed.imageUrl = image(seed.slug);

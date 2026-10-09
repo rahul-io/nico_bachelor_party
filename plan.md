@@ -547,7 +547,7 @@ How it turned out, where it differs from the plan above or matters later:
 
 #### M13 addendum: 46 more badges (built 2026-10-09)
 
-Peter's second and third lists, bringing the seeded set to 60. The 15 obscure badges, the 12 new achievements and the 4 hand-awarded achievements have crests (supplied 2026-10-09, in `design/brand/badges/`). Still on emoji: the 13 new merit badges, Bucket Brigade, Leave No Trace and Second Wind. A crest added to `seed.ts` after a badge was seeded reaches the existing badge through `seedImage()`, since seeding only happens once.
+Peter's second and third lists, bringing the seeded set to 60. The 15 obscure badges, the 12 new achievements and the 4 hand-awarded achievements have crests (supplied 2026-10-09, in `design/brand/badges/`). The 13 new merit badges, Bucket Brigade and Leave No Trace followed the same day. Only Second Wind is still on its emoji. A crest added to `seed.ts` after a badge was seeded reaches the existing badge through `seedImage()`, since seeding only happens once.
 
 - **Rule-based (9):** Groomsman of the Year, Most Wanted, Whale, The House, Robin Hood, Rat King, Reply Guy, Sommelier (all "most … that day") and Shot Caller (5 shots in a day). The builder's "Most" list gained six metrics to express them: comments, different drinks, points staked on wagers, net wager winnings, points stolen with the slot machine, Snitch Line reports upheld.
 - **Coded achievements (4):** Early Bird, Night Owl, Influencer, Wooden Spoon.
