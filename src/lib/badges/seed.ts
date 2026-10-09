@@ -165,7 +165,7 @@ export const seedBadges: Seed[] = [
     false,
   ),
 
-  // ---- Added 2026-10-09. Only the obscure ones have artwork so far (see LATER_ARTWORK); the rest show their emoji. ----
+  // ---- Added 2026-10-09. Most have artwork now (see LATER_ARTWORK); the rest show their emoji. ----
 
   // Achievements: one holder a day.
   rule("groomsman-of-the-year", "Groomsman of the Year", "🤵", "Most Groom Taxes that day.", { type: "most", metric: "groomTaxes" }, false),
@@ -223,10 +223,13 @@ export const seedBadges: Seed[] = [
   manual("leave-no-trace", "Leave No Trace", "🧹", "Cleaning.", "merit", 5),
 ];
 
-/** Crests that arrived after their badge was first seeded (the obscure set, 2026-10-09). */
+/** Crests that arrived after their badge was first seeded (2026-10-09). */
 const LATER_ARTWORK = [
   "nice", "blaze-it", "jinx", "groundhog-day", "perfectly-balanced", "butterfingers", "mad-scientist", "uno-reverse",
   "self-own", "regicide", "lazarus", "midnight-snack", "same-time-tomorrow", "sunday-scaries", "nice-ii",
+  // Achievements and the hand-awarded achievements.
+  "groomsman-of-the-year", "early-bird", "night-owl", "whale", "the-house", "robin-hood", "most-wanted", "rat-king",
+  "influencer", "reply-guy", "sommelier", "wooden-spoon", "flamer", "fireman", "wheres-the-remote", "anyone-can-cook",
 ];
 for (const seed of seedBadges) {
   if (LATER_ARTWORK.includes(seed.slug)) seed.imageUrl = image(seed.slug);

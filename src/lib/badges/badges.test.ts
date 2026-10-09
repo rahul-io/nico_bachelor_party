@@ -412,7 +412,14 @@ describe("badges against the store", () => {
       ["Bucket Brigade", "merit", 10],
       ["Leave No Trace", "merit", 5],
     ]);
-    expect(named("Wooden Spoon")).toMatchObject({ kind: "achievement", source: "coded", points: 5, imageUrl: null });
+    expect(named("Wooden Spoon")).toMatchObject({ kind: "achievement", source: "coded", points: 5, imageUrl: "/brand/badges/wooden-spoon.webp" });
+    expect(named("Flamer")?.imageUrl).toBe("/brand/badges/flamer.webp");
+    // Still waiting for artwork: these show their emoji.
+    expect(badges.filter((badge) => !badge.imageUrl).map((badge) => badge.name)).toEqual([
+      "Second Wind", "Jackpot", "Bust Out", "Robbed Blind", "Bad Beat", "Comeback Kid", "Shot Caller", "Variety Pack",
+      "Midori Sour Survivor", "Appletini Dealer", "Witch", "Identity Crisis", "Corporate Drone", "Nico's Shadow",
+      "Bucket Brigade", "Leave No Trace",
+    ]);
     // The obscure set has crests. A badge seeded before its crest existed (no image stored) still picks it up.
     expect(badges.filter((badge) => badge.hidden).every((badge) => badge.imageUrl === `/brand/badges/${badge.slug}.webp`)).toBe(true);
     const stored = (globalThis as { __mockData?: { records: Array<{ kind: string; data: Record<string, unknown> }> } }).__mockData!.records;
