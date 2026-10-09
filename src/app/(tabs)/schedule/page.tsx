@@ -1,5 +1,7 @@
 "use client";
 
+import { Anchor } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { DayPicker } from "@/components/schedule/DayPicker";
 import { EventCard } from "@/components/schedule/EventCard";
@@ -60,6 +62,14 @@ export default function SchedulePage() {
           </li>
         ))}
       </ol>
+
+      {/* The only way into Admin from inside the app: small, at the foot of the first tab. It is password-gated. */}
+      <p className="pt-4 text-center">
+        <Link href="/admin" className="inline-flex min-h-tap items-center gap-1.5 px-3 text-xs text-muted">
+          <Anchor className="size-3.5" aria-hidden />
+          The Bridge
+        </Link>
+      </p>
     </div>
   );
 }

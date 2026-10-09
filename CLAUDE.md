@@ -4,7 +4,7 @@
 
 The app is called **The Crider Cup** everywhere a person sees it (short name "Crider Cup" under the home-screen icon). The name comes from `config.partyName` / `config.shortName` in `src/config.ts`; never hard-code it. The repo, package name, cookie and localStorage keys (`nbp.*`) and other code identifiers keep their original names on purpose.
 
-Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time), ~10–15 people. Four tabs in the bottom nav: Schedule, Sobriety Tracker, Leaderboard, Photo Feed. Admin lives at `/admin` and is deliberately not linked from the nav. See [plan.md](plan.md) for milestones and current status — update its checkboxes as work lands.
+Mobile-first web app for one weekend (Oct 8–11, 2026, San Diego, Pacific time), ~10–15 people. Four tabs in the bottom nav: Schedule, Sobriety Tracker, Leaderboard, Photo Feed. Admin lives at `/admin` and is deliberately not in the nav; the one way in from inside the app is the small "The Bridge" link at the foot of the Schedule tab (Peter asked for it on 2026-10-09). It is still password-gated. See [plan.md](plan.md) for milestones and current status — update its checkboxes as work lands.
 
 ## People and workflow
 
