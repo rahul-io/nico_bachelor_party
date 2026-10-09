@@ -62,18 +62,28 @@ export async function uploadMedia(
   kind: MediaType,
   identity: { id: string },
   onProgress: (percentage: number) => void,
+  scope: "posts" | "comments" = "posts",
 ): Promise<string> {
   const safeName = file.name.replace(/[^A-Za-z0-9._-]+/g, "-").slice(-60) || "upload";
-  const blob = await upload(`posts/${identity.id}/${safeName}`, file, {
+  const blob = await upload(`${scope}/${identity.id}/${safeName}`, file, {
     access: "public",
     handleUploadUrl: "/api/blob/upload",
     // Who is uploading comes from the session cookie; the server only needs the kind.
-    clientPayload: JSON.stringify({ kind }),
+    clientPayload: JSON.stringify({ kind, scope }),
     contentType: file.type || undefined,
     multipart: file.size > MULTIPART_ABOVE_BYTES,
     onUploadProgress: ({ percentage }) => onProgress(percentage),
   });
   return blob.url;
+}
+
+/** Comment photos use a lightweight preview when the browser can decode them. */
+export async function uploadCommentPhoto(
+  file: File,
+  identity: { id: string },
+  onProgress: (percentage: number) => void,
+): Promise<string> {
+  return uploadMedia((await createPhotoPreview(file)) ?? file, "image", identity, onProgress, "comments");
 }
 
 /** Store original bytes for export and a separate, optional image for the feed. */

@@ -198,6 +198,8 @@ export interface Comment {
   postId: string;
   profileId: string;
   body: string;
+  /** Optional photo attached to the comment. Older comments have no photo. */
+  photoUrl?: string | null;
   /** The commenter's estimated BAC when they commented, if they had that setting on. Never recomputed. */
   bacAtComment: number | null;
   createdAt: string;

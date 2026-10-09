@@ -4,7 +4,7 @@ import { env } from "./env";
 import { assembleFeed } from "./feed-assemble";
 import { listFeedLines } from "./games/board";
 import { REACTIONS } from "./reactions";
-import type { Feed, FeedComment, FeedPost, Post, PostDetail, Profile, Store } from "./store/types";
+import type { Comment, Feed, FeedComment, FeedPost, Post, PostDetail, Profile, Store } from "./store/types";
 
 const BLOB_HOST_SUFFIX = ".public.blob.vercel-storage.com";
 
@@ -104,7 +104,16 @@ export async function bacSnapshot(store: Store, profile: Profile): Promise<numbe
 
 /** Deletes the files behind posts. Best effort: a missing blob must not block removing the post. */
 export async function deletePostFiles(posts: Post[]): Promise<void> {
-  const urls = [...new Set(posts.flatMap((post) => [post.url, post.previewUrl]).filter(
+  await deleteMediaFiles(posts.flatMap((post) => [post.url, post.previewUrl]));
+}
+
+/** Also used when a post or profile deletion cascades to its comments. */
+export async function deleteCommentFiles(comments: Comment[]): Promise<void> {
+  await deleteMediaFiles(comments.map((comment) => comment.photoUrl));
+}
+
+async function deleteMediaFiles(files: Array<string | null | undefined>): Promise<void> {
+  const urls = [...new Set(files.filter(
     (url): url is string => typeof url === "string" && isBlobUrl(url),
   ))];
   if (urls.length === 0 || !env.blobToken) return;

@@ -1,12 +1,18 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { del } from "@vercel/blob";
-import { deletePostFiles } from "./feed";
-import type { Post } from "./store/types";
+import { deleteCommentFiles, deletePostFiles } from "./feed";
+import type { Comment, Post } from "./store/types";
 
 vi.mock("@vercel/blob", () => ({ del: vi.fn() }));
 vi.mock("./env", () => ({ env: { blobToken: "test-token" } }));
 
 afterEach(() => vi.resetAllMocks());
+
+it("deletes comment photos, skipping inline images and missing attachments", async () => {
+  const photoUrl = "https://x.public.blob.vercel-storage.com/comments/p/photo.jpg";
+  await deleteCommentFiles([{ photoUrl }, { photoUrl }, { photoUrl: null }, { photoUrl: "data:image/jpeg;base64,AAAA" }] as Comment[]);
+  expect(del).toHaveBeenCalledExactlyOnceWith([photoUrl]);
+});
 
 it("deletes both originals and previews, including posts without previews", async () => {
   const original = "https://x.public.blob.vercel-storage.com/posts/p/original.heic";

@@ -1,4 +1,5 @@
 import { isAdmin } from "@/lib/auth";
+import { deleteCommentFiles } from "@/lib/feed";
 import { getRequestProfile, jsonError } from "@/lib/http";
 import { getStore } from "@/lib/store";
 
@@ -14,5 +15,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   }
 
   await store.deleteComment(comment.id);
+  await deleteCommentFiles([comment]);
   return Response.json({ ok: true });
 }

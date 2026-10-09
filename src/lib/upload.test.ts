@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { upload } from "@vercel/blob/client";
-import { uploadPostMedia } from "./upload";
+import { uploadCommentPhoto, uploadPostMedia } from "./upload";
 
 vi.mock("@vercel/blob/client", () => ({ upload: vi.fn() }));
 
@@ -12,6 +12,17 @@ afterEach(() => {
 });
 
 describe("original photo uploads", () => {
+  it("uploads a single lightweight comment photo in the commenter's namespace", async () => {
+    const original = new File(["original with metadata"], "photo.png", { type: "image/png" });
+    const previewBlob = new Blob(["preview"], { type: "image/jpeg" });
+    vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue({ width: 2000, height: 1000, close: vi.fn() }));
+    vi.stubGlobal("document", { createElement: () => ({ getContext: () => ({ drawImage: vi.fn() }), toBlob: (callback: (blob: Blob) => void) => callback(previewBlob) }) });
+    vi.mocked(upload).mockResolvedValue({ url: "comment-url" } as Awaited<ReturnType<typeof upload>>);
+    expect(await uploadCommentPhoto(original, identity, vi.fn())).toBe("comment-url");
+    expect(upload).toHaveBeenCalledExactlyOnceWith("comments/guest/preview-photo.jpg", expect.any(File), expect.objectContaining({ clientPayload: JSON.stringify({ kind: "image", scope: "comments" }) }));
+    expect(await (vi.mocked(upload).mock.calls[0][1] as File).text()).toBe("preview");
+  });
+
   it("uploads untouched original bytes plus a separate scaled JPEG preview", async () => {
     const original = new File(["original photo bytes and metadata"], "IMG_1.png", { type: "image/png" });
     const previewBlob = new Blob(["preview"], { type: "image/jpeg" });

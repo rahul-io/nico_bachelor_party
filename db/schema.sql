@@ -90,6 +90,9 @@ create table if not exists post_comments (
 
 create index if not exists post_comments_post_idx on post_comments (post_id, created_at);
 
+-- Photo attachments on comments. Existing comments remain text-only.
+alter table post_comments add column if not exists photo_url text;
+
 -- Photo map (M8). Added with ALTER so databases created before it pick the columns up.
 alter table events add column if not exists lat double precision;
 alter table events add column if not exists lng double precision;

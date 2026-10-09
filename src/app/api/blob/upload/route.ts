@@ -23,9 +23,11 @@ export async function POST(req: Request) {
       body,
       token: env.blobToken,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        const { kind } = JSON.parse(clientPayload ?? "{}") as Record<string, unknown>;
+        const { kind, scope = "posts" } = JSON.parse(clientPayload ?? "{}") as Record<string, unknown>;
         if (kind !== "image" && kind !== "video") throw new Error("Unknown media type");
-        if (!pathname.startsWith(`posts/${profile.id}/`)) throw new Error("Invalid upload path");
+        if (scope !== "posts" && scope !== "comments") throw new Error("Invalid upload scope");
+        if (scope === "comments" && kind !== "image") throw new Error("Comments only take photos");
+        if (!pathname.startsWith(`${scope}/${profile.id}/`)) throw new Error("Invalid upload path");
 
         return {
           allowedContentTypes: mediaRules[kind].contentTypes,

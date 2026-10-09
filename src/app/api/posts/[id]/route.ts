@@ -1,6 +1,6 @@
 import { isAdmin } from "@/lib/auth";
 import { displayStore } from "@/lib/games/curses";
-import { buildPostDetail, deletePostFiles } from "@/lib/feed";
+import { buildPostDetail, deleteCommentFiles, deletePostFiles } from "@/lib/feed";
 import { getRequestProfile, jsonError } from "@/lib/http";
 import { getStore } from "@/lib/store";
 
@@ -26,6 +26,7 @@ export async function DELETE(req: Request, { params }: Context) {
   }
 
   await deletePostFiles([post]);
+  await deleteCommentFiles(await store.listComments(post.id));
   await store.deletePost(post.id);
   return Response.json({ ok: true });
 }

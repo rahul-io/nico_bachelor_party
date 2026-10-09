@@ -121,6 +121,7 @@ const toComment = (row: Row): Comment => ({
   postId: row.post_id as string,
   profileId: row.profile_id as string,
   body: row.body as string,
+  photoUrl: (row.photo_url as string | null | undefined) ?? null,
   bacAtComment: row.bac_at_comment as number | null,
   createdAt: iso(row.created_at),
 });
@@ -506,8 +507,8 @@ export function createPostgresStore(sql: Sql): Store {
 
     async addComment(input) {
       const [row] = await sql`
-        insert into post_comments (post_id, profile_id, body, bac_at_comment)
-        values (${input.postId}, ${input.profileId}, ${input.body}, ${input.bacAtComment})
+        insert into post_comments (post_id, profile_id, body, photo_url, bac_at_comment)
+        values (${input.postId}, ${input.profileId}, ${input.body}, ${input.photoUrl ?? null}, ${input.bacAtComment})
         returning *`;
       return toComment(row);
     },

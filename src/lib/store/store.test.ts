@@ -369,10 +369,14 @@ describe.each<[string, () => Promise<Store>]>([
     });
 
     const first = await store.addComment({ postId: post.id, profileId: a.id, body: "First", bacAtComment: 0.041 });
-    const second = await store.addComment({ postId: post.id, profileId: b.id, body: "Second", bacAtComment: null });
+    const photoUrl = "https://x.public.blob.vercel-storage.com/comments/b/photo.jpg";
+    const second = await store.addComment({ postId: post.id, profileId: b.id, body: "", photoUrl, bacAtComment: null });
     expect(first).toMatchObject({ postId: post.id, profileId: a.id, body: "First", bacAtComment: 0.041 });
     expect(first.createdAt).toMatch(isoPattern);
     expect(second.bacAtComment).toBeNull();
+    expect(first.photoUrl).toBeNull();
+    expect(second).toMatchObject({ body: "", photoUrl });
+    expect(await store.getComment(second.id)).toEqual(second);
 
     expect((await store.listComments(post.id)).map((c) => c.id)).toEqual([first.id, second.id]);
     expect(await store.getComment(first.id)).toEqual(first);

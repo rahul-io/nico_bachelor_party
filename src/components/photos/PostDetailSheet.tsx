@@ -1,7 +1,7 @@
 "use client";
 
-import { SendHorizontal, Trash2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { ImagePlus, SendHorizontal, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { ReactionBar } from "@/components/photos/ReactionBar";
 import { Avatar } from "@/components/ui/Avatar";
 import { inputClass } from "@/components/ui/Field";
@@ -11,14 +11,17 @@ import { useAction } from "@/hooks/useAction";
 import { usePolled } from "@/hooks/usePolled";
 import { ApiError, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { mediaRules, mediaTypeOf, megabytes } from "@/lib/media";
 import { MAX_COMMENT, type ReactionEmoji } from "@/lib/reactions";
 import type { FeedComment, FeedPost, PostDetail } from "@/lib/store/types";
 import { formatDeviceWeekdayTime } from "@/lib/time";
+import { inlinePhoto, uploadCommentPhoto } from "@/lib/upload";
 
 interface PostDetailSheetProps {
   postId: string;
   viewerId: string | undefined;
   isAdmin: boolean;
+  uploadsEnabled: boolean;
   onClose: () => void;
   onReact: (post: FeedPost, emoji: ReactionEmoji, on: boolean) => Promise<void>;
   /** Called after a comment is added or removed, so the feed's counts refresh. */
@@ -26,18 +29,54 @@ interface PostDetailSheetProps {
 }
 
 /** The opened photo: full media, who reacted, and the comment thread. Polls while open. */
-export function PostDetailSheet({ postId, viewerId, isAdmin, onClose, onReact, onChanged }: PostDetailSheetProps) {
+export function PostDetailSheet({ postId, viewerId, isAdmin, uploadsEnabled, onClose, onReact, onChanged }: PostDetailSheetProps) {
   const { data, error, mutate } = usePolled<PostDetail>(`/api/posts/${postId}`);
-  const { busy, status, run } = useAction();
+  const { busy, status, setStatus, run } = useAction();
   const [draft, setDraft] = useState("");
+  const [photo, setPhoto] = useState<{ file: File; previewUrl: string; uploadedUrl?: string } | null>(null);
+  const [progress, setProgress] = useState(0);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const previewUrl = photo?.previewUrl;
+
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  function pickPhoto(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || busy) return;
+    if (mediaTypeOf(file.type) !== "image") {
+      return setStatus({ text: "Choose a JPEG, PNG, WebP, GIF, HEIC or HEIF photo.", error: true });
+    }
+    if (file.size > mediaRules.image.maxBytes) {
+      return setStatus({ text: `Photos are limited to ${megabytes(mediaRules.image.maxBytes)}.`, error: true });
+    }
+    setStatus(null);
+    setProgress(0);
+    setPhoto({ file, previewUrl: URL.createObjectURL(file) });
+  }
 
   async function send(event: FormEvent) {
     event.preventDefault();
     const body = draft.trim();
-    if (!body) return;
-    const ok = await run(() => apiFetch(`/api/posts/${postId}/comments`, { method: "POST", body: { body } }));
+    if (busy || !viewerId || (!body && !photo)) return;
+    const ok = await run(async () => {
+      let photoUrl = photo?.uploadedUrl ?? null;
+      if (photo && !photoUrl) {
+        setProgress(0);
+        photoUrl = uploadsEnabled
+          ? await uploadCommentPhoto(photo.file, { id: viewerId }, setProgress)
+          : await inlinePhoto(photo.file);
+        // Keep the upload if saving fails, so retrying doesn't upload it again.
+        setPhoto({ ...photo, uploadedUrl: photoUrl });
+      }
+      await apiFetch(`/api/posts/${postId}/comments`, { method: "POST", body: { body, photoUrl } });
+    });
     if (ok) {
       setDraft("");
+      setPhoto(null);
+      setProgress(0);
       await mutate();
       onChanged();
     }
@@ -61,25 +100,52 @@ export function PostDetailSheet({ postId, viewerId, isAdmin, onClose, onReact, o
       footer={
         post && (
           <form onSubmit={send} className="space-y-1">
+            {photo && (
+              <div className="relative w-fit overflow-hidden rounded-control bg-navy">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local file preview */}
+                <img src={photo.previewUrl} alt="Photo to attach to your comment" className="h-24 max-w-full object-contain" />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => { setPhoto(null); setStatus(null); }}
+                  aria-label="Remove comment photo"
+                  className="absolute right-1 top-1 flex size-tap items-center justify-center rounded-full bg-navy/75 text-sand disabled:opacity-40"
+                >
+                  <X className="size-4" aria-hidden />
+                </button>
+              </div>
+            )}
             <div className="flex items-end gap-2">
+              <input ref={fileInput} type="file" accept={mediaRules.image.contentTypes.join(",")} onChange={pickPhoto} disabled={busy || !viewerId} aria-label="Choose comment photo" className="sr-only" tabIndex={-1} />
+              <button
+                type="button"
+                onClick={() => fileInput.current?.click()}
+                disabled={busy || !viewerId}
+                aria-label={photo ? "Replace comment photo" : "Add photo to comment"}
+                className="flex size-tap shrink-0 items-center justify-center rounded-control text-accent disabled:opacity-40"
+              >
+                <ImagePlus className="size-5" aria-hidden />
+              </button>
               <textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 maxLength={MAX_COMMENT}
                 rows={1}
-                placeholder="Add a comment"
+                placeholder={photo ? "Add a message (optional)" : "Add a comment"}
                 aria-label="Comment"
+                disabled={busy || !viewerId}
                 className={`${inputClass} max-h-28 py-2.5`}
               />
               <button
                 type="submit"
-                disabled={busy || !draft.trim()}
+                disabled={busy || !viewerId || (!draft.trim() && !photo)}
                 aria-label="Post comment"
                 className="flex size-tap shrink-0 items-center justify-center rounded-control bg-primary text-on-primary disabled:opacity-40"
               >
                 <SendHorizontal className="size-5" aria-hidden />
               </button>
             </div>
+            {busy && photo && <p role="status" className="px-1 text-xs text-muted">{uploadsEnabled ? `Uploading photo… ${Math.round(progress)}%` : "Posting photo…"}</p>}
             {(draft.length > 0 || status?.error) && (
               <p className={cn("px-1 text-xs tabular-nums", status?.error || remaining < 20 ? "text-danger" : "text-muted")}>
                 {status?.error ? status.text : `${remaining} characters left`}
@@ -155,7 +221,13 @@ export function PostDetailSheet({ postId, viewerId, isAdmin, onClose, onReact, o
                         )}
                         <span className="text-muted"> · {formatDeviceWeekdayTime(comment.createdAt)}</span>
                       </p>
-                      <p className="whitespace-pre-line break-words">{comment.body}</p>
+                      {comment.body && <p className="whitespace-pre-line break-words">{comment.body}</p>}
+                      {comment.photoUrl && (
+                        <a href={comment.photoUrl} target="_blank" rel="noreferrer" aria-label={`Open photo by ${comment.authorName}`} className="mt-2 block w-fit max-w-full">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- comment media served straight from Blob */}
+                          <img src={comment.photoUrl} alt={`Photo attached by ${comment.authorName}`} loading="lazy" className="max-h-72 max-w-full rounded-control object-contain" />
+                        </a>
+                      )}
                     </div>
                     {(comment.profileId === viewerId || isAdmin) && (
                       <button

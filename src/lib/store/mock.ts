@@ -496,7 +496,7 @@ export const mockStore: Store = {
   },
 
   async addComment(input) {
-    const comment: Comment = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...input };
+    const comment: Comment = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...input, photoUrl: input.photoUrl ?? null };
     data().comments.push(comment);
     return comment;
   },

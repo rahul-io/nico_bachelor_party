@@ -146,9 +146,11 @@ export default function PhotosPage() {
 
       {openId && (
         <PostDetailSheet
+          key={openId}
           postId={openId}
           viewerId={identity?.id}
           isAdmin={admin?.authed === true}
+          uploadsEnabled={feed?.uploadsEnabled ?? false}
           onClose={() => setOpenId(null)}
           onReact={react}
           onChanged={() => mutate()}
