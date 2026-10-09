@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SLOT_OUTCOMES, slotEmoji, slotNames, type SlotOutcome } from "@/lib/games/slot";
+import { SLOT_OUTCOMES, slotNames, type SlotOutcome } from "@/lib/games/slot";
 
-const TICK_MS = 80;
+const TICK_MS = 100;
 // When each reel stops, and when the overlay closes itself.
-const STOPS_MS = [900, 1400, 1900];
+const STOPS_MS = [1000, 1500, 2000];
 const SKIP_AFTER_MS = 1000;
-const CLOSE_AFTER_MS = 5200;
+const CLOSE_AFTER_MS = 5500;
+
+// Where the reel window sits in public/brand/slot/frame.webp, as a share of the
+// frame. Measured from the source artwork; see scripts/make-brand.mjs.
+const WINDOW = { left: "8.9%", top: "39.5%", width: "82.2%", height: "27.8%" };
 
 const effects: Record<SlotOutcome, string> = {
   "1x": "No change to this drink.",
@@ -19,9 +23,41 @@ const effects: Record<SlotOutcome, string> = {
   forward: "This drink's points went to someone else.",
 };
 
+const symbol = (outcome: SlotOutcome) => `/brand/slot/${outcome}.webp`;
+
+function Symbol({ outcome, className }: { outcome: SlotOutcome; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- small pre-sized brand asset
+    <img src={symbol(outcome)} alt="" draggable={false} className={className} />
+  );
+}
+
+/** One reel: a strip of every symbol running past, then the result dropping into place. */
+function Reel({ index, stopped, result }: { index: number; stopped: boolean; result: SlotOutcome }) {
+  // Each reel starts on a different symbol so the three don't run in step.
+  const order = [...SLOT_OUTCOMES.slice(index * 2), ...SLOT_OUTCOMES.slice(0, index * 2)];
+
+  return (
+    <div className="relative h-full flex-1 overflow-hidden">
+      {stopped ? (
+        <div className="flex size-full animate-reel-land items-center justify-center">
+          <Symbol outcome={result} className="h-[86%] w-auto" />
+        </div>
+      ) : (
+        // The strip is the symbols twice over, so moving it up by half loops seamlessly.
+        <div className="animate-reel blur-[1.5px]" style={{ animationDelay: `${index * -130}ms` }}>
+          {[...order, ...order].map((outcome, position) => (
+            <Symbol key={position} outcome={outcome} className="mx-auto aspect-square w-[86%]" />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
- * The three reels shown after a drink is logged. Display only: the result was
- * drawn on the server and is already in the ledger, so closing this early
+ * The slot machine shown after a drink that spins. Display only: the result
+ * was drawn on the server and is already in the ledger, so closing this early
  * changes nothing.
  */
 export function SlotReels({ outcome, forShow, onDone }: { outcome: string; forShow: boolean; onDone: () => void }) {
@@ -46,20 +82,19 @@ export function SlotReels({ outcome, forShow, onDone }: { outcome: string; forSh
       type="button"
       onClick={() => canSkip && onDone()}
       aria-label={stopped ? `${slotNames[result]}. Close` : "Spinning"}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-navy/90 px-6 text-sand"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-navy/90 px-4 text-sand"
     >
-      <div className="flex gap-3" aria-hidden>
-        {STOPS_MS.map((stop, reel) => (
-          <span
-            key={reel}
-            className="flex size-24 items-center justify-center rounded-card border-2 border-gold bg-sand text-5xl shadow-card"
-          >
-            {elapsed >= stop
-              ? slotEmoji[result]
-              : slotEmoji[SLOT_OUTCOMES[(Math.floor(elapsed / TICK_MS) + reel * 3) % SLOT_OUTCOMES.length]]}
-          </span>
-        ))}
+      <div className="relative aspect-[900/887] w-full max-w-sm" aria-hidden>
+        {/* The window is cut out of the frame, so the reels sit behind it on a sand panel. */}
+        <div className="absolute flex divide-x-2 divide-gold/60 bg-sand" style={WINDOW}>
+          {STOPS_MS.map((stop, index) => (
+            <Reel key={index} index={index} stopped={elapsed >= stop} result={result} />
+          ))}
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- small pre-sized brand asset */}
+        <img src="/brand/slot/frame.webp" alt="" draggable={false} className="pointer-events-none absolute inset-0 size-full" />
       </div>
+
       <div className="min-h-24 text-center" aria-live="polite">
         {stopped && (
           <>

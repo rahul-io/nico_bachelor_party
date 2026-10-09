@@ -81,6 +81,28 @@
     }
   }
 
+  /* Slot machine: a reel running, then its symbol dropping into place. */
+  --animate-reel: reel 0.42s linear infinite;
+  --animate-reel-land: reel-land 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+
+  @keyframes reel {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-50%);
+    }
+  }
+
+  @keyframes reel-land {
+    from {
+      transform: translateY(-45%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
   /* Double-tap reaction burst. */
   --animate-pop: pop 0.7s ease-out forwards;
 
@@ -184,6 +206,11 @@ body::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .animate-reel,
+  .animate-reel-land {
+    animation: none !important;
+  }
+
   * {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;

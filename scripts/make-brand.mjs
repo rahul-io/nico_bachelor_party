@@ -50,3 +50,27 @@ for (const [source, name, crop] of marks) {
   const info = await sharp(cut).trim().webp({ quality: 90 }).toFile(out(name));
   console.log(`${out(name)}  ${info.width}x${info.height}  ${Math.round(info.size / 1024)} KB`);
 }
+
+/**
+ * Slot machine artwork (design/brand/slot). The seven symbols keep their
+ * 512 px canvas so they stay the same size relative to each other. The frame
+ * is cropped to its artwork; SlotReels.tsx places the reels over its window,
+ * which sits at x 96–983, y 520–815 of the 1080 × 1440 source.
+ */
+import { mkdirSync } from "node:fs";
+
+mkdirSync("public/brand/slot", { recursive: true });
+for (const name of ["1x", "2x", "3x", "bust", "jackpot", "rob", "forward"]) {
+  const file = `public/brand/slot/${name}.webp`;
+  const info = await sharp(`design/brand/slot/slot-${name}.png`).resize({ width: 192 }).webp({ quality: 90 }).toFile(file);
+  console.log(`${file}  ${info.width}x${info.height}  ${Math.round(info.size / 1024)} KB`);
+}
+{
+  const file = "public/brand/slot/frame.webp";
+  const info = await sharp("design/brand/slot/slot-frame.webp")
+    .extract({ left: 0, top: 100, width: 1080, height: 1064 })
+    .resize({ width: 900 })
+    .webp({ quality: 88 })
+    .toFile(file);
+  console.log(`${file}  ${info.width}x${info.height}  ${Math.round(info.size / 1024)} KB`);
+}
