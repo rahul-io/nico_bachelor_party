@@ -412,7 +412,12 @@ describe("badges against the store", () => {
       ["Bucket Brigade", "merit", 10],
       ["Leave No Trace", "merit", 5],
     ]);
-    expect(named("Wooden Spoon")).toMatchObject({ kind: "achievement", source: "coded", points: 5 });
+    expect(named("Wooden Spoon")).toMatchObject({ kind: "achievement", source: "coded", points: 5, imageUrl: null });
+    // The obscure set has crests. A badge seeded before its crest existed (no image stored) still picks it up.
+    expect(badges.filter((badge) => badge.hidden).every((badge) => badge.imageUrl === `/brand/badges/${badge.slug}.webp`)).toBe(true);
+    const stored = (globalThis as { __mockData?: { records: Array<{ kind: string; data: Record<string, unknown> }> } }).__mockData!.records;
+    stored.filter((record) => record.kind === "badge" && record.data.slug === "blaze-it").forEach((record) => (record.data.imageUrl = null));
+    expect((await badgeNamed("Blaze It")).imageUrl).toBe("/brand/badges/blaze-it.webp");
     expect(named("Shot Caller")?.rule).toEqual({ type: "count", what: { kind: "drink", category: "shot" }, n: 5, window: "day" });
     expect(await badgeNamed("Sleeping Beauty")).toMatchObject({ points: 10, imageUrl: "/brand/badges/sleeping-beauty.webp" });
     expect(await badgeNamed("Triple Kill")).toMatchObject({ points: 2, kind: "merit" });

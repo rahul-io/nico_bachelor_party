@@ -547,7 +547,7 @@ How it turned out, where it differs from the plan above or matters later:
 
 #### M13 addendum: 46 more badges (built 2026-10-09)
 
-Peter's second and third lists, bringing the seeded set to 60. None has artwork yet; each shows its emoji.
+Peter's second and third lists, bringing the seeded set to 60. The 15 obscure badges have crests (supplied 2026-10-09, in `design/brand/badges/`); the other 31 show their emoji until artwork arrives. A crest added to `seed.ts` after a badge was seeded reaches the existing badge through `seedImage()`, since seeding only happens once.
 
 - **Rule-based (9):** Groomsman of the Year, Most Wanted, Whale, The House, Robin Hood, Rat King, Reply Guy, Sommelier (all "most … that day") and Shot Caller (5 shots in a day). The builder's "Most" list gained six metrics to express them: comments, different drinks, points staked on wagers, net wager winnings, points stolen with the slot machine, Snitch Line reports upheld.
 - **Coded achievements (4):** Early Bird, Night Owl, Influencer, Wooden Spoon.

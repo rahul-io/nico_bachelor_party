@@ -165,7 +165,7 @@ export const seedBadges: Seed[] = [
     false,
   ),
 
-  // ---- Added 2026-10-09. None of these has artwork yet, so each shows its emoji. ----
+  // ---- Added 2026-10-09. Only the obscure ones have artwork so far (see LATER_ARTWORK); the rest show their emoji. ----
 
   // Achievements: one holder a day.
   rule("groomsman-of-the-year", "Groomsman of the Year", "🤵", "Most Groom Taxes that day.", { type: "most", metric: "groomTaxes" }, false),
@@ -222,3 +222,21 @@ export const seedBadges: Seed[] = [
   manual("bucket-brigade", "Bucket Brigade", "🪣", "Helped clean up after a fire.", "merit", 10),
   manual("leave-no-trace", "Leave No Trace", "🧹", "Cleaning.", "merit", 5),
 ];
+
+/** Crests that arrived after their badge was first seeded (the obscure set, 2026-10-09). */
+const LATER_ARTWORK = [
+  "nice", "blaze-it", "jinx", "groundhog-day", "perfectly-balanced", "butterfingers", "mad-scientist", "uno-reverse",
+  "self-own", "regicide", "lazarus", "midnight-snack", "same-time-tomorrow", "sunday-scaries", "nice-ii",
+];
+for (const seed of seedBadges) {
+  if (LATER_ARTWORK.includes(seed.slug)) seed.imageUrl = image(seed.slug);
+}
+
+/**
+ * The crest a seeded badge should show when the database has none for it.
+ * Badges are only seeded once, so artwork added to this file later reaches
+ * existing badges through this rather than through the seed.
+ */
+export function seedImage(slug: string | null): string | null {
+  return seedBadges.find((seed) => seed.slug === slug)?.imageUrl ?? null;
+}

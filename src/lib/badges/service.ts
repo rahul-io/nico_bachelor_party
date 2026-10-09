@@ -25,7 +25,7 @@ import {
   type World,
 } from "./rules";
 import { CODED_ACHIEVEMENTS, CUMULATIVE, codedHolder, detect } from "./extra";
-import { seedBadges } from "./seed";
+import { seedBadges, seedImage } from "./seed";
 
 /**
  * Badges against the store. Definitions and awards are `game_records`:
@@ -81,7 +81,8 @@ function toBadge(record: GameRecord): Badge {
     name: str(d.name),
     description: str(d.description),
     emoji: str(d.emoji) || "🏅",
-    imageUrl: str(d.imageUrl) || null,
+    // No image of its own: fall back to the seeded crest, if one has been added since.
+    imageUrl: str(d.imageUrl) || seedImage(str(d.slug) || null),
     kind: d.kind === "achievement" ? "achievement" : "merit",
     source: d.source === "rule" || d.source === "coded" ? d.source : "manual",
     rule: (d.rule as Rule | null | undefined) ?? null,
