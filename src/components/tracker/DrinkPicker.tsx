@@ -1,6 +1,6 @@
 "use client";
 
-import { Beer, GlassWater, Martini, Search, Wine, X, type LucideIcon } from "lucide-react";
+import { Beer, BottleWine, GlassWater, Martini, Search, Wine, X, type LucideIcon } from "lucide-react";
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -17,8 +17,9 @@ import {
 import type { DrinkInput } from "@/lib/store/types";
 import type { FoodFactsDrink } from "@/lib/open-food-facts";
 
-const quickPicks: Array<{ label: string; icon: LucideIcon; drink: () => DrinkInput }> = [
-  { label: "Beer", icon: Beer, drink: () => categoryDrink("beer") },
+const quickPicks: Array<{ label: string; icon: LucideIcon; drink: () => DrinkInput; editable?: boolean }> = [
+  { label: "Beer", icon: Beer, drink: () => ({ ...categoryDrink("beer"), category: "beer" }), editable: true },
+  { label: "Liquor", icon: BottleWine, drink: () => ({ name: "Liquor", volumeOz: 2, abv: 0.4, alcoholG: 0, category: "shot" }), editable: true },
   { label: "Wine", icon: Wine, drink: () => categoryDrink("wine") },
   { label: "Cocktail", icon: Martini, drink: () => categoryDrink("cocktail") },
   { label: "Standard", icon: GlassWater, drink: () => standardDrink() },
@@ -30,6 +31,7 @@ const optionClass =
 export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<void> }) {
   const [query, setQuery] = useState("");
   const [showOther, setShowOther] = useState(false);
+  const [selectedQuick, setSelectedQuick] = useState<DrinkInput | null>(null);
   const [volume, setVolume] = useState("");
   const [abv, setAbv] = useState("");
   const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
@@ -46,8 +48,18 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
     setQuery(value);
     setOnline(null);
     setSelected(null);
+    setSelectedQuick(null);
     setVolume("");
     setAbv("");
+  }
+
+  function selectQuick(drink: DrinkInput) {
+    changeQuery("");
+    setShowOther(false);
+    setSelectedQuick(drink);
+    setStatus(null);
+    setAbv(String((drink.abv ?? 0) * 100));
+    setVolume(String(drink.volumeOz ?? ""));
   }
 
   async function searchOnline() {
@@ -91,17 +103,23 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
       setStatus({ text: "Enter 0.1–128 oz and an ABV between 0.1 and 100%.", error: true });
       return;
     }
-    log({ name: selected?.name || typed || "Custom drink", volumeOz, abv: abvPercent / 100, alcoholG: 0 });
+    log({
+      name: selectedQuick?.name || selected?.name || typed || "Custom drink",
+      volumeOz,
+      abv: abvPercent / 100,
+      alcoholG: 0,
+      ...(selectedQuick ? { category: selectedQuick.category } : {}),
+    });
   }
 
   return (
     <Card className="space-y-3">
-      <div className="grid grid-cols-4 gap-2">
-        {quickPicks.map(({ label, icon: Icon, drink }) => (
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        {quickPicks.map(({ label, icon: Icon, drink, editable }) => (
           <button
             key={label}
             type="button"
-            onClick={() => log(drink())}
+            onClick={() => editable ? selectQuick(drink()) : log(drink())}
             className={cn(optionClass, "gap-1 py-3 text-sm font-medium")}
           >
             <Icon className="size-6 text-accent" aria-hidden />
@@ -109,6 +127,20 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
           </button>
         ))}
       </div>
+
+      {selectedQuick && (
+        <form onSubmit={submitCustom} className="space-y-3 rounded-control border border-line p-3">
+          <p className="font-medium">{selectedQuick.name}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="ABV" suffix="%" inputMode="decimal" required value={abv}
+              onChange={(event) => setAbv(event.target.value)} />
+            <Field label="Volume" suffix="oz" inputMode="decimal" required value={volume}
+              onChange={(event) => setVolume(event.target.value)} />
+          </div>
+          <Button type="submit" variant="primary" block>Add {selectedQuick.name.toLowerCase()}</Button>
+          <Button type="button" variant="ghost" block onClick={() => changeQuery("")}>Cancel</Button>
+        </form>
+      )}
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted" aria-hidden />
@@ -208,7 +240,7 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
         </div>
       )}
 
-      {!selected && (noMatch || showOther) ? (
+      {!selected && !selectedQuick && (noMatch || showOther) ? (
         <div className="space-y-3">
           <p className="text-sm text-muted">
             {noMatch ? `No match for “${typed}”. Log it as:` : "Log it as:"}
@@ -255,7 +287,7 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
             </Button>
           </form>
         </div>
-      ) : !selected && (
+      ) : !selected && !selectedQuick && (
         <Button variant="ghost" block onClick={() => { setSelected(null); setShowOther(true); }}>
           Something else or custom
         </Button>
