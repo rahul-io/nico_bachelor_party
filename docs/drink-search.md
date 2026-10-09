@@ -1,8 +1,10 @@
 # Drink search
 
-The tracker searches the curated local catalog instantly. **Search more drinks**
+The tracker searches the curated local catalog instantly. Selecting a local drink
+opens the same editable volume and ABV form as the generic Beer selection, with
+the drink's catalog defaults filled in. **Search more drinks**
 adds up to 20 matching alcoholic products from Open Food Facts. Selecting a
-product opens a confirmation form: enter the amount consumed in ounces and
+product opens a confirmation form: adjust the default 12 oz amount consumed and
 confirm its label ABV. Missing ABV stays blank. Package quantities are displayed
 for identification only and never used as the consumed amount.
 

@@ -80,7 +80,7 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
   function selectOnline(drink: FoodFactsDrink) {
     setSelected(drink);
     setShowOther(false);
-    setVolume("");
+    setVolume(String(categoryDefaults.beer.volumeOz));
     setAbv(drink.abvPercent === null ? "" : String(drink.abvPercent));
   }
 
@@ -172,7 +172,7 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
             <li key={drink.name}>
               <button
                 type="button"
-                onClick={() => log({ ...drink, alcoholG: 0 })}
+                onClick={() => selectQuick({ ...drink, alcoholG: 0 })}
                 className="flex min-h-tap w-full items-center justify-between gap-3 bg-raised px-3 py-2 text-left active:bg-line"
               >
                 <span className="font-medium">{drink.name}</span>
@@ -231,7 +231,7 @@ export function DrinkPicker({ onAdd }: { onAdd: (drink: DrinkInput) => Promise<v
           <p className="text-sm text-muted">Enter how much you drank and check the ABV on the label.</p>
           <a href={`https://world.openfoodfacts.org/product/${selected.code}`} target="_blank" rel="noreferrer" className="text-sm text-muted underline">View product</a>
           <form onSubmit={submitCustom} className="flex items-end gap-2">
-            <Field label="Amount drank" suffix="oz" inputMode="decimal" required value={volume}
+            <Field label="Volume" suffix="oz" inputMode="decimal" required value={volume}
               onChange={(event) => setVolume(event.target.value)} placeholder="12" />
             <Field label="ABV" suffix="%" inputMode="decimal" required value={abv}
               onChange={(event) => setAbv(event.target.value)} placeholder="5" />
