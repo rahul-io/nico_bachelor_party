@@ -408,7 +408,8 @@ export function createPostgresStore(sql: Sql): Store {
 
     async getSetting(key) {
       const rows = await sql`select value from app_settings where key = ${key}`;
-      return rows[0] ? json(rows[0].value) : null;
+      // The driver already decodes jsonb, including scalar strings such as the groom's profile ID.
+      return rows[0]?.value ?? null;
     },
 
     async setSetting(key, value) {

@@ -488,6 +488,15 @@ describe.each<[string, () => Promise<Store>]>([
     expect(await store.getSetting(key)).toEqual({});
   });
 
+  it("preserves scalar and array settings without parsing strings again", async () => {
+    const store = await makeStore();
+    const key = `test.${crypto.randomUUID()}`;
+    for (const value of ["10d34567-89ab-4cde-8123-456789abcdef", "", "123", "null", '"quoted"', 0, false, null, [1, "two"]]) {
+      await store.setSetting(key, value);
+      expect(await store.getSetting(key)).toEqual(value);
+    }
+  });
+
   it("keeps game records with a guarded status change", async () => {
     const store = await makeStore();
     const { profile } = await store.createProfile(person);
